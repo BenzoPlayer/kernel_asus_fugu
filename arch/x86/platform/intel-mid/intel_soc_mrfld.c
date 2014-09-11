@@ -193,6 +193,8 @@ void platform_update_all_lss_states(struct pmu_ss_states *pmu_config,
 	pmu_config->pmu2_states[1] =
 				(SSMSK(D0I3_MASK, PMU_RESERVED_LSS_16-16)|
 				SSMSK(D0I3_MASK, PMU_SSP3_LSS_17-16)|
+				SSMSK(D0I3_MASK, PMU_SSP5_LSS_18-16)|
+				SSMSK(D0I3_MASK, PMU_SSP6_LSS_19-16)|
 				SSMSK(D0I3_MASK, PMU_USB_OTG_LSS_28-16)	|
 				SSMSK(D0I3_MASK, PMU_RESERVED_LSS_29-16)|
 				SSMSK(D0I3_MASK, PMU_RESERVED_LSS_30-16));
