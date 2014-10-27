@@ -91,6 +91,9 @@ typedef struct _SYNC_PRIM_LOCAL_
 {
 	SYNC_PRIM_BLOCK			*psSyncBlock;	/*!< Synchronisation block this primitive is allocated on */
 	IMG_UINT64				uiSpanAddr;		/*!< Span address of the sync */
+#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
+	IMG_HANDLE				hRecord;		/*!< Sync record handle */
+#endif
 } SYNC_PRIM_LOCAL;
 
 typedef struct _SYNC_PRIM_SERVER_

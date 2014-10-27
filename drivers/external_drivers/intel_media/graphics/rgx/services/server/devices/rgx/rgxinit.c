@@ -2600,7 +2600,6 @@ static PVRSRV_ERROR RGXDevInitCompatCheck(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_
 	{
 		PVR_LOG(("%s: Reading RGX META register failed. Is the GPU correctly powered up? (%u)",
 				__FUNCTION__, eError));
-		PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, IMG_NULL);
 		goto chk_exit;
 	}
 
@@ -2609,7 +2608,6 @@ static PVRSRV_ERROR RGXDevInitCompatCheck(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_
 		eError = PVRSRV_ERROR_META_THREAD0_NOT_ENABLED;
 		PVR_DPF((PVR_DBG_ERROR,"%s: RGX META is not running. Is the GPU correctly powered up? %d (%u)",
 				__FUNCTION__, psRGXFWInit->sRGXCompChecks.bUpdated, eError));
-		PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, IMG_NULL);
 		goto chk_exit;
 	}
 	
@@ -2618,7 +2616,6 @@ static PVRSRV_ERROR RGXDevInitCompatCheck(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_
 		eError = PVRSRV_ERROR_TIMEOUT;
 		PVR_DPF((PVR_DBG_ERROR,"%s: Missing compatibility info from FW (%u)",
 				__FUNCTION__, eError));
-		PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, IMG_NULL);
 		goto chk_exit;
 	}
 #endif

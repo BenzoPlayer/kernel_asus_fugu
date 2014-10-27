@@ -680,7 +680,8 @@ IMG_INTERNAL IMG_VOID SyncPrimContextDestroy(PSYNC_PRIM_CONTEXT hSyncPrimContext
 }
 
 IMG_INTERNAL PVRSRV_ERROR SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
-										PVRSRV_CLIENT_SYNC_PRIM **ppsSync)
+										PVRSRV_CLIENT_SYNC_PRIM **ppsSync,
+										const IMG_CHAR *pszClassName)
 {
 	SYNC_PRIM_CONTEXT *psContext = hSyncPrimContext;
 	SYNC_PRIM_BLOCK *psSyncBlock;
@@ -712,6 +713,38 @@ IMG_INTERNAL PVRSRV_ERROR SyncPrimAlloc(PSYNC_PRIM_CONTEXT hSyncPrimContext,
 	SyncPrimGetCPULinAddr(psNewSync);
 	*ppsSync = &psNewSync->sCommon;
 
+#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
+	{
+		IMG_CHAR szClassName[SYNC_MAX_CLASS_NAME_LEN];
+		if(pszClassName)
+		{
+			/* Copy the class name annotation into a fixed-size array */
+			OSStringNCopy(szClassName, pszClassName, SYNC_MAX_CLASS_NAME_LEN - 1);
+			szClassName[SYNC_MAX_CLASS_NAME_LEN - 1] = 0;
+		}
+		else
+		{
+			/* No class name annotation */
+			szClassName[0] = 0;
+		}
+		/* record this sync */
+		eError = BridgeSyncRecordAdd(
+					psSyncBlock->psContext->hBridge,
+					&psNewSync->u.sLocal.hRecord,
+					psSyncBlock->hServerSyncPrimBlock,
+					psSyncBlock->ui32FirmwareAddr,
+					SyncPrimGetOffset(psNewSync),
+#if defined(__KERNEL__)
+					IMG_TRUE,
+#else
+					IMG_FALSE,
+#endif
+					OSStringNLength(szClassName, SYNC_MAX_CLASS_NAME_LEN),
+					szClassName);
+	}
+#else
+	PVR_UNREFERENCED_PARAMETER(pszClassName);
+#endif /* if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING) */
 
 	return PVRSRV_OK;
 
@@ -732,6 +765,14 @@ IMG_INTERNAL IMG_VOID SyncPrimFree(PVRSRV_CLIENT_SYNC_PRIM *psSync)
 
 	if (psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL)
 	{
+#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
+		PVRSRV_ERROR eError;
+		/* remove this sync record */
+		eError = BridgeSyncRecordRemoveByHandle(
+						psSyncInt->u.sLocal.psSyncBlock->psContext->hBridge,
+						psSyncInt->u.sLocal.hRecord);
+		PVR_ASSERT(PVRSRV_OK == eError);
+#endif
 		SyncPrimLocalFree(psSyncInt);
 	}
 	else if (psSyncInt->eType == SYNC_PRIM_TYPE_SERVER)

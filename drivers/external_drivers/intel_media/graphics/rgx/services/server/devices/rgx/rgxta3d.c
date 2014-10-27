@@ -152,6 +152,7 @@ PVRSRV_ERROR _DestroyTAContext(RGX_SERVER_RC_TA_DATA *psTAData,
 		PVR_LOG(("%s: Unexpected error from RGXFWRequestCommonContextCleanUp (%s)",
 				__FUNCTION__,
 				PVRSRVGetErrorStringKM(eError)));
+		return eError;
 	}
 
 	/* ... it has so we can free it's resources */
@@ -200,6 +201,7 @@ PVRSRV_ERROR _Destroy3DContext(RGX_SERVER_RC_3D_DATA *ps3DData,
 		PVR_LOG(("%s: Unexpected error from RGXFWRequestCommonContextCleanUp (%s)",
 				 __FUNCTION__,
 				 PVRSRVGetErrorStringKM(eError)));
+		return eError;
 	}
 
 	/* ... it has so we can free it's resources */
@@ -968,7 +970,8 @@ PVRSRV_ERROR RGXCreateHWRTData(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
 	/* Allocate cleanup sync */
 	eError = SyncPrimAlloc(psDeviceNode->hSyncPrimContext,
-						   &psTmpCleanup->psCleanupSync);
+						   &psTmpCleanup->psCleanupSync,
+						   "HWRTData cleanup");
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"RGXCreateHWRTData: Failed to allocate cleanup sync (0x%x)",
@@ -1244,7 +1247,8 @@ PVRSRV_ERROR RGXCreateFreeList(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
 	/* Allocate cleanup sync */
 	eError = SyncPrimAlloc(psDeviceNode->hSyncPrimContext,
-						   &psFreeList->psCleanupSync);
+						   &psFreeList->psCleanupSync,
+						   "ta3d free list cleanup");
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"RGXCreateFreeList: Failed to allocate cleanup sync (0x%x)",
@@ -1704,7 +1708,8 @@ PVRSRV_ERROR RGXCreateZSBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	OSMemSet(psZSBuffer, 0, sizeof(*psZSBuffer));
 
 	eError = SyncPrimAlloc(psDeviceNode->hSyncPrimContext,
-						   &psZSBuffer->psCleanupSync);
+						   &psZSBuffer->psCleanupSync,
+						   "ta3d zs buffer cleanup");
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"RGXCreateZSBufferKM: Failed to allocate cleanup sync (0x%x)",
@@ -2380,7 +2385,8 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 
 	/* Allocate cleanup sync */
 	eError = SyncPrimAlloc(psDeviceNode->hSyncPrimContext,
-						   &psRenderContext->psCleanupSync);
+						   &psRenderContext->psCleanupSync,
+						   "ta3d render context cleanup");
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVRGXCreateRenderContextKM: Failed to allocate cleanup sync (0x%x)",

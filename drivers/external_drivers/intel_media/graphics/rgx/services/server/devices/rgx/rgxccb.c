@@ -277,7 +277,11 @@ PVRSRV_ERROR RGXCreateCCB(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	psClientCCB->psClientCCBCtrl->ui32ReadOffset = 0;
 	psClientCCB->psClientCCBCtrl->ui32DepOffset = 0;
 	psClientCCB->psClientCCBCtrl->ui32WrapMask = ui32AllocSize - 1;
-	OSSNPrintf(psClientCCB->szName, MAX_CLIENT_CCB_NAME, "%s-%s-%d", pszName, OSGetCurrentProcessNameKM(), OSGetCurrentThreadIDKM());
+	OSSNPrintf(psClientCCB->szName, MAX_CLIENT_CCB_NAME, "%s-P%lu-T%lu-%s",
+									pszName,
+									(unsigned long) OSGetCurrentProcessIDKM(),
+									(unsigned long) OSGetCurrentThreadIDKM(),
+									OSGetCurrentProcessNameKM());
 
 	PDUMPCOMMENT("cCCB control");
 	DevmemPDumpLoadMem(psClientCCB->psClientCCBCtrlMemDesc,

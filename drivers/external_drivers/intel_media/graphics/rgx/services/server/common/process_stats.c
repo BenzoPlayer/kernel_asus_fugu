@@ -1127,6 +1127,7 @@ PVRSRVStatsRegisterProcess(IMG_HANDLE* phProcessStats)
 {
     PVRSRV_PROCESS_STATS*  psProcessStats;
     IMG_PID                currentPid = OSGetCurrentProcessIDKM();
+    IMG_BOOL               bMoveProcess = IMG_FALSE;
 
     PVR_ASSERT(phProcessStats != IMG_NULL);
 
@@ -1139,9 +1140,8 @@ PVRSRVStatsRegisterProcess(IMG_HANDLE* phProcessStats)
 		_RemoveProcessStatsFromList(psProcessStats);
 		_AddProcessStatsToFrontOfLiveList(psProcessStats);
 		
-		/* Transfer the OS entries back to the folder for live processes... */
-		_RemoveOSStatisticEntries(psProcessStats);
-		_CreateOSStatisticEntries(psProcessStats, pvOSLivePidFolder);
+		/* we can perform the OS operation out of lock */
+		bMoveProcess = IMG_TRUE;
 	}
 	else
 	{
@@ -1159,6 +1159,15 @@ PVRSRVStatsRegisterProcess(IMG_HANDLE* phProcessStats)
 		OSLockRelease(psLinkedListLock);
 
 		*phProcessStats = psProcessStats;
+
+		/* Check if we need to perform any OS operation */
+		if (bMoveProcess)
+		{
+			/* Transfer the OS entries back to the folder for live processes... */
+			_RemoveOSStatisticEntries(psProcessStats);
+			_CreateOSStatisticEntries(psProcessStats, pvOSLivePidFolder);
+		}
+
 		return PVRSRV_OK;
 	}
 	OSLockRelease(psLinkedListLock);

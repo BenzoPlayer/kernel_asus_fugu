@@ -103,7 +103,8 @@ SyncPrimContextDestroy(PSYNC_PRIM_CONTEXT hSyncPrimContext);
 /*****************************************************************************/
 PVRSRV_ERROR
 SyncPrimAlloc(PSYNC_PRIM_CONTEXT		hSyncPrimContext,
-			  PVRSRV_CLIENT_SYNC_PRIM	**ppsSync);
+			  PVRSRV_CLIENT_SYNC_PRIM	**ppsSync,
+			  const IMG_CHAR 		*pszClassName);
 
 /*************************************************************************/ /*!
 @Function       SyncPrimFree

@@ -274,7 +274,7 @@ _AddEntryToPool(struct page *psPage, IMG_UINT32 ui32CPUCacheFlags)
 	        list_add(&psEntry->sPagePoolItem, psPoolHead);
 	        g_ui32ZeroPageEntries++;
 	} else {
-	        list_add_tail(&psEntry->sPagePoolItem, psPoolHead);
+	list_add_tail(&psEntry->sPagePoolItem, psPoolHead);
 	}
 
 	g_ui32PagePoolEntryCount++;
@@ -317,7 +317,7 @@ _RemoveFirstEntryFromPool(IMG_UINT32 ui32CPUCacheFlags, IMG_BOOL bFlush)
 
 	PVR_ASSERT(g_ui32PagePoolEntryCount > 0);
 	if (bFlush) {
-		psPagePoolEntry = list_first_entry(psPoolHead, LinuxPagePoolEntry, sPagePoolItem);
+	psPagePoolEntry = list_first_entry(psPoolHead, LinuxPagePoolEntry, sPagePoolItem);
 		if (!psPagePoolEntry->bPageZero) {
 			/* we don't have zero pages at this list */
 			goto unlock_exit;
@@ -432,7 +432,11 @@ _ScanObjectsInPagePool(struct shrinker *psShrinker, struct shrink_control *psShr
 	remain = g_ui32PagePoolEntryCount;
 	_PagePoolUnlock();
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
 	return remain;
+#else
+	return psShrinkControl->nr_to_scan - uNumToScan;
+#endif
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
@@ -747,7 +751,6 @@ _AllocOSPage(IMG_UINT32 ui32CPUCacheFlags,
 			 IMG_BOOL *pbPageFromPool)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
-	//IMG_PVOID pvPageVAddr;  JB
 	struct page *psPage = IMG_NULL;
 	*pbPageFromPool = IMG_FALSE;
 
@@ -785,6 +788,8 @@ _AllocOSPage(IMG_UINT32 ui32CPUCacheFlags,
 		*/
 		if (psPage != IMG_NULL)
 		{
+			IMG_PVOID pvPageVAddr;
+
 			pvPageVAddr = kmap(psPage);
 
 			if (ui32CPUCacheFlags != PVRSRV_MEMALLOCFLAG_CPU_CACHED)
@@ -830,6 +835,8 @@ _AllocOSPage(IMG_UINT32 ui32CPUCacheFlags,
 		*/
 		if (psPage != IMG_NULL  &&  gfp_flags & __GFP_ZERO)
 		{
+			IMG_PVOID pvPageVAddr;
+
 			pvPageVAddr = kmap(psPage);
 			memset(pvPageVAddr, 0, PAGE_SIZE);
 
@@ -910,7 +917,7 @@ _FreeOSPage(IMG_UINT32 ui32CPUCacheFlags,
 	{
 #if defined(CONFIG_X86)
 		pvPageVAddr = page_address(psPage);
-		if (pvPageVAddr && (bUnsetMemoryType == IMG_TRUE))
+		if (pvPageVAddr && bUnsetMemoryType == IMG_TRUE)
 		{
 			int ret;
 
@@ -952,9 +959,9 @@ _AllocOSPages(struct _PMR_OSPAGEARRAY_DATA_ **ppsPageArrayDataPtr)
 
     if (apsUnsetPages == NULL)
     {
-       PVR_DPF((PVR_DBG_ERROR, "physmem_osmem_linux.c: Could not allocate temporary structure, system probably OOM"));
-       eError = PVRSRV_ERROR_OUT_OF_MEMORY;
-       goto e_exit;
+    	PVR_DPF((PVR_DBG_ERROR, "physmem_osmem_linux.c: Could not allocate temporary structure, system probably OOM"));
+    	eError = PVRSRV_ERROR_OUT_OF_MEMORY;
+    	goto e_exit;
     }
 
 #endif
@@ -975,7 +982,7 @@ _AllocOSPages(struct _PMR_OSPAGEARRAY_DATA_ **ppsPageArrayDataPtr)
     gfp_flags = GFP_KERNEL | __GFP_NOWARN | __GFP_NOMEMALLOC;
 
 #if defined(CONFIG_X86_64)
-	gfp_flags |= __GFP_DMA32;
+    gfp_flags |= __GFP_DMA32;
 #else
     gfp_flags |= __GFP_HIGHMEM;
 #endif
@@ -1222,6 +1229,7 @@ _FreeOSPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData)
 		}
 #endif
 #endif
+
 
 		/* Only zero order pages can be managed in the pool */
 		if (uiOrder == 0)

@@ -274,7 +274,7 @@ static IMG_VOID _DCDisplayContextReleaseRef(DC_DISPLAY_CONTEXT *psDisplayContext
 		DC_DEVICE *psDevice = psDisplayContext->psDevice;
 
 		PVRSRVUnregisterDbgRequestNotify(psDisplayContext->hDebugNotify);
-	
+
 		dllist_remove_node(&psDisplayContext->sListNode);
 		PVR_DPF((PVR_DBG_ERROR, "_DCDisplayContextReleaseRef: %p", psDisplayContext));
 
@@ -520,7 +520,7 @@ static IMG_VOID _DCDisplayContextConfigure(IMG_PVOID hReadyData,
 	}
 #endif /* DC_DEBUG */
 
-	/* 
+	/*
 	 * Note: A risk exists that _DCDisplayContextConfigure may be called simultaneously
 	 *       from both SCPRun (MISR context) and DCDisplayContextFlush.
 	 *       This lock ensures no concurrent calls are made to pfnContextConfigure.
@@ -1292,7 +1292,7 @@ PVRSRV_ERROR DCDisplayContextCreate(DC_DEVICE *psDevice,
 	}
 
 	*ppsDisplayContext = psDisplayContext;
-	
+
 	/* store pointer to first/only display context, required for DCDisplayContextFlush */
 	dllist_add_to_tail(&g_sDisplayContextsList, &psDisplayContext->sListNode);
 
@@ -1754,7 +1754,7 @@ PVRSRV_ERROR DCDisplayContextDestroy(DC_DISPLAY_CONTEXT *psDisplayContext)
 	{
 		return eError;
 	}
-	
+
 	_DCDisplayContextReleaseRef(psDisplayContext);
 
 	return PVRSRV_OK;
@@ -2164,7 +2164,7 @@ IMG_VOID DCDisplayConfigurationRetired(IMG_HANDLE hConfigData)
 	OSLockAcquire(psDisplayContext->hLock);
 	if ( !psData->bDirectNullFlip )
 	{
-		psDisplayContext->ui32TokenIn++;
+	psDisplayContext->ui32TokenIn++;
 	}
 
 #if defined SUPPORT_DC_COMPLETE_TIMEOUT_DEBUG

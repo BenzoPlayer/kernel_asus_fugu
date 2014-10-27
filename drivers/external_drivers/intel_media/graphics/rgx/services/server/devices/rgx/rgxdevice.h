@@ -281,8 +281,9 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 	/* Poll data for detecting firmware fatal errors */
 	IMG_UINT32  aui32CrLastPollAddr[RGXFW_THREAD_NUM];
-	IMG_UINT32  ui32KCCBLastROff[RGXFWIF_DM_MAX];
-	IMG_UINT32  ui32LastGEOTimeouts;
+	IMG_UINT32  ui32KCCBCmdsExecutedLastTime;
+	IMG_BOOL    bKCCBCmdsWaitingLastTime;
+	IMG_UINT32  ui32GEOTimeoutsLastTime;
 
 
 	/* Timer Queries */

@@ -68,9 +68,12 @@ extern "C" {
  * multiple of 64 bits, 8 bytes to allow the FW to write 8 byte quantities
  * at 8 byte aligned addresses.  BLD_ASSERT() is used to check this.
  */
+ 
 /*! Type used to encode the event that generated the HW performance packet.
  * NOTE: When this type is updated the corresponding hwperfbin2json tool source
  * needs to be updated as well. Also need to update the table in rgxhwperf.c.
+ * The RGX_HWPERF_EVENT_MASK_* macros will also need updating when adding new
+ * types.
  */
 typedef enum
 {
@@ -78,37 +81,37 @@ typedef enum
 	/* FW types 0x01..0x07 */
 	RGX_HWPERF_FW_BGSTART			= 0x01,
 	RGX_HWPERF_FW_BGEND				= 0x02,
-
 	RGX_HWPERF_FW_IRQSTART			= 0x03,
-	RGX_HWPERF_FW_IRQEND			= 0x04,
 
+	RGX_HWPERF_FW_IRQEND			= 0x04,
 	RGX_HWPERF_FW_DBGSTART			= 0x05,
 	RGX_HWPERF_FW_DBGEND			= 0x06,
 
-	/* HW types 0x08..0x17 */
+	/* HW types 0x08..0x18 */
 	RGX_HWPERF_HW_TAKICK			= 0x08,
 	RGX_HWPERF_HW_TAFINISHED		= 0x09,
-
 	RGX_HWPERF_HW_3DTQKICK			= 0x0A,
-	RGX_HWPERF_HW_3DTQFINISHED		= 0x17,
-	RGX_HWPERF_HW_3DSPMKICK			= 0x11,
+/*	RGX_HWPERF_HW_3DTQFINISHED		= 0x17, */
+/*	RGX_HWPERF_HW_3DSPMKICK			= 0x11, */
+/*	RGX_HWPERF_HW_3DSPMFINISHED		= 0x18, */
 	RGX_HWPERF_HW_3DKICK			= 0x0B,
-	RGX_HWPERF_HW_3DFINISHED		= 0x0C,
 
+	RGX_HWPERF_HW_3DFINISHED		= 0x0C,
 	RGX_HWPERF_HW_CDMKICK			= 0x0D,
 	RGX_HWPERF_HW_CDMFINISHED		= 0x0E,
-
 	RGX_HWPERF_HW_TLAKICK			= 0x0F,
-	RGX_HWPERF_HW_TLAFINISHED		= 0x10,
-	/* in use, see above			= 0x11 */
-	RGX_HWPERF_HW_PERIODIC			= 0x12,
-	
-	RGX_HWPERF_HW_RTUKICK			= 0x13,
-	RGX_HWPERF_HW_RTUFINISHED		= 0x14,
 
+	RGX_HWPERF_HW_TLAFINISHED		= 0x10,
+	RGX_HWPERF_HW_3DSPMKICK			= 0x11,
+	RGX_HWPERF_HW_PERIODIC			= 0x12,
+	RGX_HWPERF_HW_RTUKICK			= 0x13,
+	
+	RGX_HWPERF_HW_RTUFINISHED		= 0x14,
 	RGX_HWPERF_HW_SHGKICK			= 0x15,
 	RGX_HWPERF_HW_SHGFINISHED		= 0x16,
-	/* in use, see above			= 0x17 */
+	RGX_HWPERF_HW_3DTQFINISHED		= 0x17,
+
+	RGX_HWPERF_HW_3DSPMFINISHED		= 0x18,
 
 	/* other types 0x1A..0x1F */
 	RGX_HWPERF_CLKS_CHG				= 0x1A,
@@ -281,7 +284,7 @@ RGX_FW_STRUCT_SIZE_ASSERT(RGX_HWPERF_HW_DATA_FIELDS)
 #define RGX_HWPERF_EVENT_MASK_NONE          (IMG_UINT64_C(0x0000000000000000))
 #define RGX_HWPERF_EVENT_MASK_ALL           (IMG_UINT64_C(0xFFFFFFFFFFFFFFFF))
 #define RGX_HWPERF_EVENT_MASK_ALL_FW        (IMG_UINT64_C(0x000000000000007E))
-#define RGX_HWPERF_EVENT_MASK_HW_KICKFINISH (IMG_UINT64_C(0x0000000000FBFF00))
+#define RGX_HWPERF_EVENT_MASK_HW_KICKFINISH (IMG_UINT64_C(0x0000000001FBFF00))
 #define RGX_HWPERF_EVENT_MASK_HW_PERIODIC   (IMG_UINT64_C(0x0000000000040000))
 #define RGX_HWPERF_EVENT_MASK_ALL_HW        (RGX_HWPERF_EVENT_MASK_HW_KICKFINISH \
                                             | RGX_HWPERF_EVENT_MASK_HW_PERIODIC)

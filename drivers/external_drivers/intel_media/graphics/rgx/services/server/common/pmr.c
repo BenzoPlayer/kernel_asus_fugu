@@ -607,15 +607,14 @@ PVRSRV_ERROR
 PMRUnlockSysPhysAddresses(PMR *psPMR)
 {
     PVRSRV_ERROR eError2;
-    IMG_UINT32 uiLockCount;
 
     PVR_ASSERT(psPMR != IMG_NULL);
 
 	OSLockAcquire(psPMR->hLock);
 	PVR_ASSERT(psPMR->uiLockCount > 0);
-	uiLockCount = --psPMR->uiLockCount;
+	psPMR->uiLockCount--;
 
-    if (uiLockCount == 0)
+    if (psPMR->uiLockCount == 0)
     {
         if (psPMR->psFuncTab->pfnUnlockPhysAddresses != IMG_NULL)
         {
@@ -626,6 +625,7 @@ PMRUnlockSysPhysAddresses(PMR *psPMR)
             PVR_ASSERT(eError2 == PVRSRV_OK);
         }
     }
+
 	OSLockRelease(psPMR->hLock);
 
     /* We also count the locks as references, so that the PMR is not

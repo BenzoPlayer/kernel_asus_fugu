@@ -95,6 +95,7 @@ enum {
     RESMAN_TYPE_MODIFY_SYNC_OPS,					/*!< Syncobject synchronisation Resource*/
     RESMAN_TYPE_SYNC_INFO,					        /*!< Syncobject Resource*/
 	PVRSRV_HANDLE_TYPE_DEV_PRIV_DATA,				/*!< Private Data Resource*/
+	RESMAN_TYPE_SYNC_RECORD_HANDLE,					/*!< Sync record handle */
 	RESMAN_TYPE_SYNC_PRIMITIVE,						/*!< Sync primitive resource */
 	RESMAN_TYPE_SYNC_PRIMITIVE_BLOCK,				/*!< Sync primitive block resource */
 	RESMAN_TYPE_SERVER_SYNC_PRIMITIVE,				/*!< Server sync primitive resource */

@@ -226,6 +226,7 @@ typedef struct _RGXFWIF_TRACEBUF_
 	IMG_UINT32              ui32LastDropOrdinal; /* The ordinal of the last packet the FW dropped */
 
 	IMG_UINT32				ui32InterruptCount;
+	IMG_UINT32				ui32KCCBCmdsExecuted;
     IMG_UINT64 RGXFW_ALIGN	ui64StartIdleTime;
 } RGXFWIF_TRACEBUF;
 
@@ -310,9 +311,12 @@ typedef enum _RGX_HWRTYPE_
 #if !defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE)
 	RGX_HWRTYPE_BIF0FAULT	 	= 3,
 	RGX_HWRTYPE_BIF1FAULT	 	= 4,
+#if defined(RGX_FEATURE_CLUSTER_GROUPING)
+	RGX_HWRTYPE_TEXASBIF0FAULT	= 5,
+#endif
 #else
-	RGX_HWRTYPE_MMUFAULT	 	= 5,
-	RGX_HWRTYPE_MMUMETAFAULT	= 6,
+	RGX_HWRTYPE_MMUFAULT	 	= 6,
+	RGX_HWRTYPE_MMUMETAFAULT	= 7,
 #endif
 } RGX_HWRTYPE;
 

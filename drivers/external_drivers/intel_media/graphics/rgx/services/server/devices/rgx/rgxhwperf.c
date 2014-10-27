@@ -468,7 +468,7 @@ PVRSRV_ERROR RGXHWPerfInit(PVRSRV_DEVICE_NODE *psRgxDevNode, IMG_BOOL bEnable)
 	 * 
 	 * However in the case of NO_HARDWARE the L2 buffer will not be used.
 	 * By reducing the size of the L2 buffer we can support a larger L1 buffer size
-	 * since on a 32-bit system, vmalloc memory is limitted.
+	 * since on a 32-bit system, vmalloc memory is limited.
 	 */
 #if defined(NO_HARDWARE)
 	ui32L2BufferSize = 0;
@@ -1121,12 +1121,13 @@ static IMG_BOOL ValidFTraceEvent(RGX_HWPERF_V2_PACKET_HDR* psHWPerfPkt,
 			{ /* RGX_HWPERF_HW_SHGKICK */      "SHG",    PVR_GPUTRACE_SWITCH_TYPE_BEGIN },
 			{ /* RGX_HWPERF_HW_SHGFINISHED */  "SHG",    PVR_GPUTRACE_SWITCH_TYPE_END },
 			{ /* RGX_HWPERF_HW_3DTQFINISHED */ "TQ3D",   PVR_GPUTRACE_SWITCH_TYPE_END },
+			{ /* RGX_HWPERF_HW_3DSPMFINISHED */ "3DSPM", PVR_GPUTRACE_SWITCH_TYPE_END },
 	};
 
 	PVR_ASSERT(psHWPerfPkt);
 
 	eType = RGX_HWPERF_GET_TYPE(psHWPerfPkt);
-	if ((eType < RGX_HWPERF_HW_TAKICK) || (eType > RGX_HWPERF_HW_3DTQFINISHED))
+	if ((eType < RGX_HWPERF_HW_TAKICK) || (eType > RGX_HWPERF_HW_3DSPMFINISHED))
 	{
 		/* No map entry, ignore event */
 		PVR_DPF((PVR_DBG_VERBOSE, "ValidFTraceEvent: Unsupported event type %d %02d",

@@ -56,6 +56,7 @@ typedef struct _SERVER_SYNC_PRIMITIVE_ SERVER_SYNC_PRIMITIVE;
 typedef struct _SYNC_PRIMITIVE_BLOCK_ SYNC_PRIMITIVE_BLOCK;
 typedef struct _SERVER_SYNC_EXPORT_ SERVER_SYNC_EXPORT;
 typedef struct _SYNC_CONNECTION_DATA_ SYNC_CONNECTION_DATA;
+typedef struct SYNC_RECORD* SYNC_RECORD_HANDLE;
 
 PVRSRV_ERROR
 PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
@@ -115,6 +116,19 @@ PVRSRVSyncPrimServerSecureImportKM(IMG_SECURE_TYPE hSecure,
 
 IMG_UINT32 PVRSRVServerSyncRequesterRegisterKM(IMG_UINT32 *pui32SyncRequesterID);
 IMG_VOID PVRSRVServerSyncRequesterUnregisterKM(IMG_UINT32 ui32SyncRequesterID);
+
+PVRSRV_ERROR
+PVRSRVSyncRecordAddKM(
+			SYNC_RECORD_HANDLE * phRecord,
+			SYNC_PRIMITIVE_BLOCK * hServerSyncPrimBlock,
+			IMG_UINT32 ui32FwBlockAddr,
+			IMG_UINT32 ui32SyncOffset,
+			IMG_BOOL bServerSync,
+			IMG_UINT32 ui32ClassNameSize,
+			const IMG_CHAR *pszClassName);
+PVRSRV_ERROR
+PVRSRVSyncRecordRemoveByHandleKM(
+			SYNC_RECORD_HANDLE hRecord);
 
 PVRSRV_ERROR
 PVRSRVServerSyncAllocKM(PVRSRV_DEVICE_NODE *psDevNode,
