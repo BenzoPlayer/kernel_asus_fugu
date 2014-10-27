@@ -92,4 +92,5 @@ int DCCBIsPipeActive(struct drm_device *dev, int pipe);
 void DCCBDsrForbid(struct drm_device *dev, int pipe);
 void DCCBDsrAllow(struct drm_device *dev, int pipe);
 int DCCBUpdateCursorPos(struct drm_device *dev, int pipe, uint32_t pos);
+int DCCBDumpPipeStatus(struct drm_device *dev, int pipe);
 #endif				/* __DC_CALLBACKS_H__ */

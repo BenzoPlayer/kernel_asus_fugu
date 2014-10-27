@@ -528,6 +528,7 @@ static void timer_flip_handler(struct work_struct *work)
 	bool bHasUpdatedFlip[MAX_PIPE_NUM] = { false };
 	bool bHasDisplayedFlip[MAX_PIPE_NUM] = { false };
 	bool bHasPendingCommand[MAX_PIPE_NUM] = { false };
+	struct drm_device *dev;
 
 	if (!gpsDevice)
 		return;
@@ -556,6 +557,9 @@ static void timer_flip_handler(struct work_struct *work)
 
 		if (bHasUpdatedFlip[iPipe]) {
 			DRM_INFO("flip timer triggered, maybe vsync lost on pipe%d!\n", iPipe);
+			dev = gpsDevice->psDrmDevice;
+			if (dev != NULL)
+				DCCBDumpPipeStatus(dev, iPipe);
 		} else if (bHasDisplayedFlip[iPipe] && bHasPendingCommand[iPipe]) {
 			DRM_INFO("flip timer triggered, scp cmd pending on pipe%d!\n", iPipe);
 		}

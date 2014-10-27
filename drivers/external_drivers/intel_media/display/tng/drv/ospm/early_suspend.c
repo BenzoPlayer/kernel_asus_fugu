@@ -61,14 +61,21 @@ static void gfx_early_suspend(struct early_suspend *h)
 
 		if (encoder->encoder_type == DRM_MODE_ENCODER_TMDS) {
 			DCLockMutex();
-			drm_handle_vblank(dev, 1);
 
+			DC_MRFLD_onPowerOff(1);
+			/* give time to the last flip to take effective, if we
+			 * disable hardware too quickly, overlay hardware may
+			 * crash, causing pipe hang next time when we try to
+			 * use overlay
+			 */
+			msleep(50);
+
+			drm_handle_vblank(dev, 1);
 			/* Turn off vsync interrupt. */
 			drm_vblank_off(dev, 1);
 
 			/* Make the pending flip request as completed. */
 			DCUnAttachPipe(1);
-			DC_MRFLD_onPowerOff(1);
 			DCUnLockMutex();
 		}
 	}
@@ -105,7 +112,7 @@ static void gfx_late_resume(struct early_suspend *h)
 		enc_funcs = encoder->helper_private;
 		if (!drm_helper_encoder_in_use(encoder))
 			continue;
-		if (enc_funcs && enc_funcs->save)
+		if (enc_funcs && enc_funcs->restore)
 			enc_funcs->restore(encoder);
 	}
 
@@ -117,9 +124,11 @@ static void gfx_late_resume(struct early_suspend *h)
 	 * when system suspend,re-detect once here.
 	 */
 	if (android_hdmi_is_connected(dev)) {
+		DCLockMutex();
 		DCAttachPipe(1);
 		DC_MRFLD_onPowerOn(1);
 		mid_hdmi_audio_resume(dev);
+		DCUnLockMutex();
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);

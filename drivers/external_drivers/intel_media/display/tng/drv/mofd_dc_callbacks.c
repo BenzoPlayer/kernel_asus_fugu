@@ -648,8 +648,8 @@ int DCCBOverlayEnable(struct drm_device *dev, u32 ctx,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct mdfld_dsi_config *dsi_config = NULL;
 	struct mdfld_dsi_hw_context *dsi_ctx;
-	int pipe;
 #endif
+	int pipe;
 	u32 ovadd_reg = OV_OVADD;
 	u32 ovstat_reg = OV_DOVASTA;
 	u32 power_islands = OSPM_DISPLAY_A;
@@ -665,9 +665,8 @@ int DCCBOverlayEnable(struct drm_device *dev, u32 ctx,
 		power_islands |= OSPM_DISPLAY_C;
 	}
 
-#ifdef CONFIG_SUPPORT_MIPI
 	pipe = _GetPipeFromOvadd(ctx);
-
+#ifdef CONFIG_SUPPORT_MIPI
 	if (!enabled) {
 		if (pipe == 0)
 			dsi_config = dev_priv->dsi_configs[0];
@@ -686,8 +685,8 @@ int DCCBOverlayEnable(struct drm_device *dev, u32 ctx,
 
 	if (power_island_get(power_islands)) {
 		/*make sure previous flip was done*/
-#if 0
 		_OverlayWaitFlip(dev, ovstat_reg, index, pipe);
+#if 0
 		_OverlayWaitVblank(dev, pipe);
 #endif
 
@@ -1072,3 +1071,41 @@ int DCCBUpdateCursorPos(struct drm_device *dev, int pipe, uint32_t pos)
 	return 0;
 }
 
+int DCCBDumpPipeStatus(struct drm_device *dev, int pipe)
+{
+	u32 power_island = 0;
+	u32 reg_offset = 0;
+
+	switch (pipe) {
+	case 0:
+		power_island = OSPM_DISPLAY_A;
+		reg_offset = 0;
+		break;
+	case 1:
+		power_island = OSPM_DISPLAY_B;
+		reg_offset = 0x1000;
+		break;
+	case 2:
+		power_island = OSPM_DISPLAY_C;
+		reg_offset = 0x2000;
+		break;
+	default:
+		DRM_ERROR("%s: invalid pipe %d\n", __func__, pipe);
+		return -1;
+	}
+
+	if (!power_island_get(power_island)) {
+		DRM_ERROR("%s: failed to get power island for pipe %d\n", __func__, pipe);
+		return -1;
+	}
+
+	DRM_INFO("========= status on pipe%d ========\n", pipe);
+	DRM_INFO("vblank_refcount = %u\n", atomic_read(&dev->vblank_refcount[pipe]));
+	DRM_INFO("vblank_count = %u\n", drm_vblank_count(dev, pipe));
+	DRM_INFO("PIPECONF = 0x%08x\n", REG_READ(PIPEACONF+reg_offset));
+	DRM_INFO("PIPESTAT = 0x%08x\n\n", REG_READ(PIPEASTAT+reg_offset));
+	DRM_INFO("===================================\n");
+
+	power_island_put(power_island);
+	return 0;
+}
