@@ -90,8 +90,7 @@ static int try_to_freeze_tasks(bool user_only)
 	} else if (todo) {
 		printk("\n");
 		printk(KERN_ERR "Freezing of tasks failed after %d.%03d seconds"
-		       " (%d tasks refusing to freeze, wq_busy=%d, ",
-		       "wq_name=%s):\n", wakeup ? "aborted" : "failed",
+		       " (%d tasks refusing to freeze, wq_busy=%d, wq_name=%s):\n",
 		       elapsed_msecs / 1000, elapsed_msecs % 1000,
 		       todo - wq_busy, wq_busy, wq_busy ? "" : busy_wq_name);
 
