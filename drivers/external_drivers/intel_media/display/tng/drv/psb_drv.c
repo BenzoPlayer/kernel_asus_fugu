@@ -106,6 +106,27 @@ static void power_up(int pm_reg, u32 pm_mask) {
 }
 /* Hack to Turn GFX islands up - END */
 
+/*
+	IED clean-up handling:
+	With Monkey stress test, user space gets killed
+	multiple time. Google PlayMovies App tries to
+	restart playback once MediaServer is back. For every
+	new instance, a new file descriptor is used.
+	g_ied_context can track upto MAX_IED_SESSION file
+	descriptors for clean-up. In future, we should make
+	insert/delete to be smart.
+*/
+#define MAX_IED_SESSION 100
+struct file *g_ied_context[MAX_IED_SESSION];
+/* index for g_ied_context */
+uint32_t g_ied_context_index;
+/* DC driver ied_ref count */
+uint32_t g_ied_ref;
+/* Flag used during Overlay Disabling to clear IED*/
+uint32_t g_ied_force_clean;
+/* Mutex to access ied globals */
+struct mutex g_ied_mutex;
+
 int drm_psb_debug;
 int drm_decode_flag = 0x0;
 int drm_psb_enable_pr2_cabc = 1;
@@ -1540,9 +1561,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	bdev = &dev_priv->bdev;
 
 	hdmi_state = 0;
-	dev_priv->ied_enabled = false;
-	dev_priv->ied_force_clean = false;
-	dev_priv->ied_context = NULL;
+
+	memset(g_ied_context, 0x0, sizeof(g_ied_context));
+	g_ied_ref = 0;
+	g_ied_force_clean = 0;
+	g_ied_context_index = 0;
 
 	drm_hdmi_hpd_auto = 0;
 
@@ -1558,6 +1581,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	mutex_init(&dev_priv->temp_mem);
 	mutex_init(&dev_priv->cmdbuf_mutex);
+	mutex_init(&g_ied_mutex);
 	mutex_init(&dev_priv->reset_mutex);
 	INIT_LIST_HEAD(&dev_priv->decode_context.validate_list);
 	INIT_LIST_HEAD(&dev_priv->encode_context.validate_list);
@@ -2089,8 +2113,8 @@ static int psb_csc_gamma_setting_ioctl(struct drm_device *dev, void *data,
 static int psb_enable_ied_session_ioctl(struct drm_device *dev, void *data,
 						struct drm_file *file_priv)
 {
-	struct drm_psb_private *dev_priv = psb_priv(dev);
 #ifdef CONFIG_SUPPORT_MIPI
+	struct drm_psb_private *dev_priv = psb_priv(dev);
 	struct mdfld_dsi_config *dsi_config = dev_priv->dsi_configs[0];
 #endif
 
@@ -2101,13 +2125,17 @@ static int psb_enable_ied_session_ioctl(struct drm_device *dev, void *data,
 		return -1;
 	}
 
-	if (dev_priv->ied_enabled) {
-		DRM_ERROR("%s: ied_enabled has been set.\n", __func__);
-		return 0;
+	mutex_lock(&g_ied_mutex);
+	g_ied_context[g_ied_context_index++] = file_priv->filp;
+	g_ied_ref++;
+	if (g_ied_context_index == MAX_IED_SESSION) {
+		DRM_ERROR("ied_ctx_index == MAX_IED_SESSION!!!");
+		g_ied_context_index = 0;
 	}
-
-	dev_priv->ied_enabled = true;
-	dev_priv->ied_context = file_priv->filp;
+	DRM_INFO("Enable IED: ied_ref: %d ied_ctx_index: %d\n",
+			g_ied_ref, g_ied_context_index);
+	DRM_INFO("ied_ctx[ied_ref]: %p\n", g_ied_context[g_ied_ref]);
+	mutex_unlock(&g_ied_mutex);
 
 	if (power_island_get(OSPM_DISPLAY_A)) {
 #ifdef CONFIG_SUPPORT_MIPI
@@ -2130,8 +2158,10 @@ static int psb_disable_ied_session_ioctl(struct drm_device *dev, void *data,
 					struct drm_file *file_priv)
 {
 	int ret = 0;
-	struct drm_psb_private *dev_priv = psb_priv(dev);
+	int i = 0;
+	bool ied_context_found = false;
 #ifdef CONFIG_SUPPORT_MIPI
+	struct drm_psb_private *dev_priv = psb_priv(dev);
 	struct mdfld_dsi_config *dsi_config = dev_priv->dsi_configs[0];
 #endif
 
@@ -2142,15 +2172,6 @@ static int psb_disable_ied_session_ioctl(struct drm_device *dev, void *data,
 		return -1;
 	}
 
-	if (dev_priv->ied_enabled == false) {
-		DRM_ERROR("%s: ied_enabled is not set.\n", __func__);
-		return 0;
-	}
-
-	if (dev_priv->ied_context != file_priv->filp) {
-		DRM_ERROR("%s: Wrong context.\n", __func__);
-		return -1;
-	}
 
 	if (power_island_get(OSPM_DISPLAY_A)) {
 		REG_WRITE(PSB_IED_DRM_CNTL_STATUS, 0);
@@ -2160,8 +2181,27 @@ static int psb_disable_ied_session_ioctl(struct drm_device *dev, void *data,
 
 		power_island_put(OSPM_DISPLAY_A);
 
-		dev_priv->ied_enabled = false;
-		dev_priv->ied_context = NULL;
+		mutex_lock(&g_ied_mutex);
+		if (!g_ied_ref) {
+			DRM_ERROR("%s: ied_ref: %d\n", __func__, g_ied_ref);
+			mutex_unlock(&g_ied_mutex);
+			return 0;
+		}
+		for (i = 0; i < MAX_IED_SESSION; i++) {
+			if (g_ied_context[i] == file_priv->filp) {
+				if (g_ied_ref)
+					g_ied_ref--;
+			DRM_INFO("Disable IED: ied_ref:%d\
+				g_ied_context:%p\n",
+				g_ied_ref, g_ied_context[i]);
+			ied_context_found = true;
+			break;
+			}
+		}
+		if (!ied_context_found)
+			DRM_ERROR("ied_ref:%d ied_context not found!\n",
+				g_ied_ref);
+		mutex_unlock(&g_ied_mutex);
 		ret = 0;
 	} else {
 		DRM_ERROR("%s: Failed to power on display island.\n", __func__);
@@ -4198,11 +4238,18 @@ int psb_release(struct inode *inode, struct file *filp)
 
 	/* Set flag to clean-up platform IED state as
 		user space component might have died*/
-	if ((dev_priv->ied_context == file_priv->filp) &&
-					dev_priv->ied_enabled) {
-		dev_priv->ied_force_clean = true;
-		dev_priv->ied_context = NULL;
+	mutex_lock(&g_ied_mutex);
+	for (i = 0; i < MAX_IED_SESSION; i++) {
+		if (g_ied_context[i] == file_priv->filp) {
+			g_ied_force_clean = true;
+			DRM_INFO("ied_ref: %d g_ied_context: %p\
+				ied_force_clean = TRUE\n",
+				g_ied_ref, g_ied_context[i]);
+			break;
+		}
 	}
+	mutex_unlock(&g_ied_mutex);
+
 #if 0
 	/*cleanup for msvdx */
 	if (msvdx_priv->tfile == BCVideoGetPriv(file_priv)->tfile) {

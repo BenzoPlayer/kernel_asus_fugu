@@ -1075,13 +1075,6 @@ struct drm_psb_private {
 	*/
 	void *hdmi_priv;
 
-	/* indicate whether IED session is active */
-	/* Maximum one active IED session at any given time */
-	bool ied_enabled;
-	bool ied_force_clean;
-	/* indicate which source sets ied_enabled flag */
-	struct file *ied_context;
-
 #define DRM_PSB_HDMI_FLIP_ARRAY_SIZE 4
 	void *flip_array[DRM_PSB_HDMI_FLIP_ARRAY_SIZE];
 	unsigned int addr_array[DRM_PSB_HDMI_FLIP_ARRAY_SIZE];

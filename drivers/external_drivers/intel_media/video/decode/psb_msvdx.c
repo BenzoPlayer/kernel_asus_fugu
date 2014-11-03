@@ -199,6 +199,7 @@ static int psb_msvdx_map_command(struct drm_device *dev,
 		header = (union msg_header *)cmd;
 		cur_cmd_size = header->bits.msg_size;
 		cur_cmd_id = header->bits.msg_type;
+
 		PSB_DEBUG_GENERAL("cmd start at %p cur_cmd_size = %d"
 				  " cur_cmd_id = %02x fence = %08x\n",
 				  cmd, cur_cmd_size,

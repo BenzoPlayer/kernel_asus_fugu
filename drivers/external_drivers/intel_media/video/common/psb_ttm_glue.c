@@ -43,6 +43,11 @@
 #include "vsp.h"
 #endif
 
+/* IED Clean-up Handling */
+extern uint32_t g_ied_ref;
+extern uint32_t g_ied_force_clean;
+extern struct mutex g_ied_mutex;
+extern int sepapp_drm_playback(bool ied_status);
 static int ied_enabled;
 
 static void ann_rm_workaround_ctx(struct drm_psb_private *dev_priv, uint64_t ctx_type);
@@ -503,6 +508,20 @@ int psb_video_getparam(struct drm_device *dev, void *data,
 					(ctx_type & VA_RT_FORMAT_PROTECTED));
 		if (ctx_type & VA_RT_FORMAT_PROTECTED)
 			ied_enabled = 1;
+		else {
+			mutex_lock(&g_ied_mutex);
+			DRM_INFO("Video: ied_ref: %d\n", g_ied_ref);
+			while (g_ied_ref) {
+				ret = sepapp_drm_playback(false);
+				if (ret) {
+					DRM_ERROR("IED Clean-up \
+						Failed:0x%x\n", ret);
+					break;
+				}
+				g_ied_ref--;
+			}
+			mutex_unlock(&g_ied_mutex);
+		}
 		break;
 	case IMG_VIDEO_RM_CONTEXT:
 		psb_remove_videoctx(dev_priv, file_priv->filp);

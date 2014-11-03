@@ -59,6 +59,11 @@ static DC_MRFLD_DEVICE *gpsDevice;
 /* Timeout for Flip Watchdog */
 #define FLIP_TIMEOUT (HZ/4)
 
+/* IED Clean-up Handling */
+extern uint32_t g_ied_ref;
+extern uint32_t g_ied_force_clean;
+extern struct mutex g_ied_mutex;
+
 struct power_off_req {
 	struct delayed_work work;
 	struct plane_state *pstate;
@@ -455,10 +460,8 @@ static bool disable_unused_planes(int pipe)
 
 static void disable_ied_session(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
 	/* Make sure overlay planes are in-active prior to turning off IED */
-	if (dev_priv->ied_force_clean) {
+	if (g_ied_force_clean) {
 		struct plane_state *oa_state =
 			&gpsDevice->plane_states[DC_OVERLAY_PLANE][0];
 		struct plane_state *oc_state =
@@ -466,17 +469,21 @@ static void disable_ied_session(struct drm_device *dev)
 		uint32_t ret = 0;
 		if ((oa_state->active == false) &&
 			(oc_state->active == false)) {
-			uint8_t i = MAX_IED_SESSIONS;
-			do {
+			DRM_INFO("%s: ied_ref: %d\n", __func__, g_ied_ref);
+			mutex_lock(&g_ied_mutex);
+			while (g_ied_ref) {
+				DRM_INFO("disable_ied_session - ied_ref: %d\n",
+						g_ied_ref);
 				ret = sepapp_drm_playback(false);
 				if (ret) {
-					DRM_ERROR("sepapp_drm_playback failed\
-						IED clean-up: 0x%x\n", ret);
+					DRM_ERROR("IED Clean-up \
+						Failed: 0x%x\n", ret);
 					break;
 				}
-			} while (i--);
-			dev_priv->ied_enabled = false;
-			dev_priv->ied_force_clean = false;
+				g_ied_ref--;
+			}
+			g_ied_force_clean = false;
+			mutex_unlock(&g_ied_mutex);
 		}
 	}
 }
