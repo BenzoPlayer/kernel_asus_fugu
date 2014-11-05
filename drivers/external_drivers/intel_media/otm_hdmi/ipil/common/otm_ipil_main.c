@@ -759,6 +759,22 @@ void ipil_hdmi_save_data_island(hdmi_device_t *dev)
 		ips_hdmi_save_data_island(dev);
 }
 
+/**
+ * Description:	get vic data from data island packets
+ *
+ * @dev:	hdmi_device_t
+ *
+ * Returns:	vic
+ */
+uint8_t ipil_hdmi_get_vic_from_data_island(hdmi_device_t *dev)
+{
+	if (NULL != dev)
+		return ips_hdmi_get_vic_from_data_island(dev);
+
+	return 0;
+}
+
+
 /*
  * Description: destroys any saved HDMI data
  *

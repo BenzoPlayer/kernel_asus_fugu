@@ -1014,9 +1014,23 @@ static int calculate_refresh_rate(struct drm_display_mode *mode)
  */
 static bool query_fw_hdmi_setting(struct drm_device *dev,
 				  uint32_t *hdisplay,
-				  uint32_t *vdisplay)
+				  uint32_t *vdisplay,
+				  uint8_t *vic,
+				  int * monitor_type)
 {
 	uint32_t htotal, vtotal;
+	struct drm_psb_private *dev_priv;
+	struct android_hdmi_priv *hdmi_priv;
+
+	if (NULL == dev)
+		return false;
+	dev_priv = dev->dev_private;
+	if (NULL == dev_priv)
+		return false;
+	hdmi_priv = dev_priv->hdmi_priv;
+	if (NULL == hdmi_priv)
+		return false;
+
 
 	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
 				OSPM_UHB_FORCE_POWER_ON))
@@ -1025,11 +1039,18 @@ static bool query_fw_hdmi_setting(struct drm_device *dev,
 	htotal = REG_READ(HTOTAL_B);
 	vtotal = REG_READ(VTOTAL_B);
 
+	*vic = otm_hdmi_get_vic(hdmi_priv->context);
+
+	if (REG_READ(VIDEO_DIP_CTL) & EN_DIP)
+		*monitor_type = MONITOR_TYPE_HDMI;
+	else
+		*monitor_type = MONITOR_TYPE_DVI;
+
 	if (htotal != 0 && vtotal != 0) {
 		*hdisplay = ((htotal + 1) << 16) >> 16;
 		*vdisplay = ((vtotal + 1) << 16) >> 16;
-	        pr_info("%s:fw set htotal=0x%x vtotal=0x%x!\n",
-				__func__, htotal, vtotal);
+	        pr_info("%s:fw set htotal=0x%x vtotal=0x%x! vic=%d monitor_type=%d\n",
+				__func__, htotal, vtotal, *vic, *monitor_type);
 	}
 
 	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
@@ -2010,12 +2031,16 @@ bool android_hdmi_mode_fixup(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct android_hdmi_priv *hdmi_priv = dev_priv->hdmi_priv;
+
 	otm_hdmi_timing_t otm_mode;
 	uint32_t hdisplay = 0;
 	uint32_t vdisplay = 0;
+	uint8_t vic = 0;
+	int monitor_type = MONITOR_TYPE_HDMI;
 
 	if (dev_priv->hdmi_first_boot) {
-		query_fw_hdmi_setting(dev, &hdisplay, &vdisplay);
+		query_fw_hdmi_setting(dev, &hdisplay, &vdisplay, &vic, &monitor_type);
 		__android_hdmi_drm_mode_to_otm_timing(&otm_mode, (struct drm_display_mode *)mode);
 
 		if (mode->hdisplay == 640 &&
@@ -2028,8 +2053,8 @@ bool android_hdmi_mode_fixup(struct drm_encoder *encoder,
 			dev_priv->hdmi_first_boot = false;
 		} else if (hdisplay == mode->hdisplay &&
 					vdisplay == mode->vdisplay &&
-					(otm_mode.metadata == 4 || otm_mode.metadata == 16)) {
-			/* FW only supports 640x480p@60Hz, 720p@60Hz and 1080p@60Hz */
+					(otm_mode.metadata == vic) &&
+					(monitor_type == hdmi_priv->monitor_type)) {
 			pr_info("%s: skip first boot !\n", __func__);
 			dev_priv->hdmi_first_boot = true;
 		} else {

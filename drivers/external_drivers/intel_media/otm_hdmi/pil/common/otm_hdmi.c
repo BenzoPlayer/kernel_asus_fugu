@@ -1807,6 +1807,21 @@ void otm_hdmi_save_display_registers(void *context, bool connected)
 }
 
 /**
+ * get vic from HDMI display registers
+ * @context	:hdmi_context
+ *
+ * Returns:	vic
+ */
+uint8_t otm_hdmi_get_vic(void *context)
+{
+	pr_debug("Entered %s\n", __func__);
+	if (NULL != context)
+		return ipil_hdmi_get_vic_from_data_island(&((hdmi_context_t *)context)->dev);
+	return 0;
+}
+
+
+/**
  * notify security component of hdcp and hdmi cable status
  *
  * @hdcp	HDCP status: true if phase1 is enabled

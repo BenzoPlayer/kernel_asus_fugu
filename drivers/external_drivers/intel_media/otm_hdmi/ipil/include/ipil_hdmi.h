@@ -234,6 +234,15 @@ void ipil_hdmi_save_display_registers(hdmi_device_t *dev);
 void ipil_hdmi_save_data_island(hdmi_device_t *dev);
 
 /**
+ * Description:	get vic data from data island packets
+ *
+ * @dev:	hdmi_device_t
+ *
+ * Returns:	vic
+ */
+uint8_t ipil_hdmi_get_vic_from_data_island(hdmi_device_t *dev);
+
+/**
  * Description: restore HDMI display registers and enable display
  *
  * @dev:	hdmi_device_t

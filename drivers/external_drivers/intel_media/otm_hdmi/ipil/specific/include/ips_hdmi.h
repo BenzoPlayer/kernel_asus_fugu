@@ -194,6 +194,16 @@ void ips_hdmi_save_display_registers(hdmi_device_t *dev);
 void ips_hdmi_save_data_island(hdmi_device_t *dev);
 
 /**
+ * Description:	get vic data from data island packets
+ *
+ * @dev:	hdmi_device_t
+ *
+ * Returns:	vic
+ */
+uint8_t ips_hdmi_get_vic_from_data_island(hdmi_device_t *dev);
+
+
+/**
  * Description: destroys any saved HDMI data
  *
  * @dev:        hdmi_device_t

@@ -226,7 +226,7 @@ otm_hdmi_ret_t otm_hdmi_infoframes_set_avi(void *context,
 
 	/* Fill Video Identification Code [adjust VIC according to PAR] */
 	vic = mode->metadata;
-	avi_pkt.data[4] = vic;
+	avi_pkt.data[AVI_VIC_LOC] = vic;
 
 	/* Fill pixel repetition value: 2x for 480i and 546i */
 	p = ((mode->mode_info_flags & PD_SCAN_INTERLACE) == 0);

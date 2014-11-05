@@ -430,6 +430,15 @@ otm_hdmi_ret_t otm_hdmi_disable_all_infoframes(void *context);
  */
 void otm_hdmi_save_display_registers(void *context, bool connected);
 
+/**
+ * get vic from HDMI display registers
+ * @context	:hdmi_context
+ *
+ * Returns:	vic
+ */
+uint8_t otm_hdmi_get_vic(void *context);
+
+
 /*
  * Description: disable HDMI display
  *
@@ -518,6 +527,8 @@ typedef enum {
 #define PD_SVBI               0x00000010 /* Software VBI supported timings    */
 #define PD_AR_16_BY_9         OTM_HDMI_PAR_16_9 /* 16:9 aspect ratio          */
 #define OTM_HDMI_COLOR_RANGE_MASK	0x0c
+
+#define AVI_VIC_LOC 4
 
 /*
  * Description: report edid tool helper function
