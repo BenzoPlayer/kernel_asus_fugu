@@ -246,28 +246,47 @@ static irqreturn_t __hdmi_irq_handler_bottomhalf(void *data)
 		struct drm_connector *connector = NULL;
 		struct i2c_adapter *adapter = NULL;
 		bool hdmi_status = 0;
+		bool current_status = 0;
+		int hdmi_detect_count = 3;
+		int hdmi_detect_sleep_time= 0;
+		int hdmi_detect_exit_count = 50;
 		char *uevent_string = NULL;
 
 		otm_hdmi_power_rails_on();
+
 		/* Check HDMI status, read EDID only if connected */
 		hdmi_status = otm_hdmi_get_cable_status(hdmi_priv->context);
 
-		/* if the cable status has not changed return */
-		if (hdmi_status == processed_hdmi_status) {
+		/* shorten sleep time for hdcp comppliance test 1a-02 */
+		hdmi_detect_sleep_time = (hdmi_status == false) ? 10 : 60;
+
+		do {
+			/* Debounce for at least 60ms in order for the
+			* cable status to have stabilized for next detection.
+			* Check its status to make sure same for 3 times.
+			*/
+			msleep(hdmi_detect_sleep_time);
+			current_status =
+				otm_hdmi_get_cable_status(hdmi_priv->context);
+			if (hdmi_status != current_status) {
+				hdmi_status = current_status;
+				hdmi_detect_count = 3;
+				hdmi_detect_sleep_time =
+					(hdmi_status == false) ? 10 : 60;
+			}
+		} while (hdmi_detect_count-- && hdmi_detect_exit_count--);
+
+		/* if the cable status has not changed/stable return */
+		if (hdmi_status == processed_hdmi_status ||
+			hdmi_detect_exit_count == 0) {
+			if (hdmi_detect_exit_count == 0)
+				pr_err("HDMI Cable status not stable!");
 			if (!hdmi_status)
 				otm_hdmi_power_rails_off();
 			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
 			return IRQ_HANDLED;
 		}
 
-		if (hdmi_status) {
-			/* Debounce for atleast 60ms in order for the
-			* cable status to have stabilized
-			*/
-			msleep(60);
-			hdmi_status =
-				otm_hdmi_get_cable_status(hdmi_priv->context);
-		}
 		processed_hdmi_status = hdmi_status;
 
 #ifdef OTM_HDMI_HDCP_ENABLE
