@@ -77,6 +77,9 @@ struct _RGX_CLIENT_CCB_ {
 	DEVMEM_MEMDESC 				*psClientCCBCtrlMemDesc;		/*!< MemDesc for the CCB control */
 	IMG_UINT32					ui32HostWriteOffset;		/*!< CCB write offset from the driver side */
 	IMG_UINT32					ui32LastPDumpWriteOffset;			/*!< CCB write offset from the last time we submitted a command in capture range */
+	IMG_UINT32					ui32LastROff;				/*!< Last CCB Read offset to help detect any CCB wedge */
+	IMG_UINT32					ui32ByteCount;				/*!< Count of the number of bytes written to CCCB */
+	IMG_UINT32					ui32LastByteCount;			/*!< Last value of ui32ByteCount to help detect any CCB wedge */
 	IMG_UINT32					ui32Size;					/*!< Size of the CCB */
 	DLLIST_NODE					sNode;						/*!< Node used to store this CCB on the per connection list */
 	PDUMP_CONNECTION_DATA		*psPDumpConnectionData;		/*!< Pointer to the per connection data in which we reside */
@@ -293,6 +296,9 @@ PVRSRV_ERROR RGXCreateCCB(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	psClientCCB->ui32HostWriteOffset = 0;
 	psClientCCB->ui32LastPDumpWriteOffset = 0;
 	psClientCCB->ui32Size = ui32AllocSize;
+	psClientCCB->ui32LastROff = ui32AllocSize - 1;
+	psClientCCB->ui32ByteCount = 0;
+	psClientCCB->ui32LastByteCount = 0;
 
 #if defined REDUNDANT_SYNCS_DEBUG
 	psClientCCB->ui32UpdateWriteIndex = 0;
@@ -470,6 +476,7 @@ IMG_INTERNAL PVRSRV_ERROR RGXAcquireCCB(RGX_CLIENT_CCB *psClientCCB,
 		UPDATE_CCB_OFFSET(psClientCCB->ui32HostWriteOffset,
 						  ui32Remain,
 						  psClientCCB->ui32Size);
+		psClientCCB->ui32ByteCount += ui32Remain;
 	}
 
 	return _RGXAcquireCCB(psClientCCB,
@@ -604,6 +611,7 @@ IMG_INTERNAL IMG_VOID RGXReleaseCCB(RGX_CLIENT_CCB *psClientCCB,
 	UPDATE_CCB_OFFSET(psClientCCB->ui32HostWriteOffset,
 					  ui32CmdSize,
 					  psClientCCB->ui32Size);
+	psClientCCB->ui32ByteCount += ui32CmdSize;
 
 	/*
 		PDumpSetFrame will detect as we Transition out of capture range for
@@ -1334,6 +1342,43 @@ static IMG_PCCHAR _CCBCmdTypename(RGXFWIF_CCB_CMD_TYPE cmdType)
 	}
 
 	return aCCBCmdName[cmdStrIdx];
+}
+
+PVRSRV_ERROR CheckForStalledCCB(RGX_CLIENT_CCB  *psCurrentClientCCB)
+{
+	volatile RGXFWIF_CCCB_CTL	*psClientCCBCtrl = psCurrentClientCCB->psClientCCBCtrl;
+	IMG_UINT32 					ui32SampledRdOff = psClientCCBCtrl->ui32ReadOffset;
+	IMG_UINT32 					ui32SampledWrOff = psCurrentClientCCB->ui32HostWriteOffset;
+	PVRSRV_ERROR				eError = PVRSRV_OK;
+
+	if (ui32SampledRdOff > psClientCCBCtrl->ui32WrapMask  ||
+		ui32SampledWrOff > psClientCCBCtrl->ui32WrapMask)
+	{
+		PVR_DPF((PVR_DBG_WARNING, "CheckForStalledCCB: CCCB has invalid offset (ROFF=%d WOFF=%d)",
+				ui32SampledRdOff, ui32SampledWrOff));
+		return  PVRSRV_ERROR_INVALID_OFFSET;
+	}
+
+	if (ui32SampledRdOff != ui32SampledWrOff &&
+				ui32SampledRdOff == psCurrentClientCCB->ui32LastROff &&
+				(psCurrentClientCCB->ui32ByteCount - psCurrentClientCCB->ui32LastByteCount) < psCurrentClientCCB->ui32Size)
+	{
+		//RGXFWIF_DEV_VIRTADDR v = {0};
+		//DumpStalledCCBCommand(v,psCurrentClientCCB,IMG_NULL);
+
+		/* Don't log this by default unless debugging since a higher up
+		 * function will log the stalled condition. Helps avoid double
+		 *  messages in the log.
+		 */
+		PVR_DPF((PVR_DBG_MESSAGE, "CheckForStalledCCB: CCCB has not progressed (ROFF=%d WOFF=%d)",
+				ui32SampledRdOff, ui32SampledWrOff));
+		eError =  PVRSRV_ERROR_CCCB_STALLED;
+	}
+
+	psCurrentClientCCB->ui32LastROff = ui32SampledRdOff;
+	psCurrentClientCCB->ui32LastByteCount = psCurrentClientCCB->ui32ByteCount;
+
+	return eError;
 }
 
 IMG_VOID DumpStalledCCBCommand(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext,

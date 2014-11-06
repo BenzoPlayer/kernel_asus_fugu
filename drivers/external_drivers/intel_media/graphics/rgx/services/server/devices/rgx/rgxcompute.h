@@ -147,6 +147,9 @@ PVRSRV_ERROR PVRSRVRGXSetComputeContextPriorityKM(CONNECTION_DATA *psConnection,
 IMG_VOID CheckForStalledComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
 									DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
+/* Debug/Watchdog - check if client compute contexts are stalled */
+IMG_BOOL CheckForStalledClientComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
+
 /*!
 *******************************************************************************
  @Function	PVRSRVRGXKickSyncCDMKM

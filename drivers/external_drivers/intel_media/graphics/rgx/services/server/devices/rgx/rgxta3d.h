@@ -437,6 +437,9 @@ PVRSRV_ERROR PVRSRVRGXGetPartialRenderCountKM(DEVMEM_MEMDESC *psHWRTDataMemDesc,
 IMG_VOID CheckForStalledRenderCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
 								   DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
+/* Debug/Watchdog - check if client contexts are stalled */
+IMG_BOOL CheckForStalledClientRenderCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
+
 IMG_EXPORT PVRSRV_ERROR 
 PVRSRVRGXKickSyncTAKM(RGX_SERVER_RENDER_CONTEXT  *psRenderContext,
                        IMG_UINT32                  ui32TAClientFenceCount,

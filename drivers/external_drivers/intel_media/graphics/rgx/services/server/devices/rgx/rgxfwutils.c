@@ -64,6 +64,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgxdebug.h"
 #include "rgxhwperf.h"
 #include "rgxccb.h"
+#include "rgxcompute.h"
+#include "rgxtransfer.h"
+#if defined(RGX_FEATURE_RAY_TRACING)
+#include "rgxray.h"
+#endif
+#include "dc_server.h"
 #include "rgxmem.h"
 #include "rgxta3d.h"
 #include "rgxutils.h"
@@ -3737,7 +3743,45 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 		psDevInfo->bKCCBCmdsWaitingLastTime     = bKCCBCmdsWaiting;
 		psDevInfo->ui32KCCBCmdsExecutedLastTime = ui32KCCBCmdsExecuted;
 	}
-	
+
+	if (bCheckAfterTimePassed && (PVRSRV_DEVICE_HEALTH_STATUS_OK==eNewStatus))
+	{
+		/* Attempt to detect and deal with any stalled client contexts */
+		IMG_BOOL bStalledClient = IMG_FALSE;
+		if (CheckForStalledClientTransferCtxt(psDevInfo))
+		{
+			PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Detected stalled client transfer context"));
+			bStalledClient = IMG_TRUE;
+		}
+		if (CheckForStalledClientRenderCtxt(psDevInfo))
+		{
+			PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Detected stalled client render context"));
+			bStalledClient = IMG_TRUE;
+		}
+#if !defined(UNDER_WDDM)
+		if (CheckForStalledClientComputeCtxt(psDevInfo))
+		{
+			PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Detected stalled client compute context"));
+			bStalledClient = IMG_TRUE;
+		}
+#endif
+#if defined(RGX_FEATURE_RAY_TRACING)
+		if (CheckForStalledClientRayCtxt(psDevInfo))
+		{
+			PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Detected stalled client raytrace context"));
+			bStalledClient = IMG_TRUE;
+		}
+#endif
+		/* try the unblock routines only on the transition from OK to stalled */
+		if (!psDevInfo->bStalledClient && bStalledClient)
+		{
+#if defined(SUPPORT_DISPLAY_CLASS)
+			DCDisplayContextFlush();
+#endif
+		}
+		psDevInfo->bStalledClient = bStalledClient;
+	}
+
 	/*
 	   Finished, save the new status...
 	*/
@@ -3746,6 +3790,13 @@ _RGXUpdateHealthStatus_Exit:
 
 	return PVRSRV_OK;
 } /* RGXUpdateHealthStatus */
+
+PVRSRV_ERROR CheckStalledClientCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext)
+{
+	RGX_CLIENT_CCB 	*psCurrentClientCCB = psCurrentServerCommonContext->psClientCCB;
+
+	return CheckForStalledCCB(psCurrentClientCCB);
+}
 
 IMG_VOID DumpStalledFWCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext,
 									DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf)

@@ -285,6 +285,8 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_BOOL    bKCCBCmdsWaitingLastTime;
 	IMG_UINT32  ui32GEOTimeoutsLastTime;
 
+	/* Client stall detection */
+	IMG_BOOL	bStalledClient;
 
 	/* Timer Queries */
 	IMG_UINT32     ui32ActiveQueryId;       /*!< id of the active line */

@@ -136,6 +136,9 @@ PVRSRV_ERROR PVRSRVRGXSetTransferContextPriorityKM(CONNECTION_DATA *psConnection
 IMG_VOID CheckForStalledTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
 									 DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
+/* Debug/Watchdog - check if client transfer contexts are stalled */
+IMG_BOOL CheckForStalledClientTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
+
 PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									   IMG_UINT32				ui32ClientFenceCount,
 									   PRGXFWIF_UFO_ADDR		*pauiClientFenceUFOAddress,

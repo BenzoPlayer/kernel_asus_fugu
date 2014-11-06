@@ -369,6 +369,14 @@ PVRSRV_ERROR PVRSRVRGXDestroyTransferContextKM(RGX_SERVER_TQ_CONTEXT *psTransfer
 	PVRSRV_ERROR eError;
 	PVRSRV_RGXDEV_INFO *psDevInfo = psTransferContext->psDeviceNode->pvDevice;
 
+	/* remove node from list before calling destroy - as destory, if successful
+	 * will invalidate the node
+	 * must be re-added if destroy fails
+	 */
+	OSWRLockAcquireWrite(psDevInfo->hTransferCtxListLock, DEVINFO_TRANSFERLIST);
+	dllist_remove_node(&(psTransferContext->sListNode));
+	OSWRLockReleaseWrite(psDevInfo->hTransferCtxListLock);
+
 	if (psTransferContext->ui32Flags & RGX_SERVER_TQ_CONTEXT_FLAGS_2D)
 	{
 		eError = _Destroy2DTransferContext(&psTransferContext->s2DData,
@@ -395,10 +403,6 @@ PVRSRV_ERROR PVRSRVRGXDestroyTransferContextKM(RGX_SERVER_TQ_CONTEXT *psTransfer
 		psTransferContext->ui32Flags &= ~RGX_SERVER_TQ_CONTEXT_FLAGS_3D;
 	}
 
-	OSWRLockAcquireWrite(psDevInfo->hTransferCtxListLock, DEVINFO_TRANSFERLIST);
-	dllist_remove_node(&(psTransferContext->sListNode));
-	OSWRLockReleaseWrite(psDevInfo->hTransferCtxListLock);
-
 	DevmemFwFree(psTransferContext->psFWFrameworkMemDesc);
 	SyncPrimFree(psTransferContext->psCleanupSync);
 
@@ -408,6 +412,9 @@ PVRSRV_ERROR PVRSRVRGXDestroyTransferContextKM(RGX_SERVER_TQ_CONTEXT *psTransfer
 
 fail_destroy2d:
 fail_destroy3d:
+	OSWRLockAcquireWrite(psDevInfo->hTransferCtxListLock, DEVINFO_TRANSFERLIST);
+	dllist_add_to_tail(&(psDevInfo->sTransferCtxtListHead), &(psTransferContext->sListNode));
+	OSWRLockReleaseWrite(psDevInfo->hTransferCtxListLock);
 	PVR_ASSERT(eError != PVRSRV_OK);
 	return eError;
 }
@@ -922,6 +929,36 @@ IMG_VOID CheckForStalledTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
 	dllist_foreach_node(&(psDevInfo->sTransferCtxtListHead),
 						CheckForStalledTransferCtxtCommand, pfnDumpDebugPrintf);
 	OSWRLockReleaseRead(psDevInfo->hTransferCtxListLock);
+}
+
+static IMG_BOOL CheckForStalledClientTransferCtxtCommand(PDLLIST_NODE psNode, IMG_PVOID pvCallbackData)
+{
+	PVRSRV_ERROR *peError = (PVRSRV_ERROR*)pvCallbackData;
+	RGX_SERVER_TQ_CONTEXT 		*psCurrentServerTransferCtx = IMG_CONTAINER_OF(psNode, RGX_SERVER_TQ_CONTEXT, sListNode);
+	RGX_SERVER_TQ_2D_DATA		*psTransferCtx2DData = &(psCurrentServerTransferCtx->s2DData);
+	RGX_SERVER_COMMON_CONTEXT	*psCurrentServerTQ2DCommonCtx = psTransferCtx2DData->psServerCommonContext;
+	RGX_SERVER_TQ_3D_DATA		*psTransferCtx3DData = &(psCurrentServerTransferCtx->s3DData);
+	RGX_SERVER_COMMON_CONTEXT	*psCurrentServerTQ3DCommonCtx = psTransferCtx3DData->psServerCommonContext;
+
+	if (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ2DCommonCtx))
+	{
+		*peError = PVRSRV_ERROR_CCCB_STALLED;
+	}
+	if (PVRSRV_ERROR_CCCB_STALLED == CheckStalledClientCommonContext(psCurrentServerTQ3DCommonCtx))
+	{
+		*peError = PVRSRV_ERROR_CCCB_STALLED;
+	}
+
+	return IMG_TRUE;
+}
+IMG_BOOL CheckForStalledClientTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
+	OSWRLockAcquireRead(psDevInfo->hTransferCtxListLock, DEVINFO_TRANSFERLIST);
+	dllist_foreach_node(&(psDevInfo->sTransferCtxtListHead), 
+						CheckForStalledClientTransferCtxtCommand, &eError);
+	OSWRLockReleaseRead(psDevInfo->hTransferCtxListLock);
+	return (PVRSRV_ERROR_CCCB_STALLED == eError)? IMG_TRUE: IMG_FALSE;
 }
 
 PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
