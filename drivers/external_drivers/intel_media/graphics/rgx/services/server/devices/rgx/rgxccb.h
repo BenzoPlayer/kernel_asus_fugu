@@ -78,7 +78,7 @@ typedef struct _RGX_CCB_CMD_HELPER_DATA_ {
 	IMG_UINT32				*paui32ServerSyncFlags;
 	SERVER_SYNC_PRIMITIVE	**papsServerSyncs;
 
-	RGXFWIF_KCCB_CMD_TYPE	eType;
+	RGXFWIF_CCB_CMD_TYPE	eType;
 	IMG_UINT32				ui32CmdSize;
 	IMG_UINT8				*pui8DMCmd;
 	IMG_UINT32				ui32FenceCmdSize;
