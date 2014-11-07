@@ -3695,7 +3695,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 			*/
 			if (*pszTraceAssertInfo != '\0')
 			{
-				PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Firmware thread %d has asserted: %s (%s:%d)",
+				PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: Firmware thread %d has asserted: %s (%s:%d)",
 				        ui32ThreadCount, pszTraceAssertInfo,
 						psRGXFWIfTraceBufCtl->sTraceBuf[ui32ThreadCount].sAssertBuf.szPath,
 						psRGXFWIfTraceBufCtl->sTraceBuf[ui32ThreadCount].sAssertBuf.ui32LineNum));
@@ -3711,7 +3711,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 				if (psRGXFWIfTraceBufCtl->aui32CrPollAddr[ui32ThreadCount] != 0  &&
 					psRGXFWIfTraceBufCtl->aui32CrPollAddr[ui32ThreadCount] == psDevInfo->aui32CrLastPollAddr[ui32ThreadCount])
 				{
-					PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Firmware stuck on CR poll: T%u polling %s (reg:0x%08X mask:0x%08X)",
+					PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: Firmware stuck on CR poll: T%u polling %s (reg:0x%08X mask:0x%08X)",
 							ui32ThreadCount,
 							((psRGXFWIfTraceBufCtl->aui32CrPollAddr[ui32ThreadCount] & RGXFW_POLL_TYPE_SET)?("set"):("unset")), 
 							psRGXFWIfTraceBufCtl->aui32CrPollAddr[ui32ThreadCount] & ~RGXFW_POLL_TYPE_SET, 
@@ -3729,7 +3729,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 	*/
 	if (psDevInfo->ui32GEOTimeoutsLastTime > 1  &&  psPVRSRVData->ui32GEOConsecutiveTimeouts > psDevInfo->ui32GEOTimeoutsLastTime)
 	{
-		PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Global Event Object Timeouts have risen (from %d to %d)",
+		PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: Global Event Object Timeouts have risen (from %d to %d)",
 				psDevInfo->ui32GEOTimeoutsLastTime, psPVRSRVData->ui32GEOConsecutiveTimeouts));
 		eNewStatus = PVRSRV_DEVICE_HEALTH_STATUS_NOT_RESPONDING;
 	}
@@ -3750,7 +3750,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 			if (psKCCBCtl->ui32ReadOffset > psKCCBCtl->ui32WrapMask  ||
 				psKCCBCtl->ui32WriteOffset > psKCCBCtl->ui32WrapMask)
 			{
-				PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: KCCB for DM%d has invalid offset (ROFF=%d WOFF=%d)",
+				PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: KCCB for DM%d has invalid offset (ROFF=%d WOFF=%d)",
 				        ui32DMCount, psKCCBCtl->ui32ReadOffset, psKCCBCtl->ui32WriteOffset));
 				eNewStatus = PVRSRV_DEVICE_HEALTH_STATUS_NOT_RESPONDING;
 			}
@@ -3773,7 +3773,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 			*/
 			if (psDevInfo->bKCCBCmdsWaitingLastTime)
 			{
-				PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: No KCCB commands executed since check!"));
+				PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: No KCCB commands executed since check!"));
 				eNewStatus = PVRSRV_DEVICE_HEALTH_STATUS_NOT_RESPONDING;
 			}
 		
@@ -3795,7 +3795,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 											IMG_TRUE);
 				if (eError != PVRSRV_OK)
 				{
-					PVR_DPF((PVR_DBG_WARNING, "RGXGetDeviceHealthStatus: Cannot schedule Health Check command! (0x%x)", eError));
+					PVR_DPF((PVR_DBG_ERROR, "RGXGetDeviceHealthStatus: Cannot schedule Health Check command! (0x%x)", eError));
 				}
 				else
 				{
