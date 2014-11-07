@@ -739,7 +739,6 @@ void ospm_apm_power_down_msvdx(struct drm_device *dev, int force_off)
 	if (!ospm_power_is_hw_on(OSPM_VIDEO_DEC_ISLAND))
 		PSB_DEBUG_PM("msvdx in power off.\n");
 
-	psb_msvdx_dequeue_send(dev);
 
 #ifdef CONFIG_SLICE_HEADER_PARSING
 	spin_lock_irqsave(&dev_priv->video_ctx_lock, irq_flags);
@@ -754,7 +753,11 @@ void ospm_apm_power_down_msvdx(struct drm_device *dev, int force_off)
 		}
 	}
 	spin_unlock_irqrestore(&dev_priv->video_ctx_lock, irq_flags);
+#endif
 
+	psb_msvdx_dequeue_send(dev);
+
+#ifdef CONFIG_SLICE_HEADER_PARSING
 	if (shp_ctx_count == 0 || frame_finished)
 		power_island_put(OSPM_VIDEO_DEC_ISLAND);
 #else

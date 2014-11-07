@@ -291,13 +291,12 @@ struct psb_msvdx_cmd_queue {
 	void *cmd;
 	unsigned long cmd_size;
 	uint32_t sequence;
-	uint32_t fence_flag;
 	uint32_t msvdx_tile;
 	uint32_t host_be_opp_enabled;
 	uint32_t deblock_cmd_offset;
 	struct ttm_object_file *tfile;
 	struct psb_video_ctx *msvdx_ctx;
-	int frame_boundary;
+	int frame_boundary; /* this command is frame end if true */
 };
 
 #ifdef CONFIG_VIDEO_MRFLD

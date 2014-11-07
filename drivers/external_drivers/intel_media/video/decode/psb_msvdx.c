@@ -82,12 +82,12 @@ int psb_msvdx_dequeue_send(struct drm_device *dev)
 #ifdef MERRIFIELD
 #ifdef CONFIG_SLICE_HEADER_PARSING
 	if(msvdx_cmd->msvdx_ctx->slice_extract_flag) {
+                /* msvdx_ctx->frame_boundary tells last command is frame end */
 		if (msvdx_cmd->msvdx_ctx->frame_boundary)
 			power_island_get(OSPM_VIDEO_DEC_ISLAND);
 
-		msvdx_cmd->msvdx_ctx->copy_cmd_send = 1;
 		msvdx_cmd->msvdx_ctx->frame_end_seq = 0xffffffff;
-		msvdx_cmd->msvdx_ctx->frame_boundary = msvdx_cmd->fence_flag >> 1;
+		msvdx_cmd->msvdx_ctx->frame_boundary = msvdx_cmd->frame_boundary;
 
 		if (msvdx_cmd->msvdx_ctx->frame_boundary)
 			msvdx_cmd->msvdx_ctx->frame_end_seq = msvdx_cmd->sequence & 0xffff;
@@ -472,9 +472,7 @@ int psb__submit_cmdbuf_copy(struct drm_device *dev,
 		msvdx_priv->tfile;
 	msvdx_cmd->msvdx_ctx = msvdx_ctx;
 #ifdef CONFIG_SLICE_HEADER_PARSING
-	msvdx_cmd->fence_flag = fence_flag;
-	msvdx_cmd->frame_boundary =  msvdx_cmd->fence_flag >> 1;
-	msvdx_cmd->msvdx_ctx->copy_cmd_send = 0;
+	msvdx_cmd->frame_boundary = fence_flag >> 1;
 #endif
 	spin_lock_irqsave(&msvdx_priv->msvdx_lock, irq_flags);
 	list_add_tail(&msvdx_cmd->head, &msvdx_priv->msvdx_queue);
@@ -499,6 +497,7 @@ int psb_submit_video_cmdbuf(struct drm_device *dev,
 	int ret = 0;
 	struct msvdx_private *msvdx_priv = dev_priv->msvdx_private;
 	int offset = 0;
+        bool pm_ret = 0;
 
 	if (!msvdx_priv->fw_b0_uploaded){
 #ifdef MERRIFIELD
@@ -532,14 +531,14 @@ int psb_submit_video_cmdbuf(struct drm_device *dev,
 #ifdef CONFIG_SLICE_HEADER_PARSING
 	if (msvdx_ctx->slice_extract_flag) {
 		if(msvdx_ctx->frame_boundary)
-			if (!power_island_get(OSPM_VIDEO_DEC_ISLAND))
+			if (!(pm_ret = power_island_get(OSPM_VIDEO_DEC_ISLAND)))
 				return -EBUSY;
 	}else{
-		if (!power_island_get(OSPM_VIDEO_DEC_ISLAND))
+		if (!(pm_ret = power_island_get(OSPM_VIDEO_DEC_ISLAND)))
 			return -EBUSY;
 	}
 #else
-	if (!power_island_get(OSPM_VIDEO_DEC_ISLAND))
+	if (!(pm_ret = power_island_get(OSPM_VIDEO_DEC_ISLAND)))
 		return -EBUSY;
 #endif
 	spin_lock_irqsave(&msvdx_priv->msvdx_lock, irq_flags);
@@ -552,23 +551,8 @@ int psb_submit_video_cmdbuf(struct drm_device *dev,
 			    msvdx_ctx, fence_flag);
 
 #ifdef MERRIFIELD
-#ifdef CONFIG_SLICE_HEADER_PARSING
-		if (msvdx_ctx->slice_extract_flag){
-			if (msvdx_ctx->copy_cmd_send) {
-				if(!msvdx_ctx->frame_boundary)
-					power_island_put(OSPM_VIDEO_DEC_ISLAND);
-			}
-			else {
-				if (msvdx_ctx->frame_boundary)
-					power_island_put(OSPM_VIDEO_DEC_ISLAND);
-			}
-		}
-		else{
+		if (pm_ret)
 			power_island_put(OSPM_VIDEO_DEC_ISLAND);
-		}
-#else
-		power_island_put(OSPM_VIDEO_DEC_ISLAND);
-#endif
 #endif
 		return ret;
 	}
@@ -1731,7 +1715,7 @@ static struct psb_video_ctx* psb_msvdx_find_ctx(struct drm_psb_private *dev_priv
 
 	spin_lock(&dev_priv->video_ctx_lock);
 	list_for_each_entry_safe(pos, n, &dev_priv->video_ctx, head) {
-		if (pos->cur_sequence == fence) {
+		if ((VAEntrypointVLD == (pos->ctx_type & 0xff)) && (pos->cur_sequence == fence)) {
 			spin_unlock(&dev_priv->video_ctx_lock);
 			return pos;
 		}
