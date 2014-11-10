@@ -1723,11 +1723,6 @@ void android_hdmi_suspend_display(struct drm_device *dev)
 	if (NULL == hdmi_priv)
 		return;
 
-	if (hdmi_priv->hdmi_audio_enabled) {
-		pr_err("OSPM: %s: hdmi audio is busy\n", __func__);
-		return;
-	}
-
 	/* Check if monitor is attached to HDMI connector. */
 	is_connected = otm_hdmi_get_cable_status(hdmi_priv->context);
 

@@ -38,19 +38,9 @@
  */
 static struct android_hdmi_priv *hdmi_priv;
 
-static void hdmi_suspend_work(struct work_struct *work)
-{
-	struct android_hdmi_priv *hdmi_priv =
-		container_of(work, struct android_hdmi_priv, suspend_wq);
-	struct drm_device *dev = hdmi_priv->dev;
-
-	android_hdmi_suspend_display(dev);
-}
-
 void mid_hdmi_audio_init(struct android_hdmi_priv *p_hdmi_priv)
 {
 	hdmi_priv = p_hdmi_priv;
-	INIT_WORK(&hdmi_priv->suspend_wq, hdmi_suspend_work);
 }
 
 /*
@@ -284,10 +274,6 @@ static int mid_hdmi_audio_set_caps(
 		REG_READ(hdmi_priv->hdmib_reg);
 
 		hdmi_priv->hdmi_audio_enabled = false;
-		if (dev_priv->early_suspended) {
-			/* suspend hdmi display if device has been suspended */
-			schedule_work(&hdmi_priv->suspend_wq);
-		}
 		break;
 	case HAD_SET_ENABLE_AUDIO_INT:
 		if (*((u32 *)capabilties) & HDMI_AUDIO_UNDERRUN)
