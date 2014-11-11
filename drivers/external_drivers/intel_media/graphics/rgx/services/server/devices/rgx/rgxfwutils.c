@@ -3764,8 +3764,11 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 
 	if (bCheckAfterTimePassed)
 	{
-		IMG_UINT32  ui32KCCBCmdsExecuted = psDevInfo->psRGXFWIfTraceBuf->ui32KCCBCmdsExecuted;
-		
+		IMG_UINT32  ui32KCCBCmdsExecuted;
+
+		PVR_ASSERT(psDevInfo->psRGXFWIfTraceBuf != NULL);
+		ui32KCCBCmdsExecuted = psDevInfo->psRGXFWIfTraceBuf->ui32KCCBCmdsExecuted;
+
 		if (psDevInfo->ui32KCCBCmdsExecutedLastTime == ui32KCCBCmdsExecuted)
 		{
 			/*
