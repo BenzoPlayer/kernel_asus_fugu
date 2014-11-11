@@ -737,7 +737,7 @@ err_unlock:
 
 *****************************************************************************/
 #if defined(SUPPORT_DRM)
-void PVRSRVRelease(void *pvPrivData)
+void PVRSRVRelease(void **ppvPrivData)
 #else
 static int PVRSRVRelease(struct inode unref__ * pInode, struct file *pFile)
 #endif
@@ -747,7 +747,7 @@ static int PVRSRVRelease(struct inode unref__ * pInode, struct file *pFile)
 	OSAcquireBridgeLock();
 
 #if defined(SUPPORT_DRM)
-	psPrivateData = (PVRSRV_FILE_PRIVATE_DATA *)pvPrivData;
+	psPrivateData = (PVRSRV_FILE_PRIVATE_DATA *)(*ppvPrivData);
 #else
 	psPrivateData = PRIVATE_DATA(pFile);
 #endif
@@ -762,6 +762,8 @@ static int PVRSRVRelease(struct inode unref__ * pInode, struct file *pFile)
 
 #if !defined(SUPPORT_DRM)
 		PRIVATE_DATA(pFile) = IMG_NULL;
+#else
+		*ppvPrivData = IMG_NULL;
 #endif
 	}
 
