@@ -628,7 +628,7 @@ static int mrfld_crtc_mode_set(struct drm_crtc *crtc,
 
 		// clear init fb once driver set its own mode
 		if (info && info->screen_base &&
-			!dev_priv->hdmi_first_boot)
+			!dev_priv->hdmi_first_boot && dev_priv->um_start)
 			memset(info->screen_base, 0, info->screen_size);
 	}
 	return 0;
