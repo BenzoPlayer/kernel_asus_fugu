@@ -92,7 +92,6 @@ static PVRSRV_DEVICE_CONFIG sDevices[] =
 		.sRegsCpuPBase          = { 0 },
 		.ui32RegsSize           = 0,
 		.ui32IRQ                = 0,
-		.bIRQIsShared           = IMG_TRUE,
 
 		/* No power management on no HW system */
 		.pfnPrePowerState       = SysDevicePrePowerState,
