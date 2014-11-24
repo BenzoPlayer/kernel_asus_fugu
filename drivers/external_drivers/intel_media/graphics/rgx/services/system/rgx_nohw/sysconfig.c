@@ -154,7 +154,6 @@ PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig)
 	gsDevices[0].sRegsCpuPBase.uiAddr   = 0x00f00baa;
 	gsDevices[0].ui32RegsSize           = 0x4000;
 	gsDevices[0].ui32IRQ                = 0x00000bad;
-	gsDevices[0].bIRQIsShared           = IMG_FALSE;
 
 	/* Device's physical heap IDs */
 	gsDevices[0].aui32PhysHeapID[PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL] = 0;

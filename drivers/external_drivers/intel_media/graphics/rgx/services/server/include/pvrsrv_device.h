@@ -109,8 +109,6 @@ struct _PVRSRV_DEVICE_CONFIG_
 	/*! Device interrupt number */
 	IMG_UINT32			ui32IRQ;
 
-	/*! The device interrupt is shared */
-	IMG_BOOL			bIRQIsShared;
 	/*! Device specific data handle */
 	IMG_HANDLE			hDevData;
 

@@ -1229,7 +1229,7 @@ PVRSRV_ERROR DCDisplayContextCreate(DC_DEVICE *psDevice,
 		goto FailLock;
 	}
 	eError = OSLockCreate(&psDisplayContext->hConfigureLock, LOCK_TYPE_NONE);
-	if(eError != PVRSRV_OK)
+	if (eError != PVRSRV_OK)
 	{
 		goto FailLock2;
 	}

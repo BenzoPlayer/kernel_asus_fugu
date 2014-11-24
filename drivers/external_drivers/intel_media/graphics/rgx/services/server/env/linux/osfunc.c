@@ -756,7 +756,6 @@ PVRSRV_ERROR OSInstallDeviceLISR(PVRSRV_DEVICE_CONFIG *psDevConfig,
 {
 #if defined(SUPPORT_SYSTEM_INTERRUPT_HANDLING)
 	return SysInstallDeviceLISR(psDevConfig->ui32IRQ,
-					psDevConfig->bIRQIsShared,
 					psDevConfig->pszName,
 					pfnLISR,
 					pvData,
@@ -766,11 +765,6 @@ PVRSRV_ERROR OSInstallDeviceLISR(PVRSRV_DEVICE_CONFIG *psDevConfig,
 	unsigned long flags = 0;
 
 	psLISRData = kmalloc(sizeof(LISR_DATA), GFP_KERNEL);
-
-	if (psDevConfig->bIRQIsShared)
-	{
-		flags = IRQF_SHARED;
-	}
 
 	psLISRData->pfnLISR = pfnLISR;
 	psLISRData->pvData = pvData;
