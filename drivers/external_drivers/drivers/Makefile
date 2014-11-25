@@ -5,3 +5,4 @@ obj-y                       += platform/x86/
 obj-$(CONFIG_POWER_SUPPLY)  += power/
 obj-y                       += hsu/
 obj-$(CONFIG_INPUT)         += input/
+obj-y                       += socwatch/
