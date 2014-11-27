@@ -349,6 +349,7 @@ int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	struct psb_intel_mode_device *mode_dev = psb_intel_crtc->mode_dev;
 	int pipe = psb_intel_crtc->pipe;
+	struct drm_display_mode *adjusted_mode = NULL;
 	int swapchain_plane = PVRSRV_SWAPCHAIN_ATTACHED_PLANE_NONE;
 	unsigned long Start, Offset;
 	int dsplinoff = DSPALINOFF;
@@ -356,6 +357,8 @@ int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	int dspstride = DSPASTRIDE;
 	int dspcntr_reg = DSPACNTR;
 	u32 dspcntr;
+	int fb_width, fb_height, bpp;
+	u32 stride = 0;
 	u32 power_island = 0;
 	int ret = 0;
 
@@ -419,7 +422,29 @@ int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 #endif				/* FIXME MRFLD */
 	}
 #endif
+
+#ifdef CONFIG_SUPPORT_MIPI
 	REG_WRITE(dspstride, crtc->fb->pitches[0]);
+#else
+	stride = crtc->fb->pitches[0];
+	adjusted_mode = &psb_intel_crtc->saved_adjusted_mode;
+
+	if (adjusted_mode) {
+		fb_width = crtc->fb->width;
+		fb_height = crtc->fb->height;
+		bpp = crtc->fb->bits_per_pixel;
+
+		/* panel fitter does not support scaling greater
+		 * than 1.5, using orignal stride of the image */
+		if (fb_width / (float)adjusted_mode->crtc_hdisplay > 1.5 ||
+		    fb_height / (float)adjusted_mode->crtc_vdisplay > 1.5) {
+			stride = ALIGN(adjusted_mode->crtc_hdisplay*(bpp>>3), 64);
+		}
+
+		DRM_INFO("dsp stride=%d bpp=%d\n", stride, bpp);
+	}
+	REG_WRITE(dspstride, stride);
+#endif
 	dspcntr = REG_READ(dspcntr_reg);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
