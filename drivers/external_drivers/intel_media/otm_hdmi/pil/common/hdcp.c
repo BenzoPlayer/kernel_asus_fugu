@@ -154,6 +154,7 @@ struct hdcp_context_t {
 	unsigned int hdcp_delay;
 			/*!< time delay (msec) to wait for TMDS to be ready */
 	bool hdmi; /* HDMI or DVI*/
+	bool bstatus_read;
 };
 
 /* Global instance of local context */
@@ -695,7 +696,12 @@ static bool hdcp_stage1_authentication(bool *is_repeater)
 	if (hdcp_context->hdmi) {
 		while (retry--) {
 			if (hdcp_read_bstatus(&bstatus.value) == false) {
-				pr_err("hdcp: failed to read bstatus\n");
+				if (hdcp_context->bstatus_read) {
+					hdcp_context->bstatus_read = false;
+					pr_err("hdcp: failed to read bstatus\n");
+				} else {
+					pr_debug("hdcp: failed to read bstatus\n");
+				}
 				return false;
 			}
 			if (bstatus.hdmi_mode)
@@ -709,6 +715,11 @@ static bool hdcp_stage1_authentication(bool *is_repeater)
 		pr_err("hdcp: sink is not in HDMI mode\n");
 
 	pr_debug("hdcp: bstatus: %04x\n", bstatus.value);
+
+	if (!hdcp_context->bstatus_read) {
+		hdcp_context->bstatus_read = true;
+		pr_info("hdcp: read bstatus successfully\n");
+	}
 
 	/* Read BKSV */
 	if (hdcp_read_bksv(bksv, HDCP_KSV_SIZE) == false) {
@@ -1646,6 +1657,7 @@ bool otm_hdmi_hdcp_init(hdmi_context_t *hdmi_context,
 
 	/* store i2c function pointer used for ddc read/write */
 	hdcp_context->ddc_read_write = ddc_rd_wr;
+	hdcp_context->bstatus_read = true;
 
 	/* Find hdcp delay
 	 * If attribute not set, default to 200ms
