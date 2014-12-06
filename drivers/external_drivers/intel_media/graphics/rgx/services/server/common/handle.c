@@ -133,6 +133,23 @@ typedef IMG_UINTPTR_T HAND_KEY[HAND_KEY_LEN];
 /* Stores a pointer to the function table of the handle back-end in use */
 static HANDLE_IMPL_FUNCTAB const *gpsHandleFuncs = IMG_NULL;
 
+/* 
+ * Global lock added to avoid to call the handling functions
+ * only in a single threaded context.
+ */
+
+static POS_LOCK gHandleLock;
+
+static void LockHandle(void)
+{
+	OSLockAcquire(gHandleLock);
+}
+
+static void UnlockHandle(void)
+{
+	OSLockRelease(gHandleLock);
+}
+
 /*
  * Kernel handle base structure. This is used for handles that are not 
  * allocated on behalf of a particular process.
@@ -1045,6 +1062,7 @@ PVRSRV_ERROR PVRSRVAllocHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVAllocHandle: Missing handle base"));
@@ -1089,6 +1107,7 @@ PVRSRV_ERROR PVRSRVAllocHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = AllocHandle(psBase, phHandle, pvData, eType, eFlag, IMG_NULL);
 
 	exit_AllocHandle:
+	UnlockHandle();
 
 	return eError;
 }
@@ -1128,6 +1147,8 @@ PVRSRV_ERROR PVRSRVAllocSubHandle(PVRSRV_HANDLE_BASE *psBase,
 	/* PVRSRV_HANDLE_TYPE_NONE is reserved for internal use */
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
+
+	LockHandle();
 
 	if (psBase == IMG_NULL)
 	{
@@ -1226,6 +1247,7 @@ PVRSRV_ERROR PVRSRVAllocSubHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1257,6 +1279,7 @@ PVRSRV_ERROR PVRSRVFindHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVFindHandle: Missing handle base"));
@@ -1277,6 +1300,7 @@ PVRSRV_ERROR PVRSRVFindHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 
 }
@@ -1308,6 +1332,7 @@ PVRSRV_ERROR PVRSRVLookupHandleAnyType(PVRSRV_HANDLE_BASE *psBase,
 
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVLookupHandleAnyType: Missing handle base"));
@@ -1331,6 +1356,7 @@ PVRSRV_ERROR PVRSRVLookupHandleAnyType(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1362,6 +1388,7 @@ PVRSRV_ERROR PVRSRVLookupHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVLookupHandle: Missing handle base"));
@@ -1384,6 +1411,7 @@ PVRSRV_ERROR PVRSRVLookupHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1418,6 +1446,7 @@ PVRSRV_ERROR PVRSRVLookupSubHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVLookupSubHandle: Missing handle base"));
@@ -1452,6 +1481,7 @@ PVRSRV_ERROR PVRSRVLookupSubHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1485,6 +1515,7 @@ PVRSRV_ERROR PVRSRVGetParentHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVGetParentHandle: Missing handle base"));
@@ -1507,6 +1538,7 @@ PVRSRV_ERROR PVRSRVGetParentHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = PVRSRV_OK;
 
 	err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1538,6 +1570,7 @@ PVRSRV_ERROR PVRSRVLookupAndReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVLookupAndReleaseHandle: Missing handle base"));
@@ -1548,6 +1581,7 @@ PVRSRV_ERROR PVRSRVLookupAndReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = FreeHandle(psBase, hHandle, eType, ppvData);
 
 	exit_LookupAndReleaseHandle:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1575,6 +1609,7 @@ PVRSRV_ERROR PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVReleaseHandle: Missing handle base"));
@@ -1585,6 +1620,7 @@ PVRSRV_ERROR PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
 	eError = FreeHandle(psBase, hHandle, eType, IMG_NULL);
 
 exit_ReleaseHandle:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1606,6 +1642,7 @@ PVRSRV_ERROR PVRSRVPurgeHandles(PVRSRV_HANDLE_BASE *psBase)
 
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVPurgeHandles: Missing handle base"));
@@ -1616,6 +1653,7 @@ PVRSRV_ERROR PVRSRVPurgeHandles(PVRSRV_HANDLE_BASE *psBase)
 	eError = gpsHandleFuncs->pfnPurgeHandles(psBase->psImplBase);
 
 	exit_PVRSRVPurgeHandles:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1644,6 +1682,7 @@ PVRSRV_ERROR PVRSRVAllocHandleBase(PVRSRV_HANDLE_BASE **ppsBase)
 		return PVRSRV_ERROR_NOT_READY;
 	}
 
+	LockHandle();
 	if (ppsBase == IMG_NULL)
 	{
 		eError = PVRSRV_ERROR_INVALID_PARAMS;
@@ -1677,6 +1716,7 @@ PVRSRV_ERROR PVRSRVAllocHandleBase(PVRSRV_HANDLE_BASE **ppsBase)
 
 	*ppsBase = psBase;
 
+	UnlockHandle();
 	return PVRSRV_OK;
 
 ErrorDestroyHandleBase:
@@ -1686,6 +1726,7 @@ ErrorFreeHandleBase:
 	OSFreeMem(psBase);
 
 err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1748,6 +1789,7 @@ PVRSRV_ERROR PVRSRVFreeHandleBase(PVRSRV_HANDLE_BASE *psBase)
 
 	PVR_ASSERT(gpsHandleFuncs);
 
+	LockHandle();
 	/* Make sure all handles have been freed before destroying the handle base */
 	eError = gpsHandleFuncs->pfnIterateOverHandles(psBase->psImplBase,
 						       &FreeHandleDataWrapper,
@@ -1772,6 +1814,7 @@ PVRSRV_ERROR PVRSRVFreeHandleBase(PVRSRV_HANDLE_BASE *psBase)
 
 	eError = PVRSRV_OK;
 err:
+	UnlockHandle();
 	return eError;
 }
 
@@ -1791,6 +1834,15 @@ PVRSRV_ERROR PVRSRVHandleInit(IMG_VOID)
 
 	PVR_ASSERT(gpsKernelHandleBase == IMG_NULL);
 	PVR_ASSERT(gpsHandleFuncs == IMG_NULL);
+
+	eError = OSLockCreate(&gHandleLock, LOCK_TYPE_PASSIVE);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+			 "PVRSRVHandleInit: Creation of handle global lock failed (%s)",
+			 PVRSRVGetErrorStringKM(eError)));
+		goto error;
+	}
 
 	eError = PVRSRVHandleGetFuncTable(&gpsHandleFuncs);
 	if (eError != PVRSRV_OK)
@@ -1856,6 +1908,8 @@ PVRSRV_ERROR PVRSRVHandleDeInit(IMG_VOID)
 					 PVRSRVGetErrorStringKM(eError)));
 			}
 		}
+
+		OSLockDestroy(gHandleLock);
 
 		if (eError == PVRSRV_OK)
 		{

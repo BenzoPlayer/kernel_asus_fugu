@@ -92,8 +92,10 @@ extern "C" {
 	Flags for Services connection.
 	Allows to define per-client policy for Services
 */
-#define SRV_FLAGS_PERSIST		0x1U        /*!< Persist client flag */
-#define SRV_FLAGS_PDUMPCTRL     0x1U<<31    /*!< PDump Ctrl client flag */
+#define SRV_FLAGS_PERSIST		(1U << 0)  /*!< Persist client flag */
+#define SRV_FLAGS_INIT_PROCESS	(1U << 1)  /*!< Allows connect to succeed if SrvInit
+                                            * has not yet run (used by SrvInit itself) */
+#define SRV_FLAGS_PDUMPCTRL     (1U << 31) /*!< PDump Ctrl client flag */
 
 /*
 	Pdump flags which are accessible to Services clients

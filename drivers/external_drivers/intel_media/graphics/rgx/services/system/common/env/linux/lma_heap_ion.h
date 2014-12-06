@@ -1,6 +1,6 @@
 /*************************************************************************/ /*!
-@File           util_android
-@Title          Global definitions used by Android
+@File           lma_heap_ion.h
+@Title          Ion heap for local memory
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
 
@@ -40,15 +40,6 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-#ifndef _UTIL_ANDROID_H
-#define _UTIL_ANDROID_H
+#include PVR_ANDROID_ION_HEADER
 
-#if __GNUC__ >= 3
-# define IMG_LIKELY(x) __builtin_expect (!!(x), 1)
-# define IMG_UNLIKELY(x) __builtin_expect (!!(x), 0)
-#else
-# define IMG_LIKELY(x) (x)
-# define IMG_UNLIKELY(x) (x)
-#endif
-
-#endif /* _UTIL_ANDROID_H */
+struct ion_heap *lma_heap_create(struct ion_platform_heap *data);

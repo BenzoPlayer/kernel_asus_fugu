@@ -140,7 +140,8 @@ static IMG_UINT32 g_aui32DebugOrderTable[] = {
 	DEBUG_REQUEST_SYS,
 	DEBUG_REQUEST_RGX,
 	DEBUG_REQUEST_DC,
-	DEBUG_REQUEST_SERVERSYNC
+	DEBUG_REQUEST_SERVERSYNC,
+	DEBUG_REQUEST_ANDROIDSYNC
 };
 
 DUMPDEBUG_PRINTF_FUNC *g_pfnDumpDebugPrintf = IMG_NULL;
@@ -384,8 +385,6 @@ static IMG_VOID CleanupThread(IMG_PVOID pvData)
 	while ((psPVRSRVData->eServicesState == PVRSRV_SERVICES_STATE_OK) && 
 			(!psPVRSRVData->bUnload))
 	{
-		IMG_BOOL bLockedByMe;
-
 		/* Wait until RESMAN signals for deferred clean up OR wait for a
 		 * short period if the previous deferred clean up was not able
 		 * to release all the resources before trying again.
@@ -412,11 +411,8 @@ static IMG_VOID CleanupThread(IMG_PVOID pvData)
 		 * In order to avoid to block the system during the cleanup the lock is
 		 * released periodically every time a specific time expires.
 		 */
-		bLockedByMe = OSIsBridgeLockedByMe();
-		if (!bLockedByMe)
-		{
 		OSAcquireBridgeLock();
-		}
+
 		/* Estimate the time limit as soon as we acquire the global lock */
 		ui64TimesliceLimit = OSClockns64() + RESMAN_DEFERRED_CLEANUP_TIMESLICE_NS;
 
@@ -428,10 +424,8 @@ static IMG_VOID CleanupThread(IMG_PVOID pvData)
 				ui64TimesliceLimit);
 
 		/* Release the bridge lock after the cleanup of the defer context */
-		if (!bLockedByMe)
-		{
 		OSReleaseBridgeLock();
-	}
+
 	}
 
 	eRc = OSEventObjectClose(hOSEvent);

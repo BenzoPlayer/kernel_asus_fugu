@@ -56,7 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	Private structure's
 */
 #define SYNC_PRIM_NAME_SIZE		50
-typedef struct _SYNC_PRIM_CONTEXT_
+typedef struct SYNC_PRIM_CONTEXT
 {
 	SYNC_BRIDGE_HANDLE			hBridge;						/*!< Bridge handle */
 	IMG_HANDLE					hDeviceNode;					/*!< The device we're operating on */

@@ -39,6 +39,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
+/* vi: set ts=8: */
 
 #ifndef _PVR_FD_SYNC_USER_H_
 #define _PVR_FD_SYNC_USER_H_
@@ -46,74 +47,80 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-#include "img_types.h"
 #include "pvrsrv_error.h"
-#include "util_android.h"
 
-#include "sync_external.h"
-
-#define PVR_SYNC_MAX_QUERY_FENCE_POINTS 15
+#define PVR_SYNC_MAX_QUERY_FENCE_POINTS 14
 
 #define PVR_SYNC_IOC_MAGIC 'W'
 
 #define PVR_SYNC_IOC_CREATE_FENCE \
-	_IOWR(PVR_SYNC_IOC_MAGIC, 0, struct PVR_SYNC_CREATE_FENCE_IOCTL_DATA)
+ _IOWR(PVR_SYNC_IOC_MAGIC, 0, struct pvr_sync_create_fence_ioctl_data)
 
 #define PVR_SYNC_IOC_ENABLE_FENCING \
-	_IOWR(PVR_SYNC_IOC_MAGIC, 1, struct PVR_SYNC_ENABLE_FENCING_IOCTL_DATA)
+ _IOWR(PVR_SYNC_IOC_MAGIC, 1, struct pvr_sync_enable_fencing_ioctl_data)
 
 #define PVR_SYNC_IOC_DEBUG_FENCE \
-	_IOWR(PVR_SYNC_IOC_MAGIC, 2, struct PVR_SYNC_DEBUG_FENCE_IOCTL_DATA)
+ _IOWR(PVR_SYNC_IOC_MAGIC, 2, struct pvr_sync_debug_fence_ioctl_data)
+
+#define PVR_SYNC_IOC_ALLOC_FENCE \
+ _IOWR(PVR_SYNC_IOC_MAGIC, 3, struct pvr_sync_alloc_fence_ioctl_data)
 
 #define PVRSYNC_MODNAME "pvr_sync"
 
-struct PVR_SYNC_CREATE_FENCE_IOCTL_DATA
+struct pvr_sync_alloc_fence_ioctl_data
 {
-	/* Input */
-	IMG_CHAR					szName[32];
-
 	/* Output */
-	int							iFenceFd;
-	int                         bIdleFence;
+	int				iFenceFd;
+	int				bTimelineIdle;
 }
 __attribute__((packed, aligned(8)));
 
-struct PVR_SYNC_ENABLE_FENCING_IOCTL_DATA
+struct pvr_sync_create_fence_ioctl_data
 {
 	/* Input */
-	int bFencingEnabled;
+	int				iAllocFenceFd;
+	char				szName[32];
+
+	/* Output */
+	int				iFenceFd;
 }
 __attribute__((packed, aligned(8)));
 
-typedef struct
-{
-	IMG_UINT32					ui32FWAddr;
-	IMG_UINT32					ui32Flags;
-	IMG_UINT32					ui32FenceValue;
-	IMG_UINT32					ui32UpdateValue;
-}
-__attribute__((packed, aligned(8))) PVR_SYNC_POINT_DATA;
-
-typedef struct
-{
-	IMG_CHAR					szParentName[32];
-	IMG_UINT32					ui32Id;
-	IMG_UINT32					ui32CurrOp;
-	IMG_UINT32					ui32NextOp;
-	PVR_SYNC_POINT_DATA			sData;
-}
-__attribute__((packed, aligned(8))) PVR_SYNC_DEBUG_SYNC_DATA;
-
-struct PVR_SYNC_DEBUG_FENCE_IOCTL_DATA
+struct pvr_sync_enable_fencing_ioctl_data
 {
 	/* Input */
-	int							iFenceFd;
+	int				bFencingEnabled;
+}
+__attribute__((packed, aligned(8)));
+
+struct pvr_sync_debug_sync_data {
+	/* Output */
+	char				szParentName[32];
+	__s32				i32Status;
+	__u8				ui8Foreign;
+	union
+	{
+		struct {
+			__u32		id;
+			__u32		ui32FWAddr;
+			__u32		ui32CurrOp;
+			__u32		ui32NextOp;
+			__u32		ui32TlTaken;
+		} s;
+		char			szForeignVal[16];
+	};
+} __attribute__((packed, aligned(8)));
+
+struct pvr_sync_debug_fence_ioctl_data
+{
+	/* Input */
+	int				iFenceFd;
 
 	/* Output */
-	IMG_CHAR					szName[32];
-	IMG_INT32					i32Status;
-	IMG_UINT32					ui32NumSyncs;
-	PVR_SYNC_DEBUG_SYNC_DATA	aPts[PVR_SYNC_MAX_QUERY_FENCE_POINTS];
+	char				szName[32];
+	__s32				i32Status;
+	__u32				ui32NumSyncs;
+	struct pvr_sync_debug_sync_data	aPts[PVR_SYNC_MAX_QUERY_FENCE_POINTS];
 }
 __attribute__((packed, aligned(8)));
 
@@ -124,25 +131,30 @@ PVRSRV_ERROR PVRFDSyncWaitFence(int iFenceFd);
 PVRSRV_ERROR PVRFDSyncCheckFence(int iFenceFd);
 
 PVRSRV_ERROR PVRFDSyncMergeFences(const char *pcszName,
-								  int iFenceFd1,
-								  int iFenceFd2,
-								  int *piNewFenceFd);
+				  int iFenceFd1,
+				  int iFenceFd2,
+				  int *piNewFenceFd);
+
+PVRSRV_ERROR PVRFDSyncAllocFence(int iSyncFd,
+                                 int *piFenceFd,
+                                 int *pbTimelineIdle);
 
 PVRSRV_ERROR PVRFDSyncCreateFence(int iSyncFd,
-								  const char *pcszName,
-								  int *piFenceFd,
-								  int *pbIdleFence);
+                                  const char *pcszName,
+				  int iAllocFenceFd,
+				  int *piFenceFd);
 
 PVRSRV_ERROR PVRFDSyncEnableFencing(int iSyncFd,
-									int bFencingEnabled);
+				    int bFencingEnabled);
 
 PVRSRV_ERROR PVRFDSyncQueryFence(int iSyncFd,
-								 int iFenceFd,
-								 struct PVR_SYNC_DEBUG_FENCE_IOCTL_DATA *psData);
+				 int iFenceFd,
+				 struct pvr_sync_debug_fence_ioctl_data *psData);
 
-PVRSRV_ERROR IMG_FORMAT_PRINTF(4, 5) PVRFDSyncDumpFence(int iSyncFd,
-														int iFenceFd,
-														const char *pcszModule,
-														const char *pcszFmt, ...);
+PVRSRV_ERROR PVRFDSyncDumpFence(int iSyncFd,
+				int iFenceFd,
+				const char *pcszModule,
+				const char *pcszFmt, ...)
+	__attribute__((format(printf,4,5)));
 
 #endif /* _PVR_FD_SYNC_USER_H_ */

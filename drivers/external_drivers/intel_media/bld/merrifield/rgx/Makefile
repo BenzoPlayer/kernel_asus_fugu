@@ -64,6 +64,7 @@ ccflags-y += \
 	-I$(RGXINC)/services/server/env/linux \
 	-I$(RGXINC)/services/server/include \
 	-I$(RGXINC)/services/server/devices/rgx \
+	-I$(RGXINC)/kernel/drivers/staging/imgtec \
 	-I$(DISPINC)/interface \
 	-I$(DISPINC)/drv/ospm \
 	-I$(DISPINC)/drv \
@@ -245,7 +246,7 @@ $(DRIVER_NAME)-y += \
 
 # WINDOW_HAS_SYNC
 $(DRIVER_NAME)-y += \
-	$(RGXDIR)/services/server/env/linux/pvr_sync.o
+	$(RGXDIR)/kernel/drivers/staging/imgtec/pvr_sync.o
 
 $(DRIVER_NAME)-$(CONFIG_DRM_HANDSET_DEBUG) += \
 	$(RGXDIR)/services/server/common/ri_server.o

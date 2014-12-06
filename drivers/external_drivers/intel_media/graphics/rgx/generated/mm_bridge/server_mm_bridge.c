@@ -186,6 +186,7 @@ PVRSRVBridgePMRExportPMR(IMG_UINT32 ui32BridgeID,
 
 
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRExportPMROUT->eError =
@@ -195,6 +196,7 @@ PVRSRVBridgePMRExportPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
 					if(psPMRExportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRExportPMR_exit;
 					}
 
@@ -203,6 +205,7 @@ PVRSRVBridgePMRExportPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psPMRExportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRExportPMR_exit;
 					}
 				}
@@ -217,8 +220,11 @@ PVRSRVBridgePMRExportPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psPMRExportPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto PMRExportPMR_exit;
 	}
+
+	PMRUnlock();
 
 	/* Create a resman item and overwrite the handle with it */
 	hPMRExportInt2 = ResManRegisterRes(psConnection->hResManContext,
@@ -289,7 +295,7 @@ PVRSRVBridgePMRUnexportPMR(IMG_UINT32 ui32BridgeID,
 
 
 
-
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRUnexportPMROUT->eError =
@@ -299,10 +305,12 @@ PVRSRVBridgePMRUnexportPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR_EXPORT);
 					if(psPMRUnexportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRUnexportPMR_exit;
 					}
 
 				}
+	PMRUnlock();
 
 	psPMRUnexportPMROUT->eError = PMRUnexportPMRResManProxy(hPMRExportInt2);
 	/* Exit early if bridged call fails */
@@ -336,7 +344,7 @@ PVRSRVBridgePMRGetUID(IMG_UINT32 ui32BridgeID,
 
 
 
-
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRGetUIDOUT->eError =
@@ -366,6 +374,7 @@ PVRSRVBridgePMRGetUID(IMG_UINT32 ui32BridgeID,
 
 
 PMRGetUID_exit:
+	PMRUnlock();
 
 	return 0;
 }
@@ -539,6 +548,7 @@ PVRSRVBridgePMRImportPMR(IMG_UINT32 ui32BridgeID,
 	}
 #endif
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRImportPMROUT->eError =
@@ -548,6 +558,7 @@ PVRSRVBridgePMRImportPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR_EXPORT);
 					if(psPMRImportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRImportPMR_exit;
 					}
 
@@ -556,6 +567,7 @@ PVRSRVBridgePMRImportPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psPMRImportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRImportPMR_exit;
 					}
 				}
@@ -570,8 +582,11 @@ PVRSRVBridgePMRImportPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psPMRImportPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto PMRImportPMR_exit;
 	}
+
+	PMRUnlock();
 
 	/* Create a resman item and overwrite the handle with it */
 	hPMRInt2 = ResManRegisterRes(psConnection->hResManContext,
@@ -926,6 +941,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 
 
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psDevmemIntMapPMROUT->eError =
@@ -935,6 +951,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_DEVMEMINT_HEAP);
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 
@@ -943,6 +960,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 				}
@@ -956,6 +974,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_DEVMEMINT_RESERVATION);
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 
@@ -964,6 +983,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 				}
@@ -977,6 +997,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 
@@ -985,6 +1006,7 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntMapPMR_exit;
 					}
 				}
@@ -999,8 +1021,10 @@ PVRSRVBridgeDevmemIntMapPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psDevmemIntMapPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto DevmemIntMapPMR_exit;
 	}
+	PMRUnlock();
 
 	/* Create a resman item and overwrite the handle with it */
 	hMappingInt2 = ResManRegisterRes(psConnection->hResManContext,
@@ -1059,6 +1083,7 @@ PVRSRVBridgeDevmemIntUnmapPMR(IMG_UINT32 ui32BridgeID,
 
 
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psDevmemIntUnmapPMROUT->eError =
@@ -1068,6 +1093,7 @@ PVRSRVBridgeDevmemIntUnmapPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_DEVMEMINT_MAPPING);
 					if(psDevmemIntUnmapPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto DevmemIntUnmapPMR_exit;
 					}
 
@@ -1077,8 +1103,10 @@ PVRSRVBridgeDevmemIntUnmapPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psDevmemIntUnmapPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto DevmemIntUnmapPMR_exit;
 	}
+	PMRUnlock();
 
 	psDevmemIntUnmapPMROUT->eError =
 		PVRSRVReleaseHandle(psConnection->psHandleBase,
@@ -1267,6 +1295,7 @@ PVRSRVBridgePhysmemNewRamBackedPMR(IMG_UINT32 ui32BridgeID,
 				goto PhysmemNewRamBackedPMR_exit;
 			}
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPhysmemNewRamBackedPMROUT->eError =
@@ -1276,6 +1305,7 @@ PVRSRVBridgePhysmemNewRamBackedPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_DEV_NODE);
 					if(psPhysmemNewRamBackedPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PhysmemNewRamBackedPMR_exit;
 					}
 
@@ -1295,8 +1325,10 @@ PVRSRVBridgePhysmemNewRamBackedPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psPhysmemNewRamBackedPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto PhysmemNewRamBackedPMR_exit;
 	}
+	PMRUnlock();
 
 	/* Create a resman item and overwrite the handle with it */
 	hPMRPtrInt2 = ResManRegisterRes(psConnection->hResManContext,
@@ -1360,6 +1392,7 @@ PVRSRVBridgePMRLocalImportPMR(IMG_UINT32 ui32BridgeID,
 
 
 
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRLocalImportPMROUT->eError =
@@ -1369,6 +1402,7 @@ PVRSRVBridgePMRLocalImportPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_DEVMEM_MEM_IMPORT);
 					if(psPMRLocalImportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRLocalImportPMR_exit;
 					}
 
@@ -1377,6 +1411,7 @@ PVRSRVBridgePMRLocalImportPMR(IMG_UINT32 ui32BridgeID,
 
 					if(psPMRLocalImportPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRLocalImportPMR_exit;
 					}
 				}
@@ -1390,8 +1425,10 @@ PVRSRVBridgePMRLocalImportPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psPMRLocalImportPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto PMRLocalImportPMR_exit;
 	}
+	PMRUnlock();
 
 	/* Create a resman item and overwrite the handle with it */
 	hPMRInt2 = ResManRegisterRes(psConnection->hResManContext,
@@ -1449,7 +1486,7 @@ PVRSRVBridgePMRUnrefPMR(IMG_UINT32 ui32BridgeID,
 
 
 
-
+	PMRLock();
 				{
 					/* Look up the address from the handle */
 					psPMRUnrefPMROUT->eError =
@@ -1459,6 +1496,7 @@ PVRSRVBridgePMRUnrefPMR(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
 					if(psPMRUnrefPMROUT->eError != PVRSRV_OK)
 					{
+						PMRUnlock();
 						goto PMRUnrefPMR_exit;
 					}
 
@@ -1468,8 +1506,11 @@ PVRSRVBridgePMRUnrefPMR(IMG_UINT32 ui32BridgeID,
 	/* Exit early if bridged call fails */
 	if(psPMRUnrefPMROUT->eError != PVRSRV_OK)
 	{
+		PMRUnlock();
 		goto PMRUnrefPMR_exit;
 	}
+
+	PMRUnlock();
 
 	psPMRUnrefPMROUT->eError =
 		PVRSRVReleaseHandle(psConnection->psHandleBase,

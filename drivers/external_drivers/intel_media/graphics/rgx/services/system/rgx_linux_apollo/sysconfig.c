@@ -105,6 +105,10 @@ static PVRSRV_DEVICE_CONFIG gsDevices[] =
 
 		/* ui32IRQ */
 		APOLLO_INTERRUPT_ROGUE,
+		/* bIRQIsShared */
+		IMG_TRUE,
+		/* eIRQActiveLevel */
+		PVRSRV_DEVICE_IRQ_ACTIVE_SYSDEFAULT,
 
 		/* hDevData */
 		&gsRGXData,

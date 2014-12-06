@@ -1425,7 +1425,12 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	 * May allocate host buffer if HWPerf enabled at driver load time.
 	 */
 	eError = RGXHWPerfInit(psDeviceNode, (ui32ConfigFlags & RGXFWIF_INICFG_HWPERF_EN));
-	PVR_LOGG_IF_ERROR(eError, "RGXHWPerfInit", failHWPerfInit);
+
+	if (eError != PVRSRV_OK)
+	{
+		PVR_LOGG_IF_ERROR(eError, "RGXHWPerfInit", failHWPerfInit);
+		goto failHWPerfInit;
+	}
 
 	/* Set initial log type */
 	if (ui32LogType & ~RGXFWIF_LOG_TYPE_MASK)
@@ -1483,6 +1488,42 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	psDevInfo->psRGXFWIfGpuUtilFWCb->aui64CB[0] = RGXFWIF_GPU_UTIL_FWCB_RESERVED;
 	psDevInfo->psRGXFWIfGpuUtilFWCb->aui64CB[RGXFWIF_GPU_UTIL_FWCB_SIZE-1] = RGXFWIF_GPU_UTIL_FWCB_RESERVED;
 
+	uiMemAllocFlags =	PVRSRV_MEMALLOCFLAG_DEVICE_FLAG(PMMETA_PROTECT) |
+						PVRSRV_MEMALLOCFLAG_GPU_READABLE |
+						PVRSRV_MEMALLOCFLAG_CPU_READABLE |
+						PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE |
+						PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE |
+						PVRSRV_MEMALLOCFLAG_UNCACHED |
+						PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC;
+
+	PDUMPCOMMENT("Allocate rgxfw FW runtime configuration (FW)");
+	eError = DevmemFwAllocate(psDevInfo,
+							sizeof(RGXFWIF_RUNTIME_CFG),
+							uiMemAllocFlags,
+							"FirmwareFWRuntimeCfg",
+							&psDevInfo->psRGXFWIfRuntimeCfgMemDesc);
+
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR,"RGXSetupFirmware: Failed to allocate %u bytes for FW runtime configuration (%u)",
+				(IMG_UINT32)sizeof(RGXFWIF_RUNTIME_CFG),
+				eError));
+		goto failFWIfRuntimeCfgMemDescAlloc;
+	}
+
+	RGXSetFirmwareAddress(&psRGXFWInit->psRuntimeCfg,
+						psDevInfo->psRGXFWIfRuntimeCfgMemDesc,
+						0, RFW_FWADDR_NOREF_FLAG);
+
+	eError = DevmemAcquireCpuVirtAddr(psDevInfo->psRGXFWIfRuntimeCfgMemDesc,
+									(IMG_VOID **)&psDevInfo->psRGXFWIfRuntimeCfg);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR,"RGXSetupFirmware: Failed to acquire kernel FW runtime configuration (%u)",
+				eError));
+		goto failFWIfRuntimeCfgMemDescAqCpuVirt;
+	}
+
 #if defined(SUPPORT_USER_REGISTER_CONFIGURATION)
 	PDUMPCOMMENT("Allocate rgxfw register configuration structure");
 	eError = DevmemFwAllocate(psDevInfo,
@@ -1496,7 +1537,7 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		PVR_DPF((PVR_DBG_ERROR,"RGXSetupFirmware: Failed to allocate %ld bytes for fw register configurations (%u)",
 				sizeof(RGXFWIF_REG_CFG),
 				eError));
-		goto failFWIfTraceBufCtlMemDescAlloc;
+		goto failFWIfRegconfigMemDescAlloc;
 	}
 
 	RGXSetFirmwareAddress(&psRGXFWInit->psRegCfg,
@@ -1525,6 +1566,7 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 	/* Required info by FW to calculate the ActivePM idle timer latency */
 	{
 		RGX_DATA *psRGXData = (RGX_DATA*) psDeviceNode->psDevConfig->hDevData;
+		RGXFWIF_RUNTIME_CFG *psRuntimeCfg = psDevInfo->psRGXFWIfRuntimeCfg;
 
 		/* if user defined clockspeed */
 		if (ui32CoreClockSpeed != psRGXData->psRGXTimingInfo->ui32CoreClockSpeed)
@@ -1537,6 +1579,11 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 			psRGXFWInit->ui32ActivePMLatencyms = ui32APMLatency;
 		else
 		psRGXFWInit->ui32ActivePMLatencyms = psRGXData->psRGXTimingInfo->ui32ActivePMLatencyms;
+
+		/* Initialise variable runtime configuration to the system defaults */
+		psRuntimeCfg->ui32CoreClockSpeed = psRGXFWInit->ui32InitialCoreClockSpeed;
+		psRuntimeCfg->ui32ActivePMLatencyms = psRGXFWInit->ui32ActivePMLatencyms;
+		psRuntimeCfg->bActivePMLatencyPersistant = IMG_TRUE;
 	}
 
 	/* Setup Fault read register */
@@ -2154,8 +2201,19 @@ failed_sync_alloc:
 	SyncPrimContextDestroy(psDevInfo->hSyncPrimContext);
 
 failed_sync_ctx_alloc:
+#if defined(SUPPORT_USER_REGISTER_CONFIGURATION)
+	DevmemFwFree(psDevInfo->psRGXFWIfRegCfgMemDesc);
+
+failFWIfRegconfigMemDescAlloc:
+#endif
+	DevmemReleaseCpuVirtAddr(psDevInfo->psRGXFWIfRuntimeCfgMemDesc);
+
+failFWIfRuntimeCfgMemDescAqCpuVirt:
+	DevmemFwFree(psDevInfo->psRGXFWIfRuntimeCfgMemDesc);
+
+failFWIfRuntimeCfgMemDescAlloc:
 	DevmemReleaseCpuVirtAddr(psDevInfo->psRGXFWIfGpuUtilFWCbCtlMemDesc);
-	
+
 failFWIfGpuUtilFWCbCtlMemDescAqCpuVirt:
 	DevmemFwFree(psDevInfo->psRGXFWIfGpuUtilFWCbCtlMemDesc);
 
@@ -2316,6 +2374,12 @@ IMG_VOID RGXFreeFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo)
 	{
 		DevmemReleaseCpuVirtAddr(psDevInfo->psRGXFWIfGpuUtilFWCbCtlMemDesc);
 		DevmemFwFree(psDevInfo->psRGXFWIfGpuUtilFWCbCtlMemDesc);
+	}
+
+	if (psDevInfo->psRGXFWIfRuntimeCfgMemDesc)
+	{
+		DevmemReleaseCpuVirtAddr(psDevInfo->psRGXFWIfRuntimeCfgMemDesc);
+		DevmemFwFree(psDevInfo->psRGXFWIfRuntimeCfgMemDesc);
 	}
 
 	if (psDevInfo->psRGXFWIfHWRInfoBufCtlMemDesc)

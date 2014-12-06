@@ -71,6 +71,13 @@ typedef enum
 	PVRSRV_DEVICE_PHYS_HEAP_LAST
 }PVRSRV_DEVICE_PHYS_HEAP;
 
+typedef enum
+{
+	PVRSRV_DEVICE_IRQ_ACTIVE_SYSDEFAULT = 0,
+	PVRSRV_DEVICE_IRQ_ACTIVE_LOW,
+	PVRSRV_DEVICE_IRQ_ACTIVE_HIGH
+}PVRSRV_DEVICE_IRQ_ACTIVE_LEVEL;
+
 typedef IMG_VOID (*PFN_MISR)(IMG_VOID *pvData);
 
 typedef IMG_BOOL (*PFN_LISR)(IMG_VOID *pvData);
@@ -108,6 +115,12 @@ struct _PVRSRV_DEVICE_CONFIG_
 	IMG_UINT32			ui32RegsSize;
 	/*! Device interrupt number */
 	IMG_UINT32			ui32IRQ;
+
+	/*! The device interrupt is shared */
+	IMG_BOOL			bIRQIsShared;
+
+	/*! IRQ polarity */
+	PVRSRV_DEVICE_IRQ_ACTIVE_LEVEL	eIRQActiveLevel;
 
 	/*! Device specific data handle */
 	IMG_HANDLE			hDevData;

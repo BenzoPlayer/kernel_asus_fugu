@@ -206,6 +206,9 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 	DEVMEM_MEMDESC			*psRGXFWIfInitMemDesc;
 
+	DEVMEM_MEMDESC			*psRGXFWIfRuntimeCfgMemDesc;
+	RGXFWIF_RUNTIME_CFG		*psRGXFWIfRuntimeCfg;
+
 #if defined(RGXFW_ALIGNCHECKS)
 	DEVMEM_MEMDESC			*psRGXFWAlignChecksMemDesc;	
 #endif
