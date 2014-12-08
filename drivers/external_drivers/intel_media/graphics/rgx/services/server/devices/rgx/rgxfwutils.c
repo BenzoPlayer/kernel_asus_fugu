@@ -3682,7 +3682,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 	{
 		return PVRSRV_OK;
 	}
-
+	
 	/* If this is a quick update, then include the last current value... */
 	if (!bCheckAfterTimePassed)
 	{
