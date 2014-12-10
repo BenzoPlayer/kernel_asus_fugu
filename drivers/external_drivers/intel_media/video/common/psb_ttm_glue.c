@@ -498,6 +498,7 @@ int psb_video_getparam(struct drm_device *dev, void *data,
 					break;
 				}
 			}
+            break;
 		}
 #endif
 #endif
