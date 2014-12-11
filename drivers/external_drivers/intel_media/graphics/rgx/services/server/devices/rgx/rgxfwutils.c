@@ -3652,7 +3652,6 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 	RGXFWIF_TRACEBUF*  psRGXFWIfTraceBufCtl;
 	IMG_UINT32  ui32DMCount, ui32ThreadCount;
 	IMG_BOOL  bKCCBCmdsWaiting;
-	PVRSRV_DEV_POWER_STATE eNowPowerState, eLastPowerState;
 	
 	PVR_ASSERT(psDevNode != NULL);
 	psDevInfo = psDevNode->pvDevice;
@@ -3671,14 +3670,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 	   That's not a problem as this function does not touch the HW except for the RGXScheduleCommand function,
 	   which is already powerlock safe. The worst thing that could happen is that Rogue might power back up
 	   but the chances of that are very low */
-	if (PVRSRVGetDevicePowerState(psDevNode->sDevId.ui32DeviceIndex, &eNowPowerState) != PVRSRV_OK)
-	{
-		return PVRSRV_OK;
-	}
-	eLastPowerState = psDevInfo->eLastPowerState;
-	psDevInfo->eLastPowerState = eNowPowerState;
-
-	if (eNowPowerState != PVRSRV_DEV_POWER_STATE_ON)
+	if (!PVRSRVIsDevicePowered(psDevNode->sDevId.ui32DeviceIndex))
 	{
 		return PVRSRV_OK;
 	}
@@ -3816,8 +3808,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 		psDevInfo->ui32KCCBCmdsExecutedLastTime = ui32KCCBCmdsExecuted;
 	}
 
-	if (bCheckAfterTimePassed && (PVRSRV_DEVICE_HEALTH_STATUS_OK==eNewStatus) &&
-		(eLastPowerState == eNowPowerState))
+	if (bCheckAfterTimePassed && (PVRSRV_DEVICE_HEALTH_STATUS_OK==eNewStatus))
 	{
 		/* Attempt to detect and deal with any stalled client contexts */
 		IMG_BOOL bStalledClient = IMG_FALSE;

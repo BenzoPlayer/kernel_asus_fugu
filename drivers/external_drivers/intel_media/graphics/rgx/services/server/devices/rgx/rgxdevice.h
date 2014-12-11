@@ -53,7 +53,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_external.h"
 #include "device.h"
 #include "osfunc.h"
-#include "servicesext.h"
 
 typedef struct _RGX_SERVER_COMMON_CONTEXT_ RGX_SERVER_COMMON_CONTEXT;
 
@@ -332,8 +331,6 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 	DLLIST_NODE 		sCommonCtxtListHead;
 	IMG_UINT32			ui32CommonCtxtCurrentID;			/*!< ID assigned to the next common context */
-
-	PVRSRV_DEV_POWER_STATE eLastPowerState;
 } PVRSRV_RGXDEV_INFO;
 
 
