@@ -2189,6 +2189,7 @@ static int psb_disable_ied_session_ioctl(struct drm_device *dev, void *data,
 		}
 		for (i = 0; i < MAX_IED_SESSION; i++) {
 			if (g_ied_context[i] == file_priv->filp) {
+				g_ied_context[i] = NULL;
 				if (g_ied_ref)
 					g_ied_ref--;
 			DRM_INFO("Disable IED: ied_ref:%d\
