@@ -78,22 +78,20 @@ int arch_update_cpu_topology(void);
  * (Only non-zero and non-null fields need be specified.)
  */
 
+#ifndef ASYM_CONCURRENCY_INIT
+#ifdef CONFIG_WORKLOAD_CONSOLIDATION
+#define ASYM_CONCURRENCY_INIT(n) .asym_concurrency = (n),
+#else
+#define ASYM_CONCURRENCY_INIT(n)
+#endif
+#endif
+
 #ifdef CONFIG_SCHED_SMT
 /* MCD - Do we really need this?  It is always on if CONFIG_SCHED_SMT is,
  * so can't we drop this in favor of CONFIG_SCHED_SMT?
  */
 #define ARCH_HAS_SCHED_WAKE_IDLE
 /* Common values for SMT siblings */
-
-#ifdef CONFIG_WORKLOAD_CONSOLIDATION
-#ifndef ASYM_CONCURRENCY_INIT
-#define ASYM_CONCURRENCY_INIT(n) .asym_concurrency = (n),
-#endif
-#else
-#ifndef ASYM_CONCURRENCY_INIT
-#define ASYM_CONCURRENCY_INIT(n)
-#endif
-#endif
 
 #ifndef SD_SIBLING_INIT
 #define SD_SIBLING_INIT (struct sched_domain) {				\
