@@ -686,7 +686,7 @@ int android_hdmi_mode_valid(struct drm_connector *connector,
 		goto err;
 	}
 
-	if (mode->vrefresh > 60) {
+	if ((mode->vrefresh < 50) || (mode->vrefresh > 60)) {
 		ret = MODE_BAD_VVALUE;
 		goto err;
 	}
