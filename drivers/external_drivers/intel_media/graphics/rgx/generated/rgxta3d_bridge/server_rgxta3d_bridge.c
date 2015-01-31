@@ -1654,6 +1654,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_RGX_SERVER_RENDER_CONTEXT);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup RenderContext handle\n", __FUNCTION__));
 						goto RGXKickTA3D_exit;
 					}
 
@@ -1680,6 +1681,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup TA Sync handle[%d]\n", __FUNCTION__, i));
 						goto RGXKickTA3D_exit;
 					}
 
@@ -1708,6 +1710,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup 3D Sync handle[%d]\n", __FUNCTION__, i));
 						goto RGXKickTA3D_exit;
 					}
 
@@ -1732,6 +1735,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_RGX_RTDATA_CLEANUP);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup Cleanup handle\n", __FUNCTION__));
 						goto RGXKickTA3D_exit;
 					}
 
@@ -1754,6 +1758,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_RGX_FWIF_ZSBUFFER);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup Z Buffer handle\n", __FUNCTION__));
 						goto RGXKickTA3D_exit;
 					}
 
@@ -1776,6 +1781,7 @@ PVRSRVBridgeRGXKickTA3D(IMG_UINT32 ui32BridgeID,
 											PVRSRV_HANDLE_TYPE_RGX_FWIF_ZSBUFFER);
 					if(psRGXKickTA3DOUT->eError != PVRSRV_OK)
 					{
+						PVR_DPF((PVR_DBG_ERROR, "%s: Failed to lookup S Buffer handle\n", __FUNCTION__));
 						goto RGXKickTA3D_exit;
 					}
 
