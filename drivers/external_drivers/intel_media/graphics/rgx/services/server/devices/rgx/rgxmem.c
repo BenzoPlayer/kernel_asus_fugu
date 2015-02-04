@@ -490,6 +490,7 @@ static IMG_BOOL _RGXCheckFaultAddress(PDLLIST_NODE psNode, IMG_PVOID pvCallbackD
 IMG_VOID RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_VIRTADDR *psDevVAddr, IMG_DEV_PHYADDR *psDevPAddr)
 {
 	RGX_FAULT_DATA sFaultData;
+	IMG_DEV_PHYADDR sPCDevPAddr;
 
 	sFaultData.psDevVAddr = psDevVAddr;
 	sFaultData.psDevPAddr = psDevPAddr;
@@ -499,6 +500,18 @@ IMG_VOID RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_VIRTADDR *p
 	dllist_foreach_node(&psDevInfo->sMemoryContextList,
 						_RGXCheckFaultAddress,
 						&sFaultData);
+
+	/* Lastly check for fault in the kernel allocated memory */
+	if (MMU_AcquireBaseAddr(psDevInfo->psKernelMMUCtx, &sPCDevPAddr) != PVRSRV_OK)
+	{
+		PVR_LOG(("Failed to get PC address for kernel memory context"));
+	}
+
+	if (sFaultData.psDevPAddr->uiAddr == sPCDevPAddr.uiAddr)
+	{
+		PVR_LOG(("Found memory context (firmware)"));
+		MMU_CheckFaultAddress(psDevInfo->psKernelMMUCtx, psDevVAddr);
+	}
 
 	OSWRLockReleaseRead(psDevInfo->hMemoryCtxListLock);
 }
