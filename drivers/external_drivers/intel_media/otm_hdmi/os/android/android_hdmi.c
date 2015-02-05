@@ -280,7 +280,9 @@ static irqreturn_t __hdmi_irq_handler_bottomhalf(void *data)
 		if (hdmi_status == processed_hdmi_status ||
 			hdmi_detect_exit_count == 0) {
 			if (hdmi_detect_exit_count == 0)
-				pr_err("HDMI Cable status not stable!");
+				pr_err("%s: HDMI cable status not stable!\n", __func__);
+			else
+				pr_info("%s: HDMI cable status not changed!\n", __func__);
 			if (!hdmi_status)
 				otm_hdmi_power_rails_off();
 			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
@@ -336,7 +338,7 @@ static irqreturn_t __hdmi_irq_handler_bottomhalf(void *data)
 		}
 exit:
 		/* Notify user space */
-		pr_debug("%s: HDMI hot plug state  = %d\n", __func__, hdmi_status);
+		pr_info("%s: HDMI hot plug state  = %d\n", __func__, hdmi_status);
 
 		if (hdmi_status) {
 			/* hdmi_state indicates that hotplug event happens */
@@ -354,8 +356,6 @@ exit:
 
 			mid_hdmi_audio_signal_event(hdmi_priv->dev, HAD_EVENT_HOT_UNPLUG);
 			switch_set_state(&hdmi_priv->sdev, 0);
-			pr_info("%s: hdmi state switched to %d\n", __func__,
-				hdmi_priv->sdev.state);
 		}
 
 		drm_helper_hpd_irq_event(hdmi_priv->dev);
@@ -2372,9 +2372,17 @@ android_hdmi_detect(struct drm_connector *connector,
 
 	/* Check if monitor is attached to HDMI connector. */
 	data = otm_hdmi_get_cable_status(hdmi_priv->context);
-	if (!first_boot && data != hdmi_state)
-		pr_err("inconsistent HDMI state detected, state = %d\n", data);
-	pr_debug("%s: HPD connected data = 0x%x.\n", __func__, data);
+	pr_debug("%s: HPD connected data = %d.\n", __func__, data);
+
+	if (!first_boot) {
+		/* detect can be invoked in multiple contexts,  providing potentially inconsistent
+		* cable status to drm framework and user land.  Use hdmi state detected
+		* in the IRQ handler to any observer after the first boot.
+		*/
+		if (data != hdmi_state)
+			pr_err("%s: inconsistent HPD status %d\n", __func__, data);
+		data = hdmi_state;
+	}
 
 #ifdef OTM_HDMI_HDCP_ENABLE
 	otm_hdmi_hdcp_set_hpd_state(hdmi_priv->context, data);
