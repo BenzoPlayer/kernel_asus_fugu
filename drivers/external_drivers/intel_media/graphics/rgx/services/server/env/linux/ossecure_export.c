@@ -142,6 +142,13 @@ PVRSRV_ERROR OSSecureExport(CONNECTION_DATA *psConnection,
 	psSecureConnection = LinuxConnectionFromFile(secure_file);
 #endif
 
+	if(psSecureConnection == IMG_NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
+		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto e0;
+	}
+
 	/* Save the private data */
 	PVR_ASSERT(psSecureConnection->hSecureData == IMG_NULL);
 	psSecureConnection->hSecureData = pvData;
@@ -174,8 +181,9 @@ PVRSRV_ERROR OSSecureImport(IMG_SECURE_TYPE hSecure, IMG_PVOID *ppvData)
 #else
 	psSecureConnection = LinuxConnectionFromFile(secure_file);
 #endif
-	if (psSecureConnection->hSecureData == IMG_NULL)
+	if ((psSecureConnection == IMG_NULL) || (psSecureConnection->hSecureData == IMG_NULL))
 	{
+		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
 		eError = PVRSRV_ERROR_INVALID_PARAMS;
 		goto err_fput;
 	}
