@@ -1255,6 +1255,7 @@ static struct android_usb_function dvctrace_function = {
 	.bind_config	= dvctrace_function_bind_config,
 	.ctrlrequest	= dvctrace_function_ctrlrequest,
 	.attributes	= dvctrace_function_attributes,
+};
 
 static int midi_function_init(struct android_usb_function *f,
 					struct usb_composite_dev *cdev)
