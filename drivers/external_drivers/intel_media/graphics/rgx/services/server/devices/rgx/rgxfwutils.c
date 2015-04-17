@@ -1572,13 +1572,13 @@ PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		if (ui32CoreClockSpeed != psRGXData->psRGXTimingInfo->ui32CoreClockSpeed)
 			psRGXFWInit->ui32InitialCoreClockSpeed = ui32CoreClockSpeed;
 		else
-		psRGXFWInit->ui32InitialCoreClockSpeed = psRGXData->psRGXTimingInfo->ui32CoreClockSpeed;
+			psRGXFWInit->ui32InitialCoreClockSpeed = psRGXData->psRGXTimingInfo->ui32CoreClockSpeed;
 
 		/* if user defined latency */
 		if (psRGXData->psRGXTimingInfo->ui32ActivePMLatencyms != ui32APMLatency)
 			psRGXFWInit->ui32ActivePMLatencyms = ui32APMLatency;
 		else
-		psRGXFWInit->ui32ActivePMLatencyms = psRGXData->psRGXTimingInfo->ui32ActivePMLatencyms;
+			psRGXFWInit->ui32ActivePMLatencyms = psRGXData->psRGXTimingInfo->ui32ActivePMLatencyms;
 
 		/* Initialise variable runtime configuration to the system defaults */
 		psRuntimeCfg->ui32CoreClockSpeed = psRGXFWInit->ui32InitialCoreClockSpeed;

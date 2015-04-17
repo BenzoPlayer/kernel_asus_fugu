@@ -425,7 +425,6 @@ static IMG_VOID CleanupThread(IMG_PVOID pvData)
 
 		/* Release the bridge lock after the cleanup of the defer context */
 		OSReleaseBridgeLock();
-
 	}
 
 	eRc = OSEventObjectClose(hOSEvent);

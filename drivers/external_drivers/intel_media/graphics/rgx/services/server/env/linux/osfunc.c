@@ -1981,10 +1981,6 @@ struct task_struct *OSGetBridgeLockOwner(void)
 	return gsOwner;
 }
 
-IMG_BOOL OSIsBridgeLockedByMe(void)
-{
-	return (mutex_is_locked(&gPVRSRVLock) && current == gsOwner);
-}
 
 /*************************************************************************/ /*!
 @Function       OSCreateStatisticEntry

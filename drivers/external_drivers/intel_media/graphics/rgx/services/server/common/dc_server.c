@@ -533,6 +533,7 @@ static IMG_VOID _DCDisplayContextConfigure(IMG_PVOID hReadyData,
 											   psReadyData->ui32DisplayPeriod,
 											   hCompleteData);
 	OSLockRelease(psDisplayContext->hConfigureLock);
+
 }
 
 /*
@@ -1212,7 +1213,6 @@ PVRSRV_ERROR DCDisplayContextCreate(DC_DEVICE *psDevice,
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
-	PVR_DPF((PVR_DBG_ERROR, "DCDisplayContextCreate: %p", psDisplayContext));
 	psDisplayContext->psDevice = psDevice;
 	psDisplayContext->hDisplayContext = IMG_NULL;
 	psDisplayContext->ui32TokenOut = 0;
@@ -2150,7 +2150,7 @@ IMG_VOID DCDisplayConfigurationRetired(IMG_HANDLE hConfigData)
 		PVR_DPF((PVR_DBG_ERROR,
 				"Display config retired in unexpected order (was %d, expecting %d)",
 				psData->ui32Token, psDisplayContext->ui32TokenIn));
-		PVR_ASSERT(IMG_FALSE);
+		/* PVR_ASSERT(IMG_FALSE); */
 	}
 
 	OSLockAcquire(psDisplayContext->hLock);

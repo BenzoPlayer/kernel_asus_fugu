@@ -287,7 +287,7 @@ struct pci_device_id powervr_id_table[] __devinitdata = {
 #if !defined(SUPPORT_DRM_INTEL)
 MODULE_DEVICE_TABLE(pci, powervr_id_table);
 #endif
-#endif	/*defined(LDM_PCI) */ 
+#endif /*defined(LDM_PCI) */
 
 #if defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 static struct platform_device_id powervr_id_table[] __devinitdata = {

@@ -349,6 +349,10 @@ int PVRDebugFSCreateEntry(const char *pszName,
 		return PTR_ERR(psEntry);
 	}
 
+	/* take reference on inode (for allocation held in d_inode->i_private) - stops
+	 * inode being removed until we have freed the memory allocated in i_private */
+	igrab(psEntry->d_inode);
+
 	*ppsEntry = psEntry;
 
 	return 0;
@@ -362,15 +366,17 @@ int PVRDebugFSCreateEntry(const char *pszName,
 */ /**************************************************************************/
 void PVRDebugFSRemoveEntry(struct dentry *psEntry)
 {
-	if (psEntry)
+	if(psEntry != IMG_NULL)
 	{
-	/* Free any private data that was provided to debugfs_create_file() */
-	if (psEntry->d_inode->i_private != NULL)
-	{
-		kfree(psEntry->d_inode->i_private);
-	}
+		/* Free any private data that was provided to debugfs_create_file() */
+		if (psEntry->d_inode->i_private != NULL)
+		{
+			kfree(psEntry->d_inode->i_private);
+			/* drop reference on inode now that we have freed the allocated memory*/
+			iput(psEntry->d_inode);
+		}
 
-	debugfs_remove(psEntry);
+		debugfs_remove(psEntry);
 	}
 }
 

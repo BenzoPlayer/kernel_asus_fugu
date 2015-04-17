@@ -169,7 +169,7 @@ static IMG_UINT32 g_ui32LiveAllocs = 0;
 /* infomation about zeroed pages */
 static IMG_UINT32 g_ui32ZeroPageEntries = 0;
 /* this is a experience value, need adjust for performance */
-#define _PAGE_NEED_CLEAR ((g_ui32ZeroPageEntries & 6) == 0)
+#define _PAGE_NEED_CLEAR ((g_ui32ZeroPageEntries & 3) == 0)
 
 /* Global structures we use to manage the page pool */
 static struct kmem_cache *g_psLinuxPagePoolCache = IMG_NULL;
@@ -274,7 +274,7 @@ _AddEntryToPool(struct page *psPage, IMG_UINT32 ui32CPUCacheFlags)
 	        list_add(&psEntry->sPagePoolItem, psPoolHead);
 	        g_ui32ZeroPageEntries++;
 	} else {
-	list_add_tail(&psEntry->sPagePoolItem, psPoolHead);
+	        list_add_tail(&psEntry->sPagePoolItem, psPoolHead);
 	}
 
 	g_ui32PagePoolEntryCount++;
@@ -317,7 +317,7 @@ _RemoveFirstEntryFromPool(IMG_UINT32 ui32CPUCacheFlags, IMG_BOOL bFlush)
 
 	PVR_ASSERT(g_ui32PagePoolEntryCount > 0);
 	if (bFlush) {
-	psPagePoolEntry = list_first_entry(psPoolHead, LinuxPagePoolEntry, sPagePoolItem);
+		psPagePoolEntry = list_first_entry(psPoolHead, LinuxPagePoolEntry, sPagePoolItem);
 		if (!psPagePoolEntry->bPageZero) {
 			/* we don't have zero pages at this list */
 			goto unlock_exit;
@@ -536,7 +536,7 @@ static void _ResolveBufferPoolSize(void)
 	DCDeviceRelease(psDcDevice);
 }
 
-static void _InitPagePool(void)
+static IMG_VOID _InitPagePool(IMG_VOID)
 {
 	IMG_UINT32 ui32Flags = 0;
 
@@ -1046,7 +1046,7 @@ _AllocOSPages(struct _PMR_OSPAGEARRAY_DATA_ **ppsPageArrayDataPtr)
                      uiPageIndex,
                      psPageArrayData->uiNumPages,
                      PVRSRVGetErrorStringKM(eError)));
-            for(--uiPageIndex;uiPageIndex < psPageArrayData->uiNumPages;--uiPageIndex)
+            for(--uiPageIndex;(IMG_INT32)uiPageIndex >= 0;--uiPageIndex)
             {
 				_FreeOSPage(ui32CPUCacheFlags,
 							uiOrder,
