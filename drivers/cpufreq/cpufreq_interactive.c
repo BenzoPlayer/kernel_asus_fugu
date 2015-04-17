@@ -415,7 +415,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	cur = pcpu->policy->cur;
 	if (cur == 0)
 		goto rearm;
-	cpu_load = loadadjfreq / pcpu->target_freq;
+	cpu_load = loadadjfreq / pcpu->policy->cur;
 	tunables->boosted = tunables->boost_val || now < tunables->boostpulse_endtime;
 
 	if (cpu_load >= tunables->go_hispeed_load || tunables->boosted) {
