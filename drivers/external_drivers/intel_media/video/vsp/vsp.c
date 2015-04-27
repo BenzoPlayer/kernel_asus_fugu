@@ -123,6 +123,16 @@ int vsp_handle_response(struct drm_psb_private *dev_priv)
 			}
 
 			ret = false;
+
+			/* For VPP component, wouldn't receive any command
+			 * from user space. Release the fence.
+			 */
+			if (msg->context == CONTEXT_VPP_ID)
+				vsp_priv->vsp_state = VSP_STATE_HANG;
+			else if (msg->context == CONTEXT_COMPOSE_ID) {
+				vsp_priv->vsp_state = VSP_STATE_HANG;
+				sequence = vsp_priv->compose_fence;
+			}
 			break;
 
 		case VssEndOfSequenceResponse:
@@ -299,6 +309,12 @@ int vsp_cmdbuf_vpp(struct drm_file *priv,
 	struct file *filp = priv->filp;
 	bool need_power_put = 0;
 
+	/* If VSP timeout, don't send cmd to hardware anymore */
+	if (vsp_priv->vsp_state == VSP_STATE_HANG) {
+		DRM_ERROR("The VSP is hang abnormally!");
+		return -EFAULT;
+	}
+
 	memset(&cmd_kmap, 0, sizeof(cmd_kmap));
 	vsp_priv->vsp_cmd_num = 1;
 
@@ -384,11 +400,6 @@ int vsp_submit_cmdbuf(struct drm_device *dev,
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
 	int ret;
 
-	/* If VSP timeout, don't send cmd to hardware anymore */
-	if (vsp_priv->vsp_state == VSP_STATE_HANG) {
-		DRM_ERROR("The VSP is hang abnormally!");
-		return -EFAULT;
-	}
 	if (vsp_priv->acc_num_cmd >= 1 || vsp_priv->force_flush_cmd != 0
 	    || vsp_priv->delayed_burst_cnt > 0) {
 		/* consider to invalidate/flush MMU */

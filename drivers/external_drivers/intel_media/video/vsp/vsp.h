@@ -85,6 +85,10 @@
 #define MAX_VP8_CONTEXT_NUM 3
 #define MAX_VPP_CONTEXT_NUM 1
 
+#define CONTEXT_VPP_ID      0
+#define CONTEXT_VP8_ID      1
+#define CONTEXT_COMPOSE_ID  5
+
 static const unsigned int vsp_processor_base[] = {
 				SP0_SP_REG_BASE,
 				SP1_SP_REG_BASE,
