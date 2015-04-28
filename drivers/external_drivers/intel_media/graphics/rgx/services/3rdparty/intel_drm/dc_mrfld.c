@@ -650,7 +650,6 @@ static IMG_BOOL _Do_Flip(DC_MRFLD_FLIP *psFlip, int iPipe)
 	list_for_each_entry(plane,
 			    &(psFlip->asPipeInfo[iPipe].flip_planes), list) {
 		zorder = &plane->flip_ctx->zorder;
-
 		enable_plane(plane);
 	}
 
@@ -825,7 +824,6 @@ static void _Dispatch_Flip(DC_MRFLD_FLIP *psFlip)
 
 		for (j = 0; j < pasBuffers[i]->ui32ContextCount; j++) {
 			psSurfCustom = &pasBuffers[i]->sContext[j];
-
 			type = psSurfCustom->type;
 			index = -1;
 			pipe = -1;
@@ -1358,7 +1356,7 @@ static PVRSRV_ERROR DC_MRFLD_ContextConfigureCheck(
 		}
 
 		/*post flip*/
-		if (!pasSurfAttrib[i].ui32Custom) {
+		if (!pasSurfAttrib[i].ui64Custom) {
 			psBuffer->eFlipOp = DC_MRFLD_FLIP_SURFACE;
 			continue;
 		}
@@ -1375,7 +1373,7 @@ static PVRSRV_ERROR DC_MRFLD_ContextConfigureCheck(
 		/*copy the context from userspace*/
 		err = copy_from_user(psSurfCustom,
 				     (void *)(uintptr_t)
-				     pasSurfAttrib[i].ui32Custom,
+				     pasSurfAttrib[i].ui64Custom,
 				     sizeof(DC_MRFLD_SURF_CUSTOM));
 		if (err) {
 			DRM_ERROR("Failed to copy plane context\n");

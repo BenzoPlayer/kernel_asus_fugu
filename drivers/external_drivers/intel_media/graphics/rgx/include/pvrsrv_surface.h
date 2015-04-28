@@ -113,12 +113,12 @@ typedef struct _PVRSRV_SURFACE_CONFIG_INFO_
 	IMG_UINT32				eBlendType;
 
 	/*!< Custom data for the display engine */
-	IMG_UINT32				ui32Custom;
+	IMG_UINT64				ui64Custom;
 
 	/*!< Plane alpha */
 	IMG_UINT8				ui8PlaneAlpha;
 	IMG_UINT8				ui8Reserved1[3];
-} PVRSRV_SURFACE_CONFIG_INFO;
+} __attribute__((packed)) PVRSRV_SURFACE_CONFIG_INFO;
 
 typedef struct _PVRSRV_PANEL_INFO_
 {
@@ -143,7 +143,7 @@ static INLINE IMG_VOID SurfaceConfigFromSurfInfo(PVRSRV_SURFACE_INFO *psSurfaceI
 	psConfigInfo->sDisplay.i32YOffset = 0;
 	psConfigInfo->ui32Transform = PVRSRV_SURFACE_TRANSFORM_NONE;
 	psConfigInfo->eBlendType = PVRSRV_SURFACE_BLENDING_NONE;
-	psConfigInfo->ui32Custom = 0;
+	psConfigInfo->ui64Custom = 0;
 	psConfigInfo->ui8PlaneAlpha = 0xff;
 }
 
