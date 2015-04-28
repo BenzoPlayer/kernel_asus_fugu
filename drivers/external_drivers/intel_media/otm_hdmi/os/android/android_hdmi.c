@@ -343,6 +343,8 @@ exit:
 			hdmi_state = 1;
 			uevent_string = "HOTPLUG_IN=1";
 			psb_sysfs_uevent(hdmi_priv->dev, uevent_string);
+			/* delay updating audio state until mode setting is finished*/
+			hdmi_priv->delayed_audio_hotplug = true;
 		} else {
 			otm_hdmi_power_rails_off();
 			hdmi_state = 0;
@@ -350,9 +352,10 @@ exit:
 			uevent_string = "HOTPLUG_OUT=1";
 			psb_sysfs_uevent(hdmi_priv->dev, uevent_string);
 
+			mid_hdmi_audio_signal_event(hdmi_priv->dev, HAD_EVENT_HOT_UNPLUG);
 			switch_set_state(&hdmi_priv->sdev, 0);
 			pr_info("%s: hdmi state switched to %d\n", __func__,
-			hdmi_priv->sdev.state);
+				hdmi_priv->sdev.state);
 		}
 
 		drm_helper_hpd_irq_event(hdmi_priv->dev);
@@ -686,7 +689,7 @@ int android_hdmi_mode_valid(struct drm_connector *connector,
 		goto err;
 	}
 
-	if ((mode->vrefresh < 50) || (mode->vrefresh > 60)) {
+	if ((mode->vrefresh < 24) || (mode->vrefresh > 60)) {
 		ret = MODE_BAD_VVALUE;
 		goto err;
 	}
@@ -1519,6 +1522,7 @@ int android_hdmi_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	uint64_t scalingType = DRM_MODE_SCALE_CENTER;
+	int ret = 0;
 
 	int pipe;
 	otm_hdmi_timing_t otm_mode, otm_adjusted_mode;
@@ -1598,7 +1602,9 @@ int android_hdmi_crtc_mode_set(struct drm_crtc *crtc,
 		{
 			struct drm_crtc_helper_funcs *crtc_funcs =
 							crtc->helper_private;
-			crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+			ret = crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+			if (ret != 0)
+				return ret;
 		}
 
 		if (otm_hdmi_crtc_mode_set(hdmi_priv->context, &otm_mode,
@@ -1743,6 +1749,11 @@ void android_hdmi_suspend_display(struct drm_device *dev)
 	/* disable hotplug detection */
 	otm_hdmi_enable_hpd(false);
 
+	if (is_connected) {
+		mid_hdmi_audio_signal_event(dev, HAD_EVENT_HOT_UNPLUG);
+		switch_set_state(&hdmi_priv->sdev, 0);
+	}
+
 	return;
 }
 
@@ -1859,6 +1870,11 @@ void android_hdmi_resume_display(struct drm_device *dev)
 
 	/* enable hotplug detection */
 	otm_hdmi_enable_hpd(true);
+
+	if (is_connected) {
+		mid_hdmi_audio_signal_event(dev, HAD_EVENT_HOT_PLUG);
+		switch_set_state(&hdmi_priv->sdev, 1);
+	}
 }
 
 /**
@@ -2356,6 +2372,8 @@ android_hdmi_detect(struct drm_connector *connector,
 
 	/* Check if monitor is attached to HDMI connector. */
 	data = otm_hdmi_get_cable_status(hdmi_priv->context);
+	if (!first_boot && data != hdmi_state)
+		pr_err("inconsistent HDMI state detected, state = %d\n", data);
 	pr_debug("%s: HPD connected data = 0x%x.\n", __func__, data);
 
 #ifdef OTM_HDMI_HDCP_ENABLE
@@ -2683,9 +2701,6 @@ void android_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		if (is_monitor_hdmi && (hdmip_enabled != 0))
-			mid_hdmi_audio_signal_event(dev, HAD_EVENT_HOT_UNPLUG);
-
 		if (!dev_priv->hdmi_first_boot) {
 			REG_WRITE(hdmi_priv->hdmib_reg,
 					hdmib & ~HDMIB_PORT_EN & ~HDMIB_AUDIO_ENABLE);
@@ -2701,12 +2716,13 @@ void android_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 		otm_hdmi_vblank_control(dev, true);
 		REG_WRITE(hdmi_priv->hdmib_reg, hdmib | HDMIB_PORT_EN);
 
-		if ((is_monitor_hdmi && (hdmip_enabled == 0)) ||
-			(dev_priv->hdmi_first_boot)) {
+		if (hdmi_priv->delayed_audio_hotplug ||
+			dev_priv->hdmi_first_boot) {
 			mid_hdmi_audio_signal_event(dev, HAD_EVENT_HOT_PLUG);
 			switch_set_state(&hdmi_priv->sdev, 1);
 			pr_info("%s: hdmi state switched to %d\n", __func__,
-			hdmi_priv->sdev.state);
+				hdmi_priv->sdev.state);
+			hdmi_priv->delayed_audio_hotplug = false;
 		}
 
 		if (hdmi_priv->current_mode)

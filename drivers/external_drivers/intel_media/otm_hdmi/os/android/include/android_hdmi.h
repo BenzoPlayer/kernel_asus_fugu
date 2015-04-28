@@ -97,6 +97,7 @@ struct android_hdmi_priv {
 
 	bool hdmi_suspended;
 	bool hdmi_audio_enabled;
+	bool delayed_audio_hotplug;
 	bool is_hdcp_supported;
 	int monitor_type;
 	void *context;
