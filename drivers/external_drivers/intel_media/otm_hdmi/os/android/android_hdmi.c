@@ -258,7 +258,7 @@ static irqreturn_t __hdmi_irq_handler_bottomhalf(void *data)
 		hdmi_status = otm_hdmi_get_cable_status(hdmi_priv->context);
 
 		/* shorten sleep time for hdcp comppliance test 1a-02 */
-		hdmi_detect_sleep_time = (hdmi_status == false) ? 10 : 60;
+		hdmi_detect_sleep_time = (hdmi_status == false) ? 30 : 60;
 
 		do {
 			/* Debounce for at least 60ms in order for the
@@ -272,7 +272,7 @@ static irqreturn_t __hdmi_irq_handler_bottomhalf(void *data)
 				hdmi_status = current_status;
 				hdmi_detect_count = 3;
 				hdmi_detect_sleep_time =
-					(hdmi_status == false) ? 10 : 60;
+					(hdmi_status == false) ? 30 : 60;
 			}
 		} while (hdmi_detect_count-- && hdmi_detect_exit_count--);
 
