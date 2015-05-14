@@ -502,13 +502,21 @@ int psb_video_getparam(struct drm_device *dev, void *data,
 		}
 #endif
 #endif
-		PSB_DEBUG_INIT("Video:add ctx profile %llu, entry %llu.\n",
+		PSB_DEBUG_INIT("Video:add ctx profile 0x%llx, entry 0x%llx.\n",
 					((ctx_type >> 8) & 0xff),
 					(ctx_type & 0xff));
-		PSB_DEBUG_INIT("Video:add context protected %llu.\n",
+		PSB_DEBUG_INIT("Video:add context protected 0x%llx.\n",
 					(ctx_type & VA_RT_FORMAT_PROTECTED));
 		if (ctx_type & VA_RT_FORMAT_PROTECTED)
 			ied_enabled = 1;
+		else if ((ctx_type & VAEntrypointVLD) &&
+				(ctx_type & PSB_SURFACE_UNAVAILABLE)) {
+			mutex_lock(&g_ied_mutex);
+			if (g_ied_ref > 0) {
+				DRM_INFO("Video: create context without surface, ied_ref: %d\n", g_ied_ref);
+			}
+			mutex_unlock(&g_ied_mutex);
+		}
 		else {
 			mutex_lock(&g_ied_mutex);
 			DRM_INFO("Video: ied_ref: %d\n", g_ied_ref);
@@ -536,15 +544,50 @@ int psb_video_getparam(struct drm_device *dev, void *data,
 		video_ctx = psb_find_videoctx(dev_priv, file_priv->filp);
 		if (video_ctx) {
 			PSB_DEBUG_GENERAL(
-				"Video: update video ctx old value %llu\n",
+				"Video: update video ctx old value 0x%llx\n",
 				video_ctx->ctx_type);
+			if (video_ctx->ctx_type != ctx_type) {
+#ifdef CONFIG_SLICE_HEADER_PARSING
+				if ((ctx_type & VA_RT_FORMAT_PROTECTED) &&
+					!(video_ctx->ctx_type & VA_RT_FORMAT_PROTECTED)) {
+					video_ctx->slice_extract_flag = 1;
+					video_ctx->frame_boundary = 1;
+					video_ctx->frame_end_seq = 0xffffffff;
+					ied_enabled = 1;
+
+					mutex_lock(&g_ied_mutex);
+					DRM_INFO("Video: ied_ref: %d\n", g_ied_ref);
+					if (g_ied_ref == 0) {
+						ret = sepapp_drm_playback(true);
+						if (ret) {
+							DRM_ERROR("IED enable in update context failed:0x%x\n", ret);
+						}
+						g_ied_ref++;
+					}
+					mutex_unlock(&g_ied_mutex);
+				}
+				if (!(ctx_type & VA_RT_FORMAT_PROTECTED)) {
+					mutex_lock(&g_ied_mutex);
+					DRM_INFO("Video: ied_ref: %d\n", g_ied_ref);
+					while (g_ied_ref) {
+						ret = sepapp_drm_playback(false);
+						if (ret) {
+							DRM_ERROR("IED Clean-up failed:0x%x\n", ret);
+							break;
+						}
+						g_ied_ref--;
+					}
+					mutex_unlock(&g_ied_mutex);
+				}
+#endif
+			}
 			video_ctx->ctx_type = ctx_type;
 			PSB_DEBUG_GENERAL(
-				"Video: update video ctx new value %llu\n",
+				"Video: update video ctx new value 0x%llx\n",
 				video_ctx->ctx_type);
 		} else
 			PSB_DEBUG_GENERAL(
-				"Video:fail to find context profile %llu, entrypoint %llu",
+				"Video:fail to find context profile 0x%llx, entrypoint 0x%llx",
 				(ctx_type >> 8), (ctx_type & 0xff));
 		break;
 	case IMG_VIDEO_DECODE_STATUS:

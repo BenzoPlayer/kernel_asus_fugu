@@ -229,7 +229,7 @@ enum VAEntrypoint {
 };
 
 #define VA_RT_FORMAT_PROTECTED	0x80000000
-
+#define PSB_SURFACE_UNAVAILABLE 0x40000000
 
 /**
  *struct psb_context
