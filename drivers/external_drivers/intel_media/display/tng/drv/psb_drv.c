@@ -3040,8 +3040,6 @@ static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 #endif
 
 		if (arg->vsync_operation_mask & VSYNC_WAIT) {
-			if (IS_MOFD(dev))
-				mutex_lock(&dev->mode_config.mutex);
 
 #ifdef CONFIG_SUPPORT_MIPI
 			if (dev_priv->vsync_enabled[pipe] && ((pipe == 1) ||
@@ -3081,9 +3079,6 @@ static int psb_vsync_set_ioctl(struct drm_device *dev, void *data,
 				DRM_INFO("request VSYNC on pipe(%d) when vsync_enabled=%d.\n",
 						 pipe, dev_priv->vsync_enabled[pipe]);
 			}
-
-			if (IS_MOFD(dev))
-				mutex_unlock(&dev->mode_config.mutex);
 
 			getrawmonotonic(&now);
 			nsecs = timespec_to_ns(&now);

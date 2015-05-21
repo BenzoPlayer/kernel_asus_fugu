@@ -358,7 +358,12 @@ exit:
 			switch_set_state(&hdmi_priv->sdev, 0);
 		}
 
-		drm_helper_hpd_irq_event(hdmi_priv->dev);
+		/* drm_helper_hpd_irq_event(hdmi_priv->dev); */
+		/* force mode setting as connector status can be polluted by
+		  * user space's querying of connection status in response to
+		  * hot plug event. 
+		  */
+		drm_kms_helper_hotplug_event(hdmi_priv->dev);
 	}
 	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
 	return IRQ_HANDLED;
