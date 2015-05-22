@@ -970,8 +970,8 @@ extern void cx231xx_417_unregister(struct cx231xx *dev);
 int cx231xx_ir_init(struct cx231xx *dev);
 void cx231xx_ir_exit(struct cx231xx *dev);
 #else
-#define cx231xx_ir_init(dev)	(0)
-#define cx231xx_ir_exit(dev)	(0)
+#define cx231xx_ir_init(dev)	while (0)
+#define cx231xx_ir_exit(dev)	while (0)
 #endif
 
 
