@@ -467,7 +467,7 @@ HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
 
 	pBucket->v = v;
 	/* PRQA S 0432,0541 1 */ /* ignore warning about dynamic array k (linux)*/
-	OSMemCopy(pBucket->k, pKey, pHash->uKeySize);
+	OSCachedMemCopy(pBucket->k, pKey, pHash->uKeySize);
 	if (_ChainInsert (pHash, pBucket, pHash->ppBucketTable, pHash->uSize) != PVRSRV_OK)
 	{
 #if defined(__linux__) && defined(__KERNEL__)

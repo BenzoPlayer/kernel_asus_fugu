@@ -470,7 +470,7 @@ static SYNC_BLOCK_LIST *_SyncPrimBlockListCreate(IMG_VOID)
 		return IMG_NULL;
 	}
 
-	OSMemSet(psBlockList->papsSyncPrimBlock,
+	OSCachedMemSet(psBlockList->papsSyncPrimBlock,
 			 0,
 			 sizeof(SYNC_PRIM_BLOCK *) * psBlockList->ui32BlockListSize);
 
@@ -504,7 +504,7 @@ static PVRSRV_ERROR _SyncPrimBlockListAdd(SYNC_BLOCK_LIST *psBlockList,
 			return PVRSRV_ERROR_OUT_OF_MEMORY;
 		}
 
-		OSMemCopy(papsNewSyncPrimBlock,
+		OSCachedMemCopy(papsNewSyncPrimBlock,
 				  psBlockList->papsSyncPrimBlock,
 				  sizeof(SYNC_PRIM_CONTEXT *) *
 				  psBlockList->ui32BlockListSize);
@@ -1509,7 +1509,7 @@ PVRSRV_ERROR SyncPrimServerAlloc(SYNC_BRIDGE_HANDLE hBridge,
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 		goto e0;
 	}
-	OSMemSet(psNewSync, 0, sizeof(SYNC_PRIM));
+	OSCachedMemSet(psNewSync, 0, sizeof(SYNC_PRIM));
 
 	if(pszClassName)
 	{

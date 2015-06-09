@@ -512,7 +512,7 @@ _BuildBT (RA_BASE_T base,
 		return IMG_NULL;
 	}
 
-	OSMemSet(pBT, 0, sizeof(BT));
+	OSCachedMemSet(pBT, 0, sizeof(BT));
 
 	pBT->is_leftmost = 1;
 	pBT->is_rightmost = 1;

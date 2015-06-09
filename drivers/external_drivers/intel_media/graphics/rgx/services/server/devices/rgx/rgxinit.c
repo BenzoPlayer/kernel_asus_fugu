@@ -1518,6 +1518,53 @@ PVRSRV_ERROR RGXResetPDump(PVRSRV_DEVICE_NODE *psDeviceNode)
 		psDevInfo->abDumpedKCCBCtlAlready[ui32Idx] = IMG_FALSE;
 	}
 
+static INLINE DEVMEM_HEAP_BLUEPRINT _blueprint_init(IMG_CHAR *name,
+	IMG_UINT64 heap_base,
+	IMG_DEVMEM_SIZE_T heap_length,
+	IMG_UINT32 log2_import_alignment)
+{
+	DEVMEM_HEAP_BLUEPRINT b = {
+		.pszName = name,
+		.sHeapBaseAddr.uiAddr = heap_base,
+		.uiHeapLength = heap_length,
+		.uiLog2DataPageSize = GET_LOG2_PAGESIZE(),
+		.uiLog2ImportAlignment = log2_import_alignment
+	};
+
+	return b;
+}
+
+#define INIT_HEAP(NAME) \
+do { \
+	*psDeviceMemoryHeapCursor = _blueprint_init( \
+			RGX_ ## NAME ## _HEAP_IDENT, \
+			RGX_ ## NAME ## _HEAP_BASE, \
+			RGX_ ## NAME ## _HEAP_SIZE, \
+			0); \
+	psDeviceMemoryHeapCursor++; \
+} while (0)
+
+#define INIT_HEAP_NAME(STR, NAME) \
+do { \
+	*psDeviceMemoryHeapCursor = _blueprint_init( \
+			STR, \
+			RGX_ ## NAME ## _HEAP_BASE, \
+			RGX_ ## NAME ## _HEAP_SIZE, \
+			0); \
+	psDeviceMemoryHeapCursor++; \
+} while (0)
+
+#define INIT_TILING_HEAP(N) \
+do { \
+	IMG_UINT32 xstride; \
+	GetBIFTilingHeapXStride(N, &xstride); \
+	*psDeviceMemoryHeapCursor = _blueprint_init( \
+			RGX_BIF_TILING_HEAP_ ## N ## _IDENT, \
+			RGX_BIF_TILING_HEAP_ ## N ## _BASE, \
+			RGX_BIF_TILING_HEAP_SIZE, \
+			RGX_BIF_TILING_HEAP_ALIGN_LOG2_FROM_XSTRIDE(xstride)); \
+	psDeviceMemoryHeapCursor++; \
+} while (0)
 
 	return PVRSRV_OK;
 }
@@ -1638,6 +1685,10 @@ e1:
 e0:
 	return PVRSRV_ERROR_OUT_OF_MEMORY;
 }
+
+#undef INIT_HEAP
+#undef INIT_HEAP_NAME
+#undef INIT_TILING_HEAP
 
 #undef INIT_HEAP
 #undef INIT_HEAP_NAME

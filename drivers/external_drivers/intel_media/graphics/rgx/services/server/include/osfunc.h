@@ -155,6 +155,8 @@ PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
 PVRSRV_ERROR OSThreadDestroy(IMG_HANDLE hThread);
 
 IMG_VOID OSMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Size);
+#define OSCachedMemCopy OSMemCopy
+#define OSDeviceMemCopy OSMemCopy
 IMG_VOID *OSMapPhysToLin(IMG_CPU_PHYADDR BasePAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
 IMG_BOOL OSUnMapPhysToLin(IMG_VOID *pvLinAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
 
@@ -182,6 +184,8 @@ IMG_PID OSGetCurrentProcessID(IMG_VOID);
 IMG_CHAR *OSGetCurrentProcessName(IMG_VOID);
 IMG_UINTPTR_T OSGetCurrentThreadID(IMG_VOID);
 IMG_VOID OSMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T ui32Size);
+#define OSCachedMemSet OSMemSet
+#define OSDeviceMemSet OSMemSet
 IMG_INT OSMemCmp(IMG_VOID *pvBufA, IMG_VOID *pvBufB, IMG_SIZE_T uiLen);
 
 PVRSRV_ERROR OSMMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,

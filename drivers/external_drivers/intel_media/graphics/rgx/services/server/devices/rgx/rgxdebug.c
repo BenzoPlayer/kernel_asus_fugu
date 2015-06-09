@@ -2419,6 +2419,7 @@ static IMG_VOID _RGXDumpRGXDebugSummary(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 		default:  pszReason = " - Unknown reason";  break;
 	}
 
+	if (psRGXFWIfTraceBuf == IMG_NULL)
 	{
 		PVR_DUMPDEBUG_LOG(("RGX FW State: %s%s", pszState, pszReason));
 

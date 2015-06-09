@@ -930,6 +930,28 @@ IMG_IMPORT IMG_VOID  IMG_CALLCONV PVRSRVFreeUserModeMem (IMG_PVOID pvMem);
 IMG_IMPORT IMG_VOID PVRSRVMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
 
 /**************************************************************************/ /*!
+@Function       PVRSRVCachedMemCopy
+@Description    Copy a block of memory between two cached memory allocations.
+                For use only when source and destination are both cached memory allocations.
+@Input          pvDst       Pointer to the destination
+@Input          pvSrc       Pointer to the source location
+@Input          uiSize      The amount of memory to copy in bytes
+@Return         None
+ */ /**************************************************************************/
+IMG_IMPORT void PVRSRVCachedMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
+
+/**************************************************************************/ /*!
+@Function       PVRSRVDeviceMemCopy
+@Description    Copy a block of memory to/from a device memory allocation.
+                For use when one or both of the allocations is a device memory allocation.
+@Input          pvDst       Pointer to the destination
+@Input          pvSrc       Pointer to the source location
+@Input          uiSize      The amount of memory to copy in bytes
+@Return         None
+ */ /**************************************************************************/
+IMG_IMPORT IMG_VOID PVRSRVDeviceMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T uiSize);
+
+/**************************************************************************/ /*!
 @Function       PVRSRVMemSet
 @Description    Set all bytes in a region of memory to the specified value.
                 Safe implementation of memset for use with device memory.
@@ -939,6 +961,28 @@ IMG_IMPORT IMG_VOID PVRSRVMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SI
 @Return         None
  */ /**************************************************************************/
 IMG_IMPORT IMG_VOID PVRSRVMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
+
+/**************************************************************************/ /*!
+@Function       PVRSRVCachedMemSet
+@Description    Set all bytes in a region of cached memory to the specified value.
+                For use only when the destination is a cached memory allocation.
+@Input          pvDest      Pointer to the start of the memory region
+@Input          ui8Value    The value to be written
+@Input          uiSize      The number of bytes to be set to ui8Value
+@Return         None
+ */ /**************************************************************************/
+IMG_IMPORT IMG_VOID PVRSRVCachedMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
+
+/**************************************************************************/ /*!
+@Function       PVRSRVDeviceMemSet
+@Description    Set all bytes in a region of device memory to the specified value.
+                The destination pointer should be a device memory buffer.
+@Input          pvDest      Pointer to the start of the memory region
+@Input          ui8Value    The value to be written
+@Input          uiSize      The number of bytes to be set to ui8Value
+@Return         None
+ */ /**************************************************************************/
+IMG_IMPORT IMG_VOID PVRSRVDeviceMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T uiSize);
 
 /**************************************************************************/ /*!
 @Function       PVRSRVLockProcessGlobalMutex

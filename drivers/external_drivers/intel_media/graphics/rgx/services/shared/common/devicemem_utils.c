@@ -127,7 +127,7 @@ PVRSRV_ERROR _DevmemMemDescAlloc(DEVMEM_MEMDESC **ppsMemDesc)
 	}
 	
 	/* Structure must be zero'd incase it needs to be freed before it is initialised! */
-	OSMemSet(psMemDesc, 0, sizeof(DEVMEM_MEMDESC));
+	OSCachedMemSet(psMemDesc, 0, sizeof(DEVMEM_MEMDESC));
 
 	eError = OSLockCreate(&psMemDesc->hLock, LOCK_TYPE_PASSIVE);
 	if (eError != PVRSRV_OK)

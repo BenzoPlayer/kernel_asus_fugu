@@ -1095,7 +1095,7 @@ DevmemAllocate(DEVMEM_HEAP *psHeap,
 		}
 
 		/* FIXME: uiSize is a 64-bit quantity whereas the 3rd argument
-		 * to OSMemSet is a 32-bit quantity on 32-bit systems
+		 * to OSDeviceMemSet is a 32-bit quantity on 32-bit systems
 		 * hence a compiler warning of implicit cast and loss of data.
 		 * Added explicit cast and assert to remove warning.
 		 */
@@ -1103,7 +1103,7 @@ DevmemAllocate(DEVMEM_HEAP *psHeap,
 		PVR_ASSERT(uiSize<IMG_UINT32_MAX);
 #endif
 
-		OSMemSet(pvAddr, 0x0, (IMG_SIZE_T) uiSize);
+		OSDeviceMemSet(pvAddr, 0x0, (IMG_SIZE_T) uiSize);
 	    
 		DevmemReleaseCpuVirtAddr(psMemDesc);
 

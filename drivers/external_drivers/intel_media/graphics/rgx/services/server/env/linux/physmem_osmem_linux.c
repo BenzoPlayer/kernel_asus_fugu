@@ -1300,7 +1300,7 @@ _FreeOSPages_MemStats(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData)
 		{
 			IMG_CPU_PHYADDR sCPUPhysAddr;
 
-			sCPUPhysAddr.uiAddr = page_to_phys(ppsPageArray[pai32FreeIndices[ui32PageIndex]]);
+			sCPUPhysAddr.uiAddr = page_to_phys(ppsPageArray[ui32PageIndex]);
 			PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_ALLOC_UMA_PAGES, sCPUPhysAddr.uiAddr);
 		}
 	#endif
