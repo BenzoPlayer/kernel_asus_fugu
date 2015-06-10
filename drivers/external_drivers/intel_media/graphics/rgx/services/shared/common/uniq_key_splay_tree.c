@@ -110,7 +110,7 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 
 				if (ui32Flags > psTree->psRight->ui32Flags)
 				{
-					/* if we get to this point, we need to rotate leftthe tree */
+					/* if we get to this point, we need to rotate left the tree */
 					psTmp2 = psTree->psRight;
 					psTree->psRight = psTmp2->psLeft;
 					psTmp2->psLeft = psTree;

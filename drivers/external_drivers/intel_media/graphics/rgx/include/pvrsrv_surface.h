@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRSRV_SURFACE_BLENDING_PREMULT	   1
 #define PVRSRV_SURFACE_BLENDING_COVERAGE   2
 
-typedef enum _PVRSRV_SURFACE_MEMLAYOUT_ {
+typedef enum _PVRSRV_SURFACE_MEMLAYOUT_  {
 	PVRSRV_SURFACE_MEMLAYOUT_STRIDED = 0,		/*!< Strided memory buffer */
 	PVRSRV_SURFACE_MEMLAYOUT_FBC,				/*!< Frame buffer compressed buffer */
 	PVRSRV_SURFACE_MEMLAYOUT_BIF_PAGE_TILED,	/*!< BIF page tiled buffer */
@@ -113,12 +113,12 @@ typedef struct _PVRSRV_SURFACE_CONFIG_INFO_
 	IMG_UINT32				eBlendType;
 
 	/*!< Custom data for the display engine */
-	IMG_UINT64				ui64Custom;
+	IMG_UINT32				ui32Custom;
 
 	/*!< Plane alpha */
 	IMG_UINT8				ui8PlaneAlpha;
 	IMG_UINT8				ui8Reserved1[3];
-} __attribute__((packed)) PVRSRV_SURFACE_CONFIG_INFO;
+} PVRSRV_SURFACE_CONFIG_INFO;
 
 typedef struct _PVRSRV_PANEL_INFO_
 {
@@ -143,7 +143,7 @@ static INLINE IMG_VOID SurfaceConfigFromSurfInfo(PVRSRV_SURFACE_INFO *psSurfaceI
 	psConfigInfo->sDisplay.i32YOffset = 0;
 	psConfigInfo->ui32Transform = PVRSRV_SURFACE_TRANSFORM_NONE;
 	psConfigInfo->eBlendType = PVRSRV_SURFACE_BLENDING_NONE;
-	psConfigInfo->ui64Custom = 0;
+	psConfigInfo->ui32Custom = 0;
 	psConfigInfo->ui8PlaneAlpha = 0xff;
 }
 

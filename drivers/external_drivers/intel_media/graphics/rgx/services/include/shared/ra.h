@@ -73,10 +73,6 @@ typedef IMG_UINT64 RA_BASE_T;
 typedef IMG_UINT32 RA_LOG2QUANTUM_T;
 typedef IMG_UINT64 RA_LENGTH_T;
 
-#define RA_BASE_FMTSPEC "0x%010llx"
-#define RA_ALIGN_FMTSPEC "0x%llx"
-#define RA_LENGTH_FMTSPEC "0x%llx"
-
 /* Lock classes: describes the level of nesting between different arenas. */
 #define RA_LOCKCLASS_0 0
 #define RA_LOCKCLASS_1 1

@@ -84,7 +84,7 @@ static int pnw_topaz_save_command(struct drm_device *dev, void *cmd,
 static void topaz_mtx_kick(struct drm_psb_private *dev_priv, uint32_t core_id,
 			   uint32_t kick_count);
 
-IMG_BOOL pnw_topaz_interrupt(IMG_VOID *pvData)
+IMG_BOOL pnw_topaz_interrupt(void *pvData)
 {
 	struct drm_device *dev;
 	struct drm_psb_private *dev_priv;
@@ -95,7 +95,7 @@ IMG_BOOL pnw_topaz_interrupt(IMG_VOID *pvData)
 
 	PSB_DEBUG_IRQ("Got an TopazSC interrupt\n");
 
-	if (pvData == IMG_NULL) {
+	if (pvData == NULL) {
 		DRM_ERROR("ERROR: TOPAZ %s, Invalid params\n", __func__);
 		return IMG_FALSE;
 	}

@@ -65,22 +65,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/slab.h>
 
-/* ***************************************************************************
- * Bridge proxy functions
- */
-
-static PVRSRV_ERROR
-RGXDestroyComputeContextResManProxy(IMG_HANDLE hResmanItem)
-{
-	PVRSRV_ERROR eError;
-
-	eError = ResManFreeResByPtr(hResmanItem);
-
-	/* Freeing a resource should never fail... */
-	PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
-
-	return eError;
-}
 
 
 
@@ -89,18 +73,15 @@ RGXDestroyComputeContextResManProxy(IMG_HANDLE hResmanItem)
  */
  
 static IMG_INT
-PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXCREATECOMPUTECONTEXT *psRGXCreateComputeContextIN,
-					 PVRSRV_BRIDGE_OUT_RGXCREATECOMPUTECONTEXT *psRGXCreateComputeContextOUT,
+PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXCREATECOMPUTECONTEXT *psRGXCreateComputeContextIN,
+					  PVRSRV_BRIDGE_OUT_RGXCREATECOMPUTECONTEXT *psRGXCreateComputeContextOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	IMG_HANDLE hDevNodeInt = IMG_NULL;
 	IMG_BYTE *psFrameworkCmdInt = IMG_NULL;
 	IMG_HANDLE hPrivDataInt = IMG_NULL;
 	RGX_SERVER_COMPUTE_CONTEXT * psComputeContextInt = IMG_NULL;
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
-
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXCREATECOMPUTECONTEXT);
 
 
 
@@ -126,33 +107,35 @@ PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32BridgeID,
 				goto RGXCreateComputeContext_exit;
 			}
 
+
+
 				{
 					/* Look up the address from the handle */
 					psRGXCreateComputeContextOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hDevNodeInt,
+											(IMG_VOID **) &hDevNodeInt,
 											psRGXCreateComputeContextIN->hDevNode,
 											PVRSRV_HANDLE_TYPE_DEV_NODE);
 					if(psRGXCreateComputeContextOUT->eError != PVRSRV_OK)
 					{
 						goto RGXCreateComputeContext_exit;
 					}
-
 				}
+
 
 				{
 					/* Look up the address from the handle */
 					psRGXCreateComputeContextOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hPrivDataInt,
+											(IMG_VOID **) &hPrivDataInt,
 											psRGXCreateComputeContextIN->hPrivData,
 											PVRSRV_HANDLE_TYPE_DEV_PRIV_DATA);
 					if(psRGXCreateComputeContextOUT->eError != PVRSRV_OK)
 					{
 						goto RGXCreateComputeContext_exit;
 					}
-
 				}
+
 
 	psRGXCreateComputeContextOUT->eError =
 		PVRSRVRGXCreateComputeContextKM(psConnection,
@@ -169,40 +152,25 @@ PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32BridgeID,
 		goto RGXCreateComputeContext_exit;
 	}
 
-	/* Create a resman item and overwrite the handle with it */
-	hComputeContextInt2 = ResManRegisterRes(psConnection->hResManContext,
-												RESMAN_TYPE_RGX_SERVER_COMPUTE_CONTEXT,
-												psComputeContextInt,
-												(RESMAN_FREE_FN)&PVRSRVRGXDestroyComputeContextKM);
-	if (hComputeContextInt2 == IMG_NULL)
-	{
-		psRGXCreateComputeContextOUT->eError = PVRSRV_ERROR_UNABLE_TO_REGISTER_RESOURCE;
-		goto RGXCreateComputeContext_exit;
-	}
+
 	psRGXCreateComputeContextOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psRGXCreateComputeContextOUT->hComputeContext,
-							(IMG_HANDLE) hComputeContextInt2,
+							(IMG_VOID *) psComputeContextInt,
 							PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT,
-							PVRSRV_HANDLE_ALLOC_FLAG_NONE
-							);
+							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
+							,(PFN_HANDLE_RELEASE)&PVRSRVRGXDestroyComputeContextKM);
 	if (psRGXCreateComputeContextOUT->eError != PVRSRV_OK)
 	{
 		goto RGXCreateComputeContext_exit;
 	}
+
+
 
 
 RGXCreateComputeContext_exit:
 	if (psRGXCreateComputeContextOUT->eError != PVRSRV_OK)
 	{
-		/* If we have a valid resman item we should undo the bridge function by freeing the resman item */
-		if (hComputeContextInt2)
-		{
-			PVRSRV_ERROR eError = ResManFreeResByPtr(hComputeContextInt2);
-
-			/* Freeing a resource should never fail... */
-			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
-		}
-		else if (psComputeContextInt)
+		if (psComputeContextInt)
 		{
 			PVRSRVRGXDestroyComputeContextKM(psComputeContextInt);
 		}
@@ -215,44 +183,30 @@ RGXCreateComputeContext_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeRGXDestroyComputeContext(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXDESTROYCOMPUTECONTEXT *psRGXDestroyComputeContextIN,
-					 PVRSRV_BRIDGE_OUT_RGXDESTROYCOMPUTECONTEXT *psRGXDestroyComputeContextOUT,
+PVRSRVBridgeRGXDestroyComputeContext(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXDESTROYCOMPUTECONTEXT *psRGXDestroyComputeContextIN,
+					  PVRSRV_BRIDGE_OUT_RGXDESTROYCOMPUTECONTEXT *psRGXDestroyComputeContextOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
-
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXDESTROYCOMPUTECONTEXT);
 
 
 
 
 
-				{
-					/* Look up the address from the handle */
-					psRGXDestroyComputeContextOUT->eError =
-						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hComputeContextInt2,
-											psRGXDestroyComputeContextIN->hComputeContext,
-											PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
-					if(psRGXDestroyComputeContextOUT->eError != PVRSRV_OK)
-					{
-						goto RGXDestroyComputeContext_exit;
-					}
 
-				}
 
-	psRGXDestroyComputeContextOUT->eError = RGXDestroyComputeContextResManProxy(hComputeContextInt2);
-	/* Exit early if bridged call fails */
-	if(psRGXDestroyComputeContextOUT->eError != PVRSRV_OK)
-	{
-		goto RGXDestroyComputeContext_exit;
-	}
+
 
 	psRGXDestroyComputeContextOUT->eError =
 		PVRSRVReleaseHandle(psConnection->psHandleBase,
 					(IMG_HANDLE) psRGXDestroyComputeContextIN->hComputeContext,
 					PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
+	if ((psRGXDestroyComputeContextOUT->eError != PVRSRV_OK) && (psRGXDestroyComputeContextOUT->eError != PVRSRV_ERROR_RETRY))
+	{
+		PVR_ASSERT(0);
+		goto RGXDestroyComputeContext_exit;
+	}
+
 
 
 RGXDestroyComputeContext_exit:
@@ -261,13 +215,12 @@ RGXDestroyComputeContext_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXKICKCDM *psRGXKickCDMIN,
-					 PVRSRV_BRIDGE_OUT_RGXKICKCDM *psRGXKickCDMOUT,
+PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXKICKCDM *psRGXKickCDMIN,
+					  PVRSRV_BRIDGE_OUT_RGXKICKCDM *psRGXKickCDMOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	RGX_SERVER_COMPUTE_CONTEXT * psComputeContextInt = IMG_NULL;
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
 	PRGXFWIF_UFO_ADDR *sClientFenceUFOAddressInt = IMG_NULL;
 	IMG_UINT32 *ui32ClientFenceValueInt = IMG_NULL;
 	PRGXFWIF_UFO_ADDR *sClientUpdateUFOAddressInt = IMG_NULL;
@@ -276,8 +229,6 @@ PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32BridgeID,
 	SERVER_SYNC_PRIMITIVE * *psServerSyncsInt = IMG_NULL;
 	IMG_HANDLE *hServerSyncsInt2 = IMG_NULL;
 	IMG_BYTE *psDMCmdInt = IMG_NULL;
-
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXKICKCDM);
 
 
 
@@ -430,26 +381,21 @@ PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32BridgeID,
 				goto RGXKickCDM_exit;
 			}
 
+
+
 				{
 					/* Look up the address from the handle */
 					psRGXKickCDMOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hComputeContextInt2,
+											(IMG_VOID **) &psComputeContextInt,
 											psRGXKickCDMIN->hComputeContext,
 											PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
 					if(psRGXKickCDMOUT->eError != PVRSRV_OK)
 					{
 						goto RGXKickCDM_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXKickCDMOUT->eError = ResManFindPrivateDataByPtr(hComputeContextInt2, (IMG_VOID **) &psComputeContextInt);
-
-					if(psRGXKickCDMOUT->eError != PVRSRV_OK)
-					{
-						goto RGXKickCDM_exit;
-					}
 				}
+
 
 	{
 		IMG_UINT32 i;
@@ -460,22 +406,15 @@ PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32BridgeID,
 					/* Look up the address from the handle */
 					psRGXKickCDMOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hServerSyncsInt2[i],
+											(IMG_VOID **) &psServerSyncsInt[i],
 											hServerSyncsInt2[i],
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psRGXKickCDMOUT->eError != PVRSRV_OK)
 					{
 						goto RGXKickCDM_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXKickCDMOUT->eError = ResManFindPrivateDataByPtr(hServerSyncsInt2[i], (IMG_VOID **) &psServerSyncsInt[i]);
-
-					if(psRGXKickCDMOUT->eError != PVRSRV_OK)
-					{
-						goto RGXKickCDM_exit;
-					}
 				}
+
 		}
 	}
 
@@ -496,6 +435,7 @@ PVRSRVBridgeRGXKickCDM(IMG_UINT32 ui32BridgeID,
 					psRGXKickCDMIN->bbPDumpContinuous,
 					psRGXKickCDMIN->ui32ExternalJobReference,
 					psRGXKickCDMIN->ui32InternalJobReference);
+
 
 
 
@@ -521,15 +461,14 @@ RGXKickCDM_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeRGXFlushComputeData(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXFLUSHCOMPUTEDATA *psRGXFlushComputeDataIN,
-					 PVRSRV_BRIDGE_OUT_RGXFLUSHCOMPUTEDATA *psRGXFlushComputeDataOUT,
+PVRSRVBridgeRGXFlushComputeData(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXFLUSHCOMPUTEDATA *psRGXFlushComputeDataIN,
+					  PVRSRV_BRIDGE_OUT_RGXFLUSHCOMPUTEDATA *psRGXFlushComputeDataOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	RGX_SERVER_COMPUTE_CONTEXT * psComputeContextInt = IMG_NULL;
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
 
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXFLUSHCOMPUTEDATA);
+
 
 
 
@@ -539,26 +478,20 @@ PVRSRVBridgeRGXFlushComputeData(IMG_UINT32 ui32BridgeID,
 					/* Look up the address from the handle */
 					psRGXFlushComputeDataOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hComputeContextInt2,
+											(IMG_VOID **) &psComputeContextInt,
 											psRGXFlushComputeDataIN->hComputeContext,
 											PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
 					if(psRGXFlushComputeDataOUT->eError != PVRSRV_OK)
 					{
 						goto RGXFlushComputeData_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXFlushComputeDataOUT->eError = ResManFindPrivateDataByPtr(hComputeContextInt2, (IMG_VOID **) &psComputeContextInt);
-
-					if(psRGXFlushComputeDataOUT->eError != PVRSRV_OK)
-					{
-						goto RGXFlushComputeData_exit;
-					}
 				}
+
 
 	psRGXFlushComputeDataOUT->eError =
 		PVRSRVRGXFlushComputeDataKM(
 					psComputeContextInt);
+
 
 
 
@@ -568,15 +501,14 @@ RGXFlushComputeData_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeRGXSetComputeContextPriority(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXSETCOMPUTECONTEXTPRIORITY *psRGXSetComputeContextPriorityIN,
-					 PVRSRV_BRIDGE_OUT_RGXSETCOMPUTECONTEXTPRIORITY *psRGXSetComputeContextPriorityOUT,
+PVRSRVBridgeRGXSetComputeContextPriority(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXSETCOMPUTECONTEXTPRIORITY *psRGXSetComputeContextPriorityIN,
+					  PVRSRV_BRIDGE_OUT_RGXSETCOMPUTECONTEXTPRIORITY *psRGXSetComputeContextPriorityOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	RGX_SERVER_COMPUTE_CONTEXT * psComputeContextInt = IMG_NULL;
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
 
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXSETCOMPUTECONTEXTPRIORITY);
+
 
 
 
@@ -586,27 +518,21 @@ PVRSRVBridgeRGXSetComputeContextPriority(IMG_UINT32 ui32BridgeID,
 					/* Look up the address from the handle */
 					psRGXSetComputeContextPriorityOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hComputeContextInt2,
+											(IMG_VOID **) &psComputeContextInt,
 											psRGXSetComputeContextPriorityIN->hComputeContext,
 											PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
 					if(psRGXSetComputeContextPriorityOUT->eError != PVRSRV_OK)
 					{
 						goto RGXSetComputeContextPriority_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXSetComputeContextPriorityOUT->eError = ResManFindPrivateDataByPtr(hComputeContextInt2, (IMG_VOID **) &psComputeContextInt);
-
-					if(psRGXSetComputeContextPriorityOUT->eError != PVRSRV_OK)
-					{
-						goto RGXSetComputeContextPriority_exit;
-					}
 				}
+
 
 	psRGXSetComputeContextPriorityOUT->eError =
 		PVRSRVRGXSetComputeContextPriorityKM(psConnection,
 					psComputeContextInt,
 					psRGXSetComputeContextPriorityIN->ui32Priority);
+
 
 
 
@@ -616,13 +542,12 @@ RGXSetComputeContextPriority_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
-					 PVRSRV_BRIDGE_IN_RGXKICKSYNCCDM *psRGXKickSyncCDMIN,
-					 PVRSRV_BRIDGE_OUT_RGXKICKSYNCCDM *psRGXKickSyncCDMOUT,
+PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXKICKSYNCCDM *psRGXKickSyncCDMIN,
+					  PVRSRV_BRIDGE_OUT_RGXKICKSYNCCDM *psRGXKickSyncCDMOUT,
 					 CONNECTION_DATA *psConnection)
 {
 	RGX_SERVER_COMPUTE_CONTEXT * psComputeContextInt = IMG_NULL;
-	IMG_HANDLE hComputeContextInt2 = IMG_NULL;
 	PRGXFWIF_UFO_ADDR *sClientFenceUFOAddressInt = IMG_NULL;
 	IMG_UINT32 *ui32ClientFenceValueInt = IMG_NULL;
 	PRGXFWIF_UFO_ADDR *sClientUpdateUFOAddressInt = IMG_NULL;
@@ -630,9 +555,7 @@ PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
 	IMG_UINT32 *ui32ServerSyncFlagsInt = IMG_NULL;
 	SERVER_SYNC_PRIMITIVE * *psServerSyncsInt = IMG_NULL;
 	IMG_HANDLE *hServerSyncsInt2 = IMG_NULL;
-	IMG_INT32 *i32FenceFDsInt = IMG_NULL;
-
-	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_RGXCMP_RGXKICKSYNCCDM);
+	IMG_INT32 *i32CheckFenceFDsInt = IMG_NULL;
 
 
 
@@ -764,10 +687,10 @@ PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
 
 				goto RGXKickSyncCDM_exit;
 			}
-	if (psRGXKickSyncCDMIN->ui32NumFenceFDs != 0)
+	if (psRGXKickSyncCDMIN->ui32NumCheckFenceFDs != 0)
 	{
-		i32FenceFDsInt = OSAllocMem(psRGXKickSyncCDMIN->ui32NumFenceFDs * sizeof(IMG_INT32));
-		if (!i32FenceFDsInt)
+		i32CheckFenceFDsInt = OSAllocMem(psRGXKickSyncCDMIN->ui32NumCheckFenceFDs * sizeof(IMG_INT32));
+		if (!i32CheckFenceFDsInt)
 		{
 			psRGXKickSyncCDMOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
@@ -776,35 +699,30 @@ PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psRGXKickSyncCDMIN->pi32FenceFDs, psRGXKickSyncCDMIN->ui32NumFenceFDs * sizeof(IMG_INT32))
-				|| (OSCopyFromUser(NULL, i32FenceFDsInt, psRGXKickSyncCDMIN->pi32FenceFDs,
-				psRGXKickSyncCDMIN->ui32NumFenceFDs * sizeof(IMG_INT32)) != PVRSRV_OK) )
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psRGXKickSyncCDMIN->pi32CheckFenceFDs, psRGXKickSyncCDMIN->ui32NumCheckFenceFDs * sizeof(IMG_INT32))
+				|| (OSCopyFromUser(NULL, i32CheckFenceFDsInt, psRGXKickSyncCDMIN->pi32CheckFenceFDs,
+				psRGXKickSyncCDMIN->ui32NumCheckFenceFDs * sizeof(IMG_INT32)) != PVRSRV_OK) )
 			{
 				psRGXKickSyncCDMOUT->eError = PVRSRV_ERROR_INVALID_PARAMS;
 
 				goto RGXKickSyncCDM_exit;
 			}
 
+
+
 				{
 					/* Look up the address from the handle */
 					psRGXKickSyncCDMOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hComputeContextInt2,
+											(IMG_VOID **) &psComputeContextInt,
 											psRGXKickSyncCDMIN->hComputeContext,
 											PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
 					if(psRGXKickSyncCDMOUT->eError != PVRSRV_OK)
 					{
 						goto RGXKickSyncCDM_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXKickSyncCDMOUT->eError = ResManFindPrivateDataByPtr(hComputeContextInt2, (IMG_VOID **) &psComputeContextInt);
-
-					if(psRGXKickSyncCDMOUT->eError != PVRSRV_OK)
-					{
-						goto RGXKickSyncCDM_exit;
-					}
 				}
+
 
 	{
 		IMG_UINT32 i;
@@ -815,22 +733,15 @@ PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
 					/* Look up the address from the handle */
 					psRGXKickSyncCDMOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_HANDLE *) &hServerSyncsInt2[i],
+											(IMG_VOID **) &psServerSyncsInt[i],
 											hServerSyncsInt2[i],
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psRGXKickSyncCDMOUT->eError != PVRSRV_OK)
 					{
 						goto RGXKickSyncCDM_exit;
 					}
-
-					/* Look up the data from the resman address */
-					psRGXKickSyncCDMOUT->eError = ResManFindPrivateDataByPtr(hServerSyncsInt2[i], (IMG_VOID **) &psServerSyncsInt[i]);
-
-					if(psRGXKickSyncCDMOUT->eError != PVRSRV_OK)
-					{
-						goto RGXKickSyncCDM_exit;
-					}
 				}
+
 		}
 	}
 
@@ -846,9 +757,11 @@ PVRSRVBridgeRGXKickSyncCDM(IMG_UINT32 ui32BridgeID,
 					psRGXKickSyncCDMIN->ui32ServerSyncCount,
 					ui32ServerSyncFlagsInt,
 					psServerSyncsInt,
-					psRGXKickSyncCDMIN->ui32NumFenceFDs,
-					i32FenceFDsInt,
+					psRGXKickSyncCDMIN->ui32NumCheckFenceFDs,
+					i32CheckFenceFDsInt,
+					psRGXKickSyncCDMIN->i32UpdateFenceFD,
 					psRGXKickSyncCDMIN->bbPDumpContinuous);
+
 
 
 
@@ -867,8 +780,8 @@ RGXKickSyncCDM_exit:
 		OSFreeMem(psServerSyncsInt);
 	if (hServerSyncsInt2)
 		OSFreeMem(hServerSyncsInt2);
-	if (i32FenceFDsInt)
-		OSFreeMem(i32FenceFDsInt);
+	if (i32CheckFenceFDsInt)
+		OSFreeMem(i32CheckFenceFDsInt);
 
 	return 0;
 }
@@ -878,21 +791,41 @@ RGXKickSyncCDM_exit:
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
- 
-PVRSRV_ERROR RegisterRGXCMPFunctions(IMG_VOID);
-IMG_VOID UnregisterRGXCMPFunctions(IMG_VOID);
+
+
+PVRSRV_ERROR InitRGXCMPBridge(IMG_VOID);
+PVRSRV_ERROR DeinitRGXCMPBridge(IMG_VOID);
 
 /*
  * Register all RGXCMP functions with services
  */
-PVRSRV_ERROR RegisterRGXCMPFunctions(IMG_VOID)
+PVRSRV_ERROR InitRGXCMPBridge(IMG_VOID)
 {
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXCREATECOMPUTECONTEXT, PVRSRVBridgeRGXCreateComputeContext);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXDESTROYCOMPUTECONTEXT, PVRSRVBridgeRGXDestroyComputeContext);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXKICKCDM, PVRSRVBridgeRGXKickCDM);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXFLUSHCOMPUTEDATA, PVRSRVBridgeRGXFlushComputeData);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXSETCOMPUTECONTEXTPRIORITY, PVRSRVBridgeRGXSetComputeContextPriority);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP_RGXKICKSYNCCDM, PVRSRVBridgeRGXKickSyncCDM);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXCREATECOMPUTECONTEXT, PVRSRVBridgeRGXCreateComputeContext,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXDESTROYCOMPUTECONTEXT, PVRSRVBridgeRGXDestroyComputeContext,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXKICKCDM, PVRSRVBridgeRGXKickCDM,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXFLUSHCOMPUTEDATA, PVRSRVBridgeRGXFlushComputeData,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXSETCOMPUTECONTEXTPRIORITY, PVRSRVBridgeRGXSetComputeContextPriority,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXKICKSYNCCDM, PVRSRVBridgeRGXKickSyncCDM,
+					IMG_NULL, IMG_NULL,
+					0, 0);
+
 
 	return PVRSRV_OK;
 }
@@ -900,6 +833,8 @@ PVRSRV_ERROR RegisterRGXCMPFunctions(IMG_VOID)
 /*
  * Unregister all rgxcmp functions with services
  */
-IMG_VOID UnregisterRGXCMPFunctions(IMG_VOID)
+PVRSRV_ERROR DeinitRGXCMPBridge(IMG_VOID)
 {
+	return PVRSRV_OK;
 }
+

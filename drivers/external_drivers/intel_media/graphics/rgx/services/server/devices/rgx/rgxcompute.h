@@ -54,6 +54,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sync_internal.h"
 #include "connection_server.h"
 
+
 typedef struct _RGX_SERVER_COMPUTE_CONTEXT_ RGX_SERVER_COMPUTE_CONTEXT;
 
 /*!
@@ -124,7 +125,7 @@ PVRSRV_ERROR PVRSRVRGXKickCDMKM(RGX_SERVER_COMPUTE_CONTEXT	*psComputeContext,
 								IMG_BOOL					bPDumpContinuous,
 								IMG_UINT32					ui32ExtJobRef,
 								IMG_UINT32					ui32IntJobRef);
-								
+
 /*!
 *******************************************************************************
  @Function	PVRSRVRGXFlushComputeDataKM
@@ -170,8 +171,9 @@ PVRSRVRGXKickSyncCDMKM(RGX_SERVER_COMPUTE_CONTEXT  *psComputeContext,
                        IMG_UINT32                  ui32ServerSyncPrims,
                        IMG_UINT32                  *paui32ServerSyncFlags,
                        SERVER_SYNC_PRIMITIVE       **pasServerSyncs,
-					   IMG_UINT32				   ui32NumFenceFDs,
-					   IMG_INT32				   *paui32FenceFDs,
+					   IMG_UINT32				   ui32NumCheckFenceFDs,
+					   IMG_INT32				   *pai32CheckFenceFDs,
+					   IMG_INT32                   i32UpdateFenceFD,
                        IMG_BOOL                    bPDumpContinuous);
 
 #endif /* __RGXCOMPUTE_H__ */

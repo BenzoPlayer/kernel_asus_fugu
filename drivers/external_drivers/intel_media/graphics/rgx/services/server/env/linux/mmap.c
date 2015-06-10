@@ -45,12 +45,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <asm/page.h>
 
 #include "img_defs.h"
-#include "mmap.h"
 #include "pvr_debug.h"
+#include "linkage.h"
 #include "handle.h"
 #include "pvrsrv.h"
 #include "connection_server.h"
 #include "devicemem_server_utils.h"
+#include "allocmem.h"
 
 #include "private_data.h"
 #include "driverlock.h"
@@ -59,29 +60,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_drm.h"
 #endif
 
-#if !defined(PVR_SECURE_HANDLES)
-#error "The mmap code requires PVR_SECURE_HANDLES"
-#endif
-
 /* WARNING!
  * The mmap code has its own mutex, to prevent a possible deadlock,
- * when using the bridge lock.
+ * when using gPVRSRVLock.
  * The Linux kernel takes the mm->mmap_sem before calling the mmap
  * entry points (PVRMMap, MMapVOpen, MMapVClose), but the ioctl
  * entry point may take mm->mmap_sem during fault handling, or 
- * before calling get_user_pages.  If the bridge lock was used in the
+ * before calling get_user_pages.  If gPVRSRVLock was used in the
  * mmap entry points, a deadlock could result, due to the ioctl
  * and mmap code taking the two locks in different orders.
  * As a corollary to this, the mmap entry points must not call
- * any driver code that relies on the bridge lock is held.
+ * any driver code that relies on gPVRSRVLock is held.
  */
-static struct mutex g_sMMapMutex;
+static DEFINE_MUTEX(g_sMMapMutex);
 
 #include "pmr.h"
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "process_stats.h"
 #endif
+
 static void MMapPMROpen(struct vm_area_struct* ps_vma)
 {
 	/* Our VM flags should ensure this function never gets called */
@@ -95,6 +93,7 @@ static void MMapPMRClose(struct vm_area_struct *ps_vma)
     IMG_SIZE_T pageSize = OSGetPageSize();
 
     psPMR = ps_vma->vm_private_data;
+
     while (vAddr < ps_vma->vm_end)
     {
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -176,31 +175,30 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 	IMG_SIZE_T uiLength;
 	IMG_DEVMEM_OFFSET_T uiOffset;
 	unsigned long uiPFN;
-	IMG_HANDLE hPMRResmanHandle;
 	PMR *psPMR;
 	PMR_FLAGS_T ulPMRFlags;
 	IMG_UINT32 ui32CPUCacheFlags;
 	unsigned long ulNewFlags = 0;
 	pgprot_t sPageProt;
-#if defined(SUPPORT_DRM)
-	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(PVR_DRM_FILE_FROM_FILE(pFile));
-#else
 	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pFile);
-#endif
-
-#if defined(PVR_MMAP_USE_VM_INSERT)
 	IMG_BOOL bMixedMap = IMG_FALSE;
-#endif
+    IMG_CPU_PHYADDR asCpuPAddr[PMR_MAX_TRANSLATION_STACK_ALLOC];
+    IMG_BOOL abValid[PMR_MAX_TRANSLATION_STACK_ALLOC];
+	IMG_UINT32 uiOffsetIdx, uiNumOfPFNs;
+	IMG_CPU_PHYADDR *psCpuPAddr;
+	IMG_BOOL *pbValid;
 
 	if(psConnection == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
 		goto em0;
 	}
+
 	/*
-	 * The pmr lock used here to protect both handle related operations and PMR
-	 * operations.
-	 * This was introduced to fix lockdep issue.
+	 * The bridge lock used here to protect Both PVRSRVLookupHandle and ResManFindPrivateDataByPtr
+	 * is replaced by a specific lock considering that the handle functions have now their own lock
+	 * and ResManFindPrivateDataByPtr is going to be removed.
+	 *  This change was necessary to solve the lockdep issues related with the MMapPMR
 	 */
 	mutex_lock(&g_sMMapMutex);
 	PMRLock();
@@ -213,16 +211,9 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 		hSecurePMRHandle = (IMG_HANDLE)((IMG_UINTPTR_T)ps_vma->vm_pgoff);
 
 		eError = PVRSRVLookupHandle(psConnection->psHandleBase,
-					    (IMG_HANDLE *) &hPMRResmanHandle,
+					    (void **)&psPMR,
 					    hSecurePMRHandle,
 					    PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
-		if (eError != PVRSRV_OK)
-		{
-			goto e0;
-		}
-
-		eError = ResManFindPrivateDataByPtr(hPMRResmanHandle,
-						    (void **)&psPMR);
 		if (eError != PVRSRV_OK)
 		{
 			goto e0;
@@ -329,70 +320,82 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
     /* Don't allow mapping to be inherited across a process fork */
     ps_vma->vm_flags |= VM_DONTCOPY;
 
-#if defined(PVR_MMAP_USE_VM_INSERT)
+    /* Can we use stack allocations */
+    uiNumOfPFNs = uiLength >> PAGE_SHIFT;
+    if (uiNumOfPFNs > PMR_MAX_TRANSLATION_STACK_ALLOC)
+    {
+    	psCpuPAddr = OSAllocMem(uiNumOfPFNs * sizeof(IMG_CPU_PHYADDR));
+    	if (psCpuPAddr == IMG_NULL)
+    	{
+    		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
+    		goto e2;
+    	}
+    	
+    	/* Should allocation fail, clean-up here before exiting */
+    	pbValid = OSAllocMem(uiNumOfPFNs * sizeof(IMG_BOOL));
+    	if (pbValid == IMG_NULL)
+    	{
+    		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
+    		OSFreeMem(psCpuPAddr);
+    		goto e2;
+    	}
+    }
+    else
+    {
+		psCpuPAddr = asCpuPAddr;
+		pbValid = abValid;
+    }
+    
+    /* Obtain map range pfns */
+	eError = PMR_CpuPhysAddr(psPMR,
+							 PAGE_SHIFT,
+							 uiNumOfPFNs,
+							 0,
+							 psCpuPAddr,
+							 pbValid);
+	if (eError)
 	{
-		/* Scan the map range for pfns without struct page* handling. If we find
-		 * one, this is a mixed map, and we can't use vm_insert_page().
-		 */
-		for (uiOffset = 0; uiOffset < uiLength; uiOffset += 1ULL<<PAGE_SHIFT)
+		goto e3;
+	}
+
+	/* Scan the map range for pfns without struct page* handling. If we find
+	   one, this is a mixed map, and we can't use vm_insert_page() */
+	for (uiOffsetIdx = 0; uiOffsetIdx < uiNumOfPFNs; ++uiOffsetIdx)
+	{
+		if (pbValid[uiOffsetIdx])
 		{
-			IMG_CPU_PHYADDR sCpuPAddr;
-			IMG_BOOL bValid;
+			uiPFN = psCpuPAddr[uiOffsetIdx].uiAddr >> PAGE_SHIFT;
+			PVR_ASSERT(((IMG_UINT64)uiPFN << PAGE_SHIFT) == psCpuPAddr[uiOffsetIdx].uiAddr);
 
-			eError = PMR_CpuPhysAddr(psPMR, uiOffset, &sCpuPAddr, &bValid);
-			PVR_ASSERT(eError == PVRSRV_OK);
-			if (eError)
+			if (!pfn_valid(uiPFN) || page_count(pfn_to_page(uiPFN)) == 0)
 			{
-				goto e2;
+				bMixedMap = IMG_TRUE;
 			}
-
-			if (bValid)
-			{
-				uiPFN = sCpuPAddr.uiAddr >> PAGE_SHIFT;
-				PVR_ASSERT(((IMG_UINT64)uiPFN << PAGE_SHIFT) == sCpuPAddr.uiAddr);
-
-				if (!pfn_valid(uiPFN) || page_count(pfn_to_page(uiPFN)) == 0)
-				{
-					bMixedMap = IMG_TRUE;
-				}
-			}
-		}
-
-		if (bMixedMap)
-		{
-		    ps_vma->vm_flags |= VM_MIXEDMAP;
 		}
 	}
-#endif /* defined(PVR_MMAP_USE_VM_INSERT) */
+
+	if (bMixedMap)
+	{
+	    ps_vma->vm_flags |= VM_MIXEDMAP;
+	}
 
     for (uiOffset = 0; uiOffset < uiLength; uiOffset += 1ULL<<PAGE_SHIFT)
     {
         IMG_SIZE_T uiNumContiguousBytes;
         IMG_INT32 iStatus;
-        IMG_CPU_PHYADDR sCpuPAddr;
-        IMG_BOOL bValid;
 
         uiNumContiguousBytes = 1ULL<<PAGE_SHIFT;
-        eError = PMR_CpuPhysAddr(psPMR,
-                                 uiOffset,
-                                 &sCpuPAddr,
-                                 &bValid);
-        PVR_ASSERT(eError == PVRSRV_OK);
-        if (eError)
-        {
-            goto e2;
-        }
+        uiOffsetIdx = uiOffset >> PAGE_SHIFT;
 
 		/*
 			Only map in pages that are valid, any that aren't will be picked up
 			by the nopage handler which will return a zeroed page for us
 		*/
-		if (bValid)
+		if (pbValid[uiOffsetIdx])
 		{
-	        uiPFN = sCpuPAddr.uiAddr >> PAGE_SHIFT;
-	        PVR_ASSERT(((IMG_UINT64)uiPFN << PAGE_SHIFT) == sCpuPAddr.uiAddr);
+	        uiPFN = psCpuPAddr[uiOffsetIdx].uiAddr >> PAGE_SHIFT;
+	        PVR_ASSERT(((IMG_UINT64)uiPFN << PAGE_SHIFT) == psCpuPAddr[uiOffsetIdx].uiAddr);
 
-#if defined(PVR_MMAP_USE_VM_INSERT)
 			if (bMixedMap)
 			{
 				/* This path is just for debugging. It should be equivalent
@@ -404,17 +407,11 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 			}
 			else
 			{
+				/* Since kernel 3.7 this sets VM_MIXEDMAP internally */
 				iStatus = vm_insert_page(ps_vma,
 										 ps_vma->vm_start + uiOffset,
 										 pfn_to_page(uiPFN));
 			}
-#else /* defined(PVR_MMAP_USE_VM_INSERT) */
-	        iStatus = remap_pfn_range(ps_vma,
-	                                  ps_vma->vm_start + uiOffset,
-	                                  uiPFN,
-	                                  uiNumContiguousBytes,
-	                                  ps_vma->vm_page_prot);
-#endif /* defined(PVR_MMAP_USE_VM_INSERT) */
 
 	        PVR_ASSERT(iStatus == 0);
 	        if(iStatus)
@@ -422,7 +419,7 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 	            // N.B. not the right error code, but, it doesn't get propagated anyway... :(
 	            eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
-	            goto e2;
+	            goto e3;
 	        }
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -432,13 +429,20 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 #else
     	PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_MAP_UMA_LMA_PAGES,
     			 	 	 	 	 (IMG_VOID*)(IMG_UINTPTR_T)(ps_vma->vm_start + uiOffset),
-								 sCpuPAddr,
+    			 	 	 	 	 psCpuPAddr[uiOffsetIdx],
 								 PAGE_SIZE,
 								 IMG_NULL);
 #endif
 #endif
+
 		}
         (void)pFile;
+    }
+    
+    if (psCpuPAddr != asCpuPAddr)
+    {
+    	OSFreeMem(psCpuPAddr);
+    	OSFreeMem(pbValid);
     }
 
     /* let us see the PMR so we can unlock it later */
@@ -454,6 +458,12 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
     /*
       error exit paths follow
     */
+ e3:
+	if (psCpuPAddr != asCpuPAddr)
+	{
+		OSFreeMem(psCpuPAddr);
+		OSFreeMem(pbValid);
+	}
  e2:
     PVR_DPF((PVR_DBG_ERROR, "don't know how to handle this error.  Abort!"));
     PMRUnlockSysPhysAddresses(psPMR);
@@ -469,36 +479,4 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 	mutex_unlock(&g_sMMapMutex);
  em0:
     return -ENOENT; // -EAGAIN // or what?
-}
-
-/*!
- *******************************************************************************
-
- @Function  PVRMMapInit
-
- @Description
-
- MMap initialisation code
-
- ******************************************************************************/
-void
-PVRMMapInit(void)
-{
-    mutex_init(&g_sMMapMutex);
-    return;
-}
-
-/*!
- *******************************************************************************
-
- @Function  PVRMMapCleanup
-
- @Description
-
- Mmap deinitialisation code
-
- ******************************************************************************/
-void
-PVRMMapCleanup(void)
-{
 }

@@ -419,7 +419,7 @@ PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
     PVR_ASSERT(uiNumBytes > 0);
 
 	/* PRQA S 3415 1 */ /* side effects desired */
-	if (PDumpCtrlIsDumpSuspended())
+	if (PDumpIsDumpSuspended())
 	{
 		return PVRSRV_OK;
 	}

@@ -4510,6 +4510,7 @@ typedef struct drm_psb_mem_alloc {
 typedef struct pvrsrv_bridge_package_32
 {
 	u32	ui32BridgeID;		/*!< ioctl/drvesc index */
+	u32	ui32FunctionID;			/*! bridge function ID */
 	u32	ui32Size;			/*!< size of structure */
 	u32	pvParamIn;			/*!< input data buffer */
 	u32	ui32InBufferSize;		/*!< size of input data buf */
@@ -4528,10 +4529,10 @@ int compat_PVRSRV_BridgeDispatchKM2(struct file *filp, unsigned int cmd,
 		printk(KERN_ERR "%s: copy_from_user failed\n", __func__);
 		return -EFAULT;
 	}
-
 	request = compat_alloc_user_space(sizeof(*request));
 	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
 		|| __put_user(req32.ui32BridgeID, &request->ui32BridgeID)
+		|| __put_user(req32.ui32FunctionID, &request->ui32FunctionID)
 		|| __put_user(req32.ui32Size, &request->ui32Size)
 		|| __put_user((void __user *)(unsigned long)req32.pvParamIn, &request->pvParamIn)
 		|| __put_user(req32.ui32InBufferSize, &request->ui32InBufferSize)

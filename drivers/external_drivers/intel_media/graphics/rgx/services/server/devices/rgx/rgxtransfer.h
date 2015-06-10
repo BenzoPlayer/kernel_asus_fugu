@@ -66,8 +66,11 @@ typedef struct _RGX_SERVER_TQ_CONTEXT_ RGX_SERVER_TQ_CONTEXT;
 
  @Input pvDeviceNode - device node
  
+FIXME fill this in
 
-*/
+ @Return   PVRSRV_ERROR
+
+******************************************************************************/
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA			*psConnection,
 										   PVRSRV_DEVICE_NODE		*psDeviceNode,
@@ -119,8 +122,9 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									IMG_UINT32				*paui32ServerSyncCount,
 									IMG_UINT32				**papaui32ServerSyncFlags,
 									SERVER_SYNC_PRIMITIVE	***papapsServerSyncs,
-									IMG_UINT32				ui32NumFenceFDs,
-									IMG_INT32				*paui32FenceFDs,
+									IMG_UINT32				ui32NumCheckFenceFDs,
+									IMG_INT32				*paui32CheckFenceFDs,
+									IMG_INT32				i32UpdateFenceFD,
 									IMG_UINT32				*paui32FWCommandSize,
 									IMG_UINT8				**papaui8FWCommand,
 									IMG_UINT32				*pui32TQPrepareFlags,
@@ -149,7 +153,8 @@ PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContex
 									   IMG_UINT32				ui32ServerSyncCount,
 									   IMG_UINT32				*pui32ServerSyncFlags,
 									   SERVER_SYNC_PRIMITIVE	**pasServerSyncs,
-									   IMG_UINT32				ui32NumFenceFDs,
-									   IMG_INT32				*paui32FenceFDs,
+									   IMG_UINT32				ui32NumCheckFenceFDs,
+									   IMG_INT32				*paui32CheckFenceFDs,
+									   IMG_INT32				i32UpdateFenceFD,
 									   IMG_UINT32				ui32TQPrepareFlags);
 #endif /* __RGXTRANSFER_H__ */

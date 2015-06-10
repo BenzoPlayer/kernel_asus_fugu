@@ -44,7 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _PVR_SYNC_H
 #define _PVR_SYNC_H
 
-#include "pvr_fd_sync_user.h"
+#include "pvr_fd_sync_kernel.h"
 #include "rgx_fwif_shared.h"
 
 /* Services internal interface */

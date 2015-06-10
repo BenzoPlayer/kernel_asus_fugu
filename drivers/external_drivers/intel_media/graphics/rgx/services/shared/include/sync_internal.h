@@ -89,6 +89,7 @@ typedef enum _SYNC_PRIM_TYPE_
 
 typedef struct _SYNC_PRIM_LOCAL_
 {
+	ATOMIC_T				hRefCount;	/*!< Ref count for this sync */
 	SYNC_PRIM_BLOCK			*psSyncBlock;	/*!< Synchronisation block this primitive is allocated on */
 	IMG_UINT64				uiSpanAddr;		/*!< Span address of the sync */
 #if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
@@ -114,7 +115,7 @@ typedef struct _SYNC_PRIM_
 } SYNC_PRIM;
 
 
-
+/* FIXME this must return a correctly typed pointer */
 IMG_INTERNAL IMG_UINT32 SyncPrimGetFirmwareAddr(PVRSRV_CLIENT_SYNC_PRIM *psSync);
 
 #endif	/* _SYNC_INTERNAL_ */

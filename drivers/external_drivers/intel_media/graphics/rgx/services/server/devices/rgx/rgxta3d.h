@@ -63,6 +63,7 @@ typedef struct {
 	DEVMEM_MEMDESC			*psFWHWRTDataMemDesc;
 	DEVMEM_MEMDESC			*psRTACtlMemDesc;
 	DEVMEM_MEMDESC			*psRTArrayMemDesc;
+	DEVMEM_MEMDESC          	*psRendersAccArrayMemDesc;
 	RGX_FREELIST 			*apsFreeLists[RGXFW_MAX_FREELISTS];
 	PVRSRV_CLIENT_SYNC_PRIM	*psCleanupSync;
 } RGX_RTDATA_CLEANUP_DATA;
@@ -398,8 +399,9 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 								 SERVER_SYNC_PRIMITIVE 		**pasServer3DSyncs,
 								 PRGXFWIF_UFO_ADDR			uiPRFenceUFOAddress,
 								 IMG_UINT32					ui32PRFenceValue,
-								 IMG_UINT32					ui32NumFenceFds,
-								 IMG_INT32					*pai32FenceFds,
+								 IMG_UINT32					ui32NumCheckFenceFDs,
+								 IMG_INT32					*pai32CheckFenceFDs,
+								 IMG_INT32                  i32UpdateFenceFD,
 								 IMG_UINT32					ui32TACmdSize,
 								 IMG_PBYTE					pui8TADMCmd,
 								 IMG_UINT32					ui323DPRCmdSize,
@@ -461,7 +463,8 @@ PVRSRVRGXKickSyncTAKM(RGX_SERVER_RENDER_CONTEXT  *psRenderContext,
 					   IMG_UINT32                  *paui323DServerSyncFlags,
 					   SERVER_SYNC_PRIMITIVE       **pas3DServerSyncs,
 					   IMG_UINT32				   ui32NumFenceFDs,
-					   IMG_INT32				   *paui32FenceFDs,
+					   IMG_INT32				   *pai32FenceFDs,
+					   IMG_INT32                   i32UpdateFenceFD,
                        IMG_BOOL                    bPDumpContinuous);
 
 #endif /* __RGXTA3D_H__ */

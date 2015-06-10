@@ -279,8 +279,13 @@ static void dfrgx_add_sample_data(struct df_rgx_data_s *g_dfrgx,
 	static int num_samples;
 	static int sum_samples_active;
 	int ret = 0;
+	int active_high = util_stats_sample.ui64GpuStatActiveHigh;
 
-	sum_samples_active += ((util_stats_sample.ui32GpuStatActiveHigh) / 100);
+	/* convert ui64GpuStatActiveHigh time period to a 0.01% precision ratio */
+	active_high *= 10000;
+	do_div(active_high, util_stats_sample.ui64GpuStatCumulative);
+
+	sum_samples_active += (active_high / 100);
 	num_samples++;
 
 	/* When we collect MAX_NUM_SAMPLES samples we need to decide
@@ -394,12 +399,12 @@ static int df_rgx_action(struct df_rgx_data_s *g_dfrgx)
 		return 1;
 
 	if (gpu_rgx_get_util_stats(&util_stats)) {
-		DFRGX_DPF(DFRGX_DEBUG_LOW, "%s: Active: %d, "
-			"Blocked: %d, Idle: %d !\n",
+		DFRGX_DPF(DFRGX_DEBUG_LOW, "%s: Active: %llu, "
+			"Blocked: %llu, Idle: %llu !\n",
 			__func__,
-			util_stats.ui32GpuStatActiveHigh,
-			util_stats.ui32GpuStatBlocked,
-			util_stats.ui32GpuStatIdle);
+			util_stats.ui64GpuStatActiveHigh,
+			util_stats.ui64GpuStatBlocked,
+			util_stats.ui64GpuStatIdle);
 
 		dfrgx_add_sample_data(g_dfrgx, util_stats);
 	} else {
