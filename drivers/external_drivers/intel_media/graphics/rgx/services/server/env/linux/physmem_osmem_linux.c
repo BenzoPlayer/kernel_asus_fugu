@@ -296,6 +296,16 @@ _AddEntryToPool(struct page *psPage, IMG_UINT32 ui32CPUCacheFlags)
 static inline void
 _RemoveEntryFromPoolUnlocked(LinuxPagePoolEntry *psPagePoolEntry)
 {
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+	/* MemStats usually relies on having the bridge lock held, however
+	 * the page pool code may call PVRSRVStatsIncrMemAllocPoolStat and
+	 * PVRSRVStatsDecrMemAllocPoolStat without the bridge lock held, so
+	 * the page pool lock is used to ensure these calls are mutually
+	 * exclusive
+	 */
+	PVRSRVStatsDecrMemAllocPoolStat(PAGE_SIZE);
+#endif
+
 	list_del(&psPagePoolEntry->sPagePoolItem);
 	g_ui32PagePoolEntryCount--;
 }
@@ -322,15 +332,7 @@ _RemoveFirstEntryFromPool(IMG_UINT32 ui32CPUCacheFlags)
 	PVR_ASSERT(g_ui32PagePoolEntryCount > 0);
 	psPagePoolEntry = list_first_entry(psPoolHead, LinuxPagePoolEntry, sPagePoolItem);
 	_RemoveEntryFromPoolUnlocked(psPagePoolEntry);
-#if defined(PVRSRV_ENABLE_PROCESS_STATS)
-	/* MemStats usually relies on having the bridge lock held, however
-	 * the page pool code may call PVRSRVStatsIncrMemAllocPoolStat and
-	 * PVRSRVStatsDecrMemAllocPoolStat without the bridge lock held, so
-	 * the page pool lock is used to ensure these calls are mutually
-	 * exclusive
-	 */
-	PVRSRVStatsDecrMemAllocPoolStat(PAGE_SIZE);
-#endif
+
 	psPage = psPagePoolEntry->psPage;
 	_LinuxPagePoolEntryFree(psPagePoolEntry);
 	_PagePoolUnlock();
