@@ -359,7 +359,10 @@ static IMG_CHAR* const pszDriverStatFilename = "driver_stats";
 static GLOBAL_STATS gsGlobalStats;
 
 #define HASH_INITIAL_SIZE 5
-static HASH_TABLE* gpsTrackingTable;
+/* A hash table used to store the size of any vmalloc'd allocation
+ * against its address (not needed for kmallocs as we can use ksize()) */
+static HASH_TABLE* gpsVmallocSizeHashTable;
+static POS_LOCK	 gpsVmallocSizeHashTableLock;
 
 /*Power Statistics List */
 
@@ -945,42 +948,55 @@ PVRSRVStatsInitialise(IMG_VOID)
     PVR_ASSERT(psLiveList == IMG_NULL);
     PVR_ASSERT(psDeadList == IMG_NULL);
     PVR_ASSERT(psLinkedListLock == IMG_NULL);
-    PVR_ASSERT(gpsTrackingTable == IMG_NULL);
+	PVR_ASSERT(gpsVmallocSizeHashTable == NULL);
 	PVR_ASSERT(bProcessStatsInitialised == IMG_FALSE);
 
 	/* We need a lock to protect the linked lists... */
-    error = OSLockCreate(&psLinkedListLock, LOCK_TYPE_NONE);
+	error = OSLockCreate(&psLinkedListLock, LOCK_TYPE_NONE);
+	if (error == PVRSRV_OK)
+	{
+		/* We also need a lock to protect the hash table used for vmalloc size tracking.. */
+		error = OSLockCreate(&gpsVmallocSizeHashTableLock, LOCK_TYPE_NONE);
 
-    /* Create a pid folders for putting the PID files in... */
-    pvOSLivePidFolder = OSCreateStatisticFolder(pszOSLivePidFolderName, IMG_NULL);
-    pvOSDeadPidFolder = OSCreateStatisticFolder(pszOSDeadPidFolderName, IMG_NULL);
+		if (error != PVRSRV_OK)
+		{
+			goto e0;
+		}
+		/* Create a pid folders for putting the PID files in... */
+		pvOSLivePidFolder = OSCreateStatisticFolder(pszOSLivePidFolderName, IMG_NULL);
+		pvOSDeadPidFolder = OSCreateStatisticFolder(pszOSDeadPidFolderName, IMG_NULL);
 
-	/* Create power stats entry... */
-	pvOSPowerStatsEntryData = OSCreateStatisticEntry("power_timing_stats",
-													 IMG_NULL,
-													 PowerStatsPrintElements,
-												     IMG_NULL,
-												     IMG_NULL,
-		                                             IMG_NULL);
+		/* Create power stats entry... */
+		pvOSPowerStatsEntryData = OSCreateStatisticEntry("power_timing_stats",
+														 IMG_NULL,
+														 PowerStatsPrintElements,
+													     IMG_NULL,
+													     IMG_NULL,
+													     IMG_NULL);
 
-	pvOSGlobalMemEntryRef = OSCreateStatisticEntry(pszDriverStatFilename,
-												   IMG_NULL,
-												   GlobalStatsPrintElements,
-											       IMG_NULL,
-												   IMG_NULL,
-												   IMG_NULL);
+		pvOSGlobalMemEntryRef = OSCreateStatisticEntry(pszDriverStatFilename,
+													   IMG_NULL,
+													   GlobalStatsPrintElements,
+												       IMG_NULL,
+													   IMG_NULL,
+													   IMG_NULL);
 
-	/* Flag that we are ready to start monitoring memory allocations. */
+		/* Flag that we are ready to start monitoring memory allocations. */
 
-	gpsTrackingTable = HASH_Create(HASH_INITIAL_SIZE);
+		gpsVmallocSizeHashTable = HASH_Create(HASH_INITIAL_SIZE);
 
-	OSMemSet(&gsGlobalStats, 0, sizeof(gsGlobalStats));
+		OSMemSet(&gsGlobalStats, 0, sizeof(gsGlobalStats));
 
-	OSMemSet(asClockSpeedChanges, 0, sizeof(asClockSpeedChanges));
+		OSMemSet(asClockSpeedChanges, 0, sizeof(asClockSpeedChanges));
 	
-	bProcessStatsInitialised = IMG_TRUE;
-
+		bProcessStatsInitialised = IMG_TRUE;
+	}
 	return error;
+e0:
+	OSLockDestroy(psLinkedListLock);
+	psLinkedListLock = NULL;
+	return error;
+
 } /* PVRSRVStatsInitialise */
 
 
@@ -1040,9 +1056,14 @@ PVRSRVStatsDestroy(IMG_VOID)
     OSRemoveStatisticFolder(pvOSDeadPidFolder);
     pvOSDeadPidFolder = IMG_NULL;
 
-	if (gpsTrackingTable != IMG_NULL)
+	if (gpsVmallocSizeHashTable != IMG_NULL)
 	{
-		HASH_Delete(gpsTrackingTable);
+		HASH_Delete(gpsVmallocSizeHashTable);
+	}
+	if (gpsVmallocSizeHashTableLock != IMG_NULL)
+	{
+		OSLockDestroy(gpsVmallocSizeHashTableLock);
+		gpsVmallocSizeHashTableLock = IMG_NULL;
 	}
 
 } /* PVRSRVStatsDestroy */
@@ -1737,15 +1758,23 @@ PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_SIZE_T uiBytes,
         							IMG_UINT64 uiCpuVAddr)
 {
+	IMG_BOOL bRes;
 
-	if (!bProcessStatsInitialised || (gpsTrackingTable == IMG_NULL) )
+	if (!bProcessStatsInitialised || (gpsVmallocSizeHashTable == NULL) )
 	{
 		return;
 	}
 
-	if (HASH_Insert(gpsTrackingTable, uiCpuVAddr, uiBytes))
+	OSLockAcquire(gpsVmallocSizeHashTableLock);
+	bRes = HASH_Insert(gpsVmallocSizeHashTable, uiCpuVAddr, uiBytes);
+	OSLockRelease(gpsVmallocSizeHashTableLock);
+	if (bRes)
 	{
 		PVRSRVStatsIncrMemAllocStat(eAllocType, uiBytes);
+	}
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR, "*** %s : @ line %d HASH_Insert() failed!!", __FUNCTION__, __LINE__));
 	}
 }
 
@@ -1857,12 +1886,14 @@ PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
 {
 	IMG_SIZE_T uiBytes;
 
-	if (!bProcessStatsInitialised || (gpsTrackingTable == IMG_NULL) )
+	if (!bProcessStatsInitialised || (gpsVmallocSizeHashTable == NULL) )
 	{
 		return;
 	}
 
-	uiBytes = HASH_Remove(gpsTrackingTable, uiCpuVAddr);
+	OSLockAcquire(gpsVmallocSizeHashTableLock);
+	uiBytes = HASH_Remove(gpsVmallocSizeHashTable, uiCpuVAddr);
+	OSLockRelease(gpsVmallocSizeHashTableLock);
 
 	PVRSRVStatsDecrMemAllocStat(eAllocType, uiBytes);
 }
