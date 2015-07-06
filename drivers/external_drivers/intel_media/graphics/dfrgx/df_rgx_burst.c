@@ -281,6 +281,15 @@ static void dfrgx_add_sample_data(struct df_rgx_data_s *g_dfrgx,
 	int ret = 0;
 	int active_high = util_stats_sample.ui64GpuStatActiveHigh;
 
+	/*There might be a case where util_stats_sample.ui64GpuStatCumulative is actually zero
+	* due to the getutilstats functionality assumes certain conditions in the driver making low
+	* high and blocked values actually 0 */
+	if (util_stats_sample.ui64GpuStatCumulative == 0) {
+		DFRGX_DPF(DFRGX_DEBUG_HIGH, "%s: Ignoring util stats from gpu!\n",
+				__func__);
+		return;
+	}
+
 	/* convert ui64GpuStatActiveHigh time period to a 0.01% precision ratio */
 	active_high *= 10000;
 	do_div(active_high, util_stats_sample.ui64GpuStatCumulative);
@@ -407,6 +416,7 @@ static int df_rgx_action(struct df_rgx_data_s *g_dfrgx)
 			util_stats.ui64GpuStatIdle);
 
 		dfrgx_add_sample_data(g_dfrgx, util_stats);
+
 	} else {
 		DFRGX_DPF(DFRGX_DEBUG_MED, "%s: Invalid Util stats !\n",
 		__func__);
