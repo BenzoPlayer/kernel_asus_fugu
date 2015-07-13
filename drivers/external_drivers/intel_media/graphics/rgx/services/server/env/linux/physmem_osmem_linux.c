@@ -959,6 +959,8 @@ _AllocOSHigherOrderPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData,
 	IMG_BOOL bPageFromPool = IMG_FALSE;
 	IMG_INT32 aiOrderCount[ALLOC_ORDER_ARRAY_SIZE];	
 	struct page **ppsPageArray = psPageArrayData->pagearray;
+	unsigned int gfp_flags_zero_order;
+	unsigned int gfp_flags_other_order;
 #if defined(CONFIG_X86)
 	/* On x86 we batch applying cache attributes by storing references
 	   to all pages that are not from the page pool */
@@ -977,9 +979,10 @@ _AllocOSHigherOrderPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData,
 	}
 #endif
 
+	gfp_flags_zero_order = gfp_flags;
 	/* Disable retry/wait  */
-	gfp_flags |= __GFP_NORETRY;
-	gfp_flags &= ~__GFP_WAIT;
+	gfp_flags_other_order = (gfp_flags | __GFP_NORETRY) & ~__GFP_WAIT;
+
 
 	/* Re-express uiNumPages in multi-order up to cut-off order */
 	for (uiOrder = 0; uiOrder <= g_uiCutOffOrder; ++uiOrder)
@@ -1001,7 +1004,9 @@ _AllocOSHigherOrderPages(struct _PMR_OSPAGEARRAY_DATA_ *psPageArrayData,
 			;
 
 		/* Alloc uiOrder pages at uiPageIndex */
-		eError = _AllocOSPage(ui32CPUCacheFlags, gfp_flags, uiOrder,
+		eError = _AllocOSPage(ui32CPUCacheFlags,
+							uiOrder ? gfp_flags_other_order : gfp_flags_zero_order,
+							uiOrder,
 							  &ppsPageArray[uiPageIndex], &bPageFromPool);
 		if (eError == PVRSRV_OK)
 		{
