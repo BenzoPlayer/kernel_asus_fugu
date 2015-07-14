@@ -480,6 +480,8 @@ void android_hdmi_driver_setup(struct drm_device *dev)
 	hdmi_priv->hdmib_reg = HDMIB_CONTROL;
 	hdmi_priv->monitor_type = MONITOR_TYPE_HDMI;
 	hdmi_priv->is_hdcp_supported = true;
+	/* delay setting hdmi switch state till mode setting is completed*/
+	hdmi_priv->delayed_audio_hotplug = true;
 
 	dev_priv->hdmi_priv = (void *)hdmi_priv;
 
@@ -2729,12 +2731,10 @@ void android_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 		otm_hdmi_vblank_control(dev, true);
 		REG_WRITE(hdmi_priv->hdmib_reg, hdmib | HDMIB_PORT_EN);
 
-		if (hdmi_priv->delayed_audio_hotplug ||
-			dev_priv->hdmi_first_boot) {
+		if (hdmi_priv->delayed_audio_hotplug) {
 			mid_hdmi_audio_signal_event(dev, HAD_EVENT_HOT_PLUG);
 			switch_set_state(&hdmi_priv->sdev, 1);
-			pr_info("%s: hdmi state switched to %d\n", __func__,
-				hdmi_priv->sdev.state);
+			pr_info("%s: hdmi switch state set to 1.\n", __func__);
 			hdmi_priv->delayed_audio_hotplug = false;
 		}
 
