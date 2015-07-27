@@ -1149,7 +1149,6 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 	VSP_DEBUG("ctx_type=%d\n", ctx_type);
 
 	if (VAEntrypointEncSlice == ctx_type && filp != vsp_priv->vp8_filp[3]) {
-		vsp_priv->context_vp8_num--;
 		mutex_lock(&vsp_priv->vsp_mutex);
 		/* power on again to send VssGenDestroyContext to firmware */
 		if (power_island_get(OSPM_VIDEO_VPP_ISLAND) == false) {
@@ -1197,6 +1196,8 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 			PSB_UDELAY(6);
 		}
 
+
+		vsp_priv->context_vp8_num--;
 		if (count == 20000) {
 			DRM_ERROR("Failed to handle sigint event\n");
 		}
