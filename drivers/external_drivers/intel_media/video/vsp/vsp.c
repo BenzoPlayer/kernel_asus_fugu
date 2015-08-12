@@ -1223,6 +1223,7 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 
 	vsp_priv->ctrl->entry_kind = vsp_exit;
 	mutex_unlock(&vsp_priv->vsp_mutex);
+        VSP_DEBUG("After mutex_unlock, start to power off VSP!\n");
 
 	/* in case of power mode 0, HW always active,
 	 * * in case got no response from FW, vsp_state=hang but could not be powered off,

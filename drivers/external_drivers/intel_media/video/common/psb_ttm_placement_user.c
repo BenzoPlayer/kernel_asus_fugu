@@ -201,7 +201,7 @@ static void ttm_ub_bo_user_destroy(struct ttm_buffer_object *bo)
 	list_for_each_safe(list, next, &msvdx_priv->ion_buffers_list) {
 		pIonBuf = list_entry(list, struct psb_ion_buffer, head);
 		if (pIonBuf->sg == bo->sg) {
-			list_del(list);
+			list_del(&pIonBuf->head);
 			dma_buf_unmap_attachment(pIonBuf->psAttachment,
 						pIonBuf->sg, DMA_NONE);
 			dma_buf_detach(pIonBuf->psDmaBuf,
