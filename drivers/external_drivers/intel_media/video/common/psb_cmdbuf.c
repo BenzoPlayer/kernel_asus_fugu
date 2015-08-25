@@ -836,8 +836,10 @@ static int psb_handle_copyback(struct drm_device *dev,
 			}
 
 			if (__copy_to_user(vbuf->user_val_arg,
-					   &arg, sizeof(arg)))
+					   &arg, sizeof(arg))) {
 				err = -EFAULT;
+				DRM_ERROR("call __copy_to_user() function error!\n");
+			}
 
 			if (arg.ret)
 				break;

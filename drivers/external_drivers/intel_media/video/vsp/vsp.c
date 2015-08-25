@@ -73,6 +73,43 @@ static inline void psb_clflush(void *addr)
 	__asm__ __volatile__("wbinvd ");
 }
 
+
+static inline void force_power_down_vsp(void)
+{
+	int count = 0;
+	VSP_DEBUG("Force to power down VSP\n");
+	while (is_island_on(OSPM_VIDEO_VPP_ISLAND) && (count < 255)) {
+		count++;
+		VSP_DEBUG("The VSP is on, power down it, tries %d\n", count);
+		power_island_put(OSPM_VIDEO_VPP_ISLAND);
+	}
+	VSP_DEBUG("The VSP is off now (tried %d times)\n", count);
+}
+
+static inline void power_down_vsp(void)
+{
+	VSP_DEBUG("Try to power down VSP\n");
+
+	if (is_island_on(OSPM_VIDEO_VPP_ISLAND)) {
+		VSP_DEBUG("The VSP is on, power down it\n");
+		power_island_put(OSPM_VIDEO_VPP_ISLAND);
+	} else
+		VSP_DEBUG("The VSP is already off\n");
+}
+
+static inline void power_up_vsp(void)
+{
+	VSP_DEBUG("Try to power up VSP\n");
+
+	if (is_island_on(OSPM_VIDEO_VPP_ISLAND))
+		VSP_DEBUG("The VSP is alraedy on\n");
+	else {
+		VSP_DEBUG("The VSP is off, power up it\n");
+		power_island_get(OSPM_VIDEO_VPP_ISLAND);
+	}
+}
+
+
 int vsp_handle_response(struct drm_psb_private *dev_priv)
 {
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
@@ -311,8 +348,13 @@ int vsp_cmdbuf_vpp(struct drm_file *priv,
 
 	/* If VSP timeout, don't send cmd to hardware anymore */
 	if (vsp_priv->vsp_state == VSP_STATE_HANG) {
-		DRM_ERROR("The VSP is hang abnormally!");
-		return -EFAULT;
+		DRM_ERROR("The VSP is hang abnormally, try to reset vsp hardware!\n");
+
+		VSP_DEBUG("Force state to DOWN to force power down\n");
+		vsp_priv->ctrl->entry_kind = vsp_exit;
+		vsp_priv->vsp_state = VSP_STATE_DOWN;
+		force_power_down_vsp();
+		//return -EFAULT;
 	}
 
 	memset(&cmd_kmap, 0, sizeof(cmd_kmap));
@@ -358,8 +400,9 @@ int vsp_cmdbuf_vpp(struct drm_file *priv,
 	if (drm_vsp_vpp_batch_cmd == 0)
 		vsp_priv->force_flush_cmd = 1;
 
-	if (vsp_priv->vsp_state == VSP_STATE_IDLE)
-		ospm_apm_power_down_vsp(dev);
+        if ((drm_vsp_pmpolicy != PSB_PMPOLICY_NOPM) &&
+	    (vsp_priv->vsp_state == VSP_STATE_IDLE))
+		power_down_vsp();
 
 	if (vsp_priv->acc_num_cmd >= 1 || vsp_priv->force_flush_cmd != 0
 	    || vsp_priv->delayed_burst_cnt > 0) {
@@ -1108,7 +1151,7 @@ int vsp_new_context(struct drm_device *dev, struct file *filp, int ctx_type)
 	mutex_unlock(&vsp_priv->vsp_mutex);
 
 	VSP_DEBUG("context_vp8_num %d, context_vpp_num %d\n",
-			vsp_priv->context_vp8_num, vsp_priv->context_vpp_num);
+		  vsp_priv->context_vp8_num, vsp_priv->context_vpp_num);
 	return ret;
 }
 
@@ -1116,7 +1159,6 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
-	bool ret = true;
 	int count = 0;
 	struct vss_command_t *cur_cmd;
 	bool tmp = true;
@@ -1153,11 +1195,10 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 
 	VSP_DEBUG("ctx_type=%d\n", ctx_type);
 
+	/* power on the VSP hardware to write registers */
+	power_up_vsp();
+
 	if (VAEntrypointEncSlice == ctx_type && filp != vsp_priv->vp8_filp[3]) {
-		/* power on again to send VssGenDestroyContext to firmware */
-		if (power_island_get(OSPM_VIDEO_VPP_ISLAND) == false) {
-			tmp = -EBUSY;
-		}
 		if (vsp_priv->vsp_state == VSP_STATE_SUSPEND) {
 			tmp = vsp_resume_function(dev_priv);
 			VSP_DEBUG("The VSP is on suspend, send resume!\n");
@@ -1217,26 +1258,26 @@ void vsp_rm_context(struct drm_device *dev, struct file *filp, int ctx_type)
 	if (vsp_priv->context_vp8_num > 0 || vsp_priv->context_vpp_num > 0) {
 		VSP_DEBUG("context_vp8_num %d, context_vpp_num %d\n",
 			vsp_priv->context_vp8_num, vsp_priv->context_vpp_num);
+
+		power_down_vsp();
 		mutex_unlock(&vsp_priv->vsp_mutex);
 		return;
 	}
 
 	vsp_priv->ctrl->entry_kind = vsp_exit;
-	mutex_unlock(&vsp_priv->vsp_mutex);
-        VSP_DEBUG("After mutex_unlock, start to power off VSP!\n");
 
+	VSP_DEBUG("No context now, set state to DOWN to force power down\n");
+	PSB_UDELAY(800);
+	
 	/* in case of power mode 0, HW always active,
 	 * * in case got no response from FW, vsp_state=hang but could not be powered off,
 	 * * force state to down */
 	vsp_priv->vsp_state = VSP_STATE_DOWN;
-	ospm_apm_power_down_vsp(dev);
+	force_power_down_vsp();
 	vsp_priv->vsp_state = VSP_STATE_DOWN;
 
-	if (ret == false)
-		PSB_DEBUG_PM("Couldn't power down VSP!");
-	else
-		PSB_DEBUG_PM("VSP: OK. Power down the HW!\n");
-
+	mutex_unlock(&vsp_priv->vsp_mutex);
+	VSP_DEBUG("vsp_rm_context is successful\n");
 	/* FIXME: frequency should change */
 	VSP_PERF("the total time spend on VSP is %llu ms\n",
 		 div_u64(vsp_priv->vss_cc_acc, 200 * 1000));
@@ -1376,15 +1417,17 @@ void vsp_irq_task(struct work_struct *work)
 			  sequence, vsp_priv->current_sequence);
 	}
 
-	if (vsp_priv->vsp_state == VSP_STATE_IDLE) {
-		if (vsp_priv->ctrl->cmd_rd == vsp_priv->ctrl->cmd_wr)
-			ospm_apm_power_down_vsp(dev);
-		else {
-			while (ospm_power_is_hw_on(OSPM_VIDEO_VPP_ISLAND))
-				ospm_apm_power_down_vsp(dev);
-			VSP_DEBUG("successfully power down VSP\n");
-			power_island_get(OSPM_VIDEO_VPP_ISLAND);
-			vsp_resume_function(dev_priv);
+	if (drm_vsp_pmpolicy != PSB_PMPOLICY_NOPM){
+		if (vsp_priv->vsp_state == VSP_STATE_IDLE) {
+			if (vsp_priv->ctrl->cmd_rd == vsp_priv->ctrl->cmd_wr)
+				power_down_vsp();
+			else {
+				force_power_down_vsp();
+
+				VSP_DEBUG("Now power up VSP again to resume\n");
+				power_up_vsp();
+				vsp_resume_function(dev_priv);
+			}
 		}
 	}
 	mutex_unlock(&vsp_priv->vsp_mutex);

@@ -811,6 +811,7 @@ void ospm_apm_power_down_vsp(struct drm_device *dev)
 	struct ospm_power_island *p_island;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct vsp_private *vsp_priv = dev_priv->vsp_private;
+	int island_ref;
 
 	PSB_DEBUG_PM("Power down VPP...\n");
 	p_island = get_island_ptr(OSPM_VIDEO_VPP_ISLAND);
@@ -825,9 +826,10 @@ void ospm_apm_power_down_vsp(struct drm_device *dev)
 	if (!ospm_power_is_hw_on(OSPM_VIDEO_VPP_ISLAND))
 		goto out;
 
-	if (atomic_read(&p_island->ref_count))
+	island_ref = atomic_read(&p_island->ref_count);
+	if (island_ref)
 		PSB_DEBUG_PM("VPP ref_count has been set(%d), bypass\n",
-			     atomic_read(&p_island->ref_count));
+			     island_ref);
 
 	if (vsp_priv->vsp_cmd_num > 0) {
 		VSP_DEBUG("command in VSP, by pass\n");
@@ -847,11 +849,16 @@ void ospm_apm_power_down_vsp(struct drm_device *dev)
 	/* handle the dependency */
 	if (p_island->p_dependency) {
 		/* Power down dependent island */
-		power_down_island(p_island->p_dependency);
+		do {
+			power_down_island(p_island->p_dependency);
+			island_ref--;
+		} while (island_ref);
 	}
 
 	if (!any_island_on()) {
 		PSB_DEBUG_PM("Suspending PCI\n");
+		pm_qos_add_request(&dev_priv->s0ix_qos,
+				   PM_QOS_CPU_DMA_LATENCY, CSTATE_EXIT_LATENCY_S0i1 - 1);
 		pm_runtime_put(&g_ospm_data->dev->pdev->dev);
 		wake_unlock(&dev_priv->ospm_wake_lock);
 	}
