@@ -27,7 +27,6 @@
 #include "servicesext.h"
 #include "allocmem.h"
 #include "kerneldisplay.h"
-#include "mm.h"
 #include "pvrsrv_error.h"
 #include "display_callbacks.h"
 #include "dc_server.h"

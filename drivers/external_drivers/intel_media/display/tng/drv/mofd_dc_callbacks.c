@@ -37,7 +37,7 @@
 #endif
 
 #include <linux/kernel.h>
-#include <string.h>
+#include <linux/string.h>
 #include "android_hdmi.h"
 
 #define KEEP_UNUSED_CODE 0

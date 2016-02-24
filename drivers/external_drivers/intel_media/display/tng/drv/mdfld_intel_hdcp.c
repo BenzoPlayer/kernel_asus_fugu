@@ -19,7 +19,7 @@
  */
 
 #include <drm/drmP.h>
-#include <random.h>
+#include <linux/random.h>
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_hdmi_reg.h"
