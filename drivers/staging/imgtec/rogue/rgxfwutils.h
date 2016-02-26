@@ -52,6 +52,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "connection_server.h"
 #include "rgxta3d.h"
 
+#if defined(SUPPORT_TRUSTED_DEVICE)
+#include "physmem_tdmetacode.h"
+#endif
 
 
 /*
@@ -71,10 +74,13 @@ static INLINE PVRSRV_ERROR DevmemFwAllocate(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 	PVR_DPF_ENTERED;
 
+	/* Ensure all RI labels begin 'Fw' for the FW heap. */
+	PVR_ASSERT((pszText != NULL) && (pszText[0] == 'F') && (pszText[1] == 'w'));
+
 	eError = DevmemAllocate(psDevInfo->psFirmwareHeap,
 							uiSize,
 							ROGUE_CACHE_LINE_SIZE,
-							uiFlags,
+							uiFlags | PVRSRV_MEMALLOCFLAG_FW_LOCAL,
 							pszText,
 							ppsMemDescPtr);
 	if (eError != PVRSRV_OK)
@@ -89,7 +95,13 @@ static INLINE PVRSRV_ERROR DevmemFwAllocate(PVRSRV_RGXDEV_INFO *psDevInfo,
 	eError = DevmemMapToDevice(*ppsMemDescPtr,
 							   psDevInfo->psFirmwareHeap,
 							   &sTmpDevVAddr);
-	PVR_DPF_RETURN_RC1(eError, *ppsMemDescPtr);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF_RETURN_RC(eError);
+	}
+
+
+	PVR_DPF_RETURN_RC(eError);
 }
 
 static INLINE PVRSRV_ERROR DevmemFwAllocateExportable(PVRSRV_DEVICE_NODE *psDeviceNode,
@@ -104,11 +116,14 @@ static INLINE PVRSRV_ERROR DevmemFwAllocateExportable(PVRSRV_DEVICE_NODE *psDevi
 
 	PVR_DPF_ENTERED;
 
-	eError = DevmemAllocateExportable(IMG_NULL,
-									  (IMG_HANDLE) psDeviceNode,
+	PVR_ASSERT((pszText != NULL) &&
+			(pszText[0] == 'F') && (pszText[1] == 'w') &&
+			(pszText[2] == 'E') && (pszText[3] == 'x'));
+
+	eError = DevmemAllocateExportable(psDeviceNode,
 									  uiSize,
-									  64,
-									  uiFlags,
+									  ROGUE_CACHE_LINE_SIZE,
+									  uiFlags | PVRSRV_MEMALLOCFLAG_FW_LOCAL,
 									  pszText,
 									  ppsMemDescPtr);
 	if (eError != PVRSRV_OK)
@@ -128,18 +143,80 @@ static INLINE PVRSRV_ERROR DevmemFwAllocateExportable(PVRSRV_DEVICE_NODE *psDevi
 	{
 		PVR_DPF((PVR_DBG_ERROR,"FW DevmemMapToDevice failed (%u)", eError));
 	}
+
 	PVR_DPF_RETURN_RC1(eError, *ppsMemDescPtr);
 }
 
-static INLINE IMG_VOID DevmemFwFree(DEVMEM_MEMDESC *psMemDesc)
+static INLINE void DevmemFwFree(DEVMEM_MEMDESC *psMemDesc)
 {
 	PVR_DPF_ENTERED1(psMemDesc);
-
 	DevmemReleaseDevVirtAddr(psMemDesc);
 	DevmemFree(psMemDesc);
 
 	PVR_DPF_RETURN;
 }
+
+#if defined(SUPPORT_TRUSTED_DEVICE)
+static INLINE
+PVRSRV_ERROR DevmemImportTDMetaCode(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                    IMG_UINT32 uiMemAllocFlags,
+                                    DEVMEM_MEMDESC **ppsMemDescPtr)
+{
+	PVRSRV_RGXDEV_INFO *psDevInfo = (PVRSRV_RGXDEV_INFO *) psDeviceNode->pvDevice;
+	PMR *psTDMetaCodePMR;
+	IMG_DEV_VIRTADDR sTmpDevVAddr;
+	IMG_DEVMEM_SIZE_T uiMemDescSize;
+	PVRSRV_ERROR eError;
+
+	eError = PhysmemNewTDMetaCodePMR(psDeviceNode,
+	                                 uiMemAllocFlags,
+	                                 &psTDMetaCodePMR);
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PhysmemNewTDMetaCodePMR failed (%u)", eError));
+		goto PMRCreateError;
+	}
+
+	/* NB: TDMetaCodePMR refcount: 1 -> 2 */
+	eError = DevmemLocalImport(psDeviceNode,
+	                           psTDMetaCodePMR,
+	                           uiMemAllocFlags,
+	                           ppsMemDescPtr,
+	                           &uiMemDescSize);
+	if(eError != PVRSRV_OK)
+	{
+		goto ImportError;
+	}
+
+	eError = DevmemMapToDevice(psDevInfo->psRGXFWCodeMemDesc,
+	                           psDevInfo->psFirmwareHeap,
+	                           &sTmpDevVAddr);
+	if(eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR,"Failed to map TD META code PMR (%u)", eError));
+		goto MapError;
+	}
+
+	/* NB: TDMetaCodePMR refcount: 2 -> 1
+	 * The PMR will be unreferenced again (and destroyed) when
+	 * the memdesc tracking it is cleaned up
+	 */
+	PMRUnrefPMR(psTDMetaCodePMR);
+
+	return PVRSRV_OK;
+
+MapError:
+	DevmemFree(psDevInfo->psRGXFWCodeMemDesc);
+	psDevInfo->psRGXFWCodeMemDesc = NULL;
+ImportError:
+	/* Unref and destroy the PMR */
+	PMRUnrefPMR(psTDMetaCodePMR);
+PMRCreateError:
+
+	return eError;
+}
+#endif
+
 
 /*
  * This function returns the value of the hardware register RGX_CR_TIMER
@@ -171,7 +248,7 @@ static INLINE IMG_UINT64 RGXReadHWTimerReg(PVRSRV_RGXDEV_INFO *psDevInfo)
  * and write-combine is suffice on the CPU side (WC buffer will be flushed at the first kick)
  */
 #define RGX_FWCOMCTX_ALLOCFLAGS	(PVRSRV_MEMALLOCFLAG_DEVICE_FLAG(PMMETA_PROTECT) | \
-                                 PVRSRV_MEMALLOCFLAG_DEVICE_FLAG(META_CACHED) | \
+								 PVRSRV_MEMALLOCFLAG_DEVICE_FLAG(FIRMWARE_CACHED)| \
 								 PVRSRV_MEMALLOCFLAG_GPU_READABLE | \
 								 PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE | \
 								 PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT | \
@@ -188,28 +265,32 @@ static INLINE IMG_UINT64 RGXReadHWTimerReg(PVRSRV_RGXDEV_INFO *psDevInfo)
 #define RFW_FWADDR_NOREF_FLAG		(1U << 0)	/*!< It is safe to immediately release the reference to the pointer, 
 												  otherwise RGXUnsetFirmwareAddress() must be call when finished. */
 
+IMG_BOOL RGXTraceBufferIsInitRequired(PVRSRV_RGXDEV_INFO *psDevInfo);
+PVRSRV_ERROR RGXTraceBufferInitOnDemandResources(PVRSRV_RGXDEV_INFO *psDevInfo);
 
-PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE	*psDeviceNode, 
-							     IMG_BOOL				bEnableSignatureChecks,
-							     IMG_UINT32			ui32SignatureChecksBufSize,
-							     IMG_UINT32			ui32HWPerfFWBufSizeKB,
-							     IMG_UINT64			ui64HWPerfFilter,
-							     IMG_UINT32			ui32RGXFWAlignChecksSize,
-							     IMG_UINT32			*pui32RGXFWAlignChecks,
-							     IMG_UINT32			ui32ConfigFlags,
-							     IMG_UINT32			ui32LogType,
-							     IMG_UINT32            ui32NumTilingCfgs,
-							     IMG_UINT32            *pui32BIFTilingXStrides,
-							     IMG_UINT32			ui32FilterMode,
-							     IMG_UINT32			ui32JonesDisableMask,
-							     IMG_UINT32			ui32HWRDebugDumpLimit,
-								 IMG_UINT32			ui32HWPerfCountersDataSize,
-							     RGXFWIF_DEV_VIRTADDR	*psRGXFWInitFWAddr,
-							     RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandingConf);
+PVRSRV_ERROR RGXSetupFirmware(PVRSRV_DEVICE_NODE       *psDeviceNode,
+                              IMG_BOOL                 bEnableSignatureChecks,
+                              IMG_UINT32               ui32SignatureChecksBufSize,
+                              IMG_UINT32               ui32HWPerfFWBufSizeKB,
+                              IMG_UINT64               ui64HWPerfFilter,
+                              IMG_UINT32               ui32RGXFWAlignChecksSize,
+                              IMG_UINT32               *pui32RGXFWAlignChecks,
+                              IMG_UINT32               ui32ConfigFlags,
+                              IMG_UINT32               ui32LogType,
+                              IMG_UINT32               ui32NumTilingCfgs,
+                              IMG_UINT32               *pui32BIFTilingXStrides,
+                              IMG_UINT32               ui32FilterFlags,
+                              IMG_UINT32               ui32JonesDisableMask,
+                              IMG_UINT32               ui32HWRDebugDumpLimit,
+                              IMG_UINT32               ui32HWPerfCountersDataSize,
+                              PMR                      **ppsHWPerfPMR,
+                              RGXFWIF_DEV_VIRTADDR     *psRGXFWInitFWAddr,
+                              RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandConf,
+                              FW_PERF_CONF             eFirmwarePerf);
 
 
 
-IMG_VOID RGXFreeFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo);
+void RGXFreeFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo);
 
 /*************************************************************************/ /*!
 @Function       RGXSetFirmwareAddress
@@ -220,12 +301,12 @@ IMG_VOID RGXFreeFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo);
 @Input          psSrc		 MemDesc describing the pointer
 @Input          ui32Flags	 Any combination of  RFW_FWADDR_*_FLAG
 
-@Return			IMG_VOID
+@Return			void
 */ /**************************************************************************/
-IMG_VOID RGXSetFirmwareAddress(RGXFWIF_DEV_VIRTADDR	*ppDest,
-							   DEVMEM_MEMDESC		*psSrc,
-							   IMG_UINT32			uiOffset,
-							   IMG_UINT32			ui32Flags);
+void RGXSetFirmwareAddress(RGXFWIF_DEV_VIRTADDR	*ppDest,
+						   DEVMEM_MEMDESC		*psSrc,
+						   IMG_UINT32			uiOffset,
+						   IMG_UINT32			ui32Flags);
 
 #if defined(RGX_FEATURE_META_DMA)
 /*************************************************************************/ /*!
@@ -239,12 +320,12 @@ IMG_VOID RGXSetFirmwareAddress(RGXFWIF_DEV_VIRTADDR	*ppDest,
 @Input          psSrcMemDesc	MemDesc describing the pointer
 @Input			psSrcFWDevVAddr Firmware memory space pointer
 
-@Return			IMG_VOID
+@Return			void
 */ /**************************************************************************/
-IMG_VOID RGXSetMetaDMAAddress(RGXFWIF_DMA_ADDR		*psDest,
-							  DEVMEM_MEMDESC		*psSrcMemDesc,
-							  RGXFWIF_DEV_VIRTADDR	*psSrcFWDevVAddr,
-							  IMG_UINT32			uiOffset);
+void RGXSetMetaDMAAddress(RGXFWIF_DMA_ADDR		*psDest,
+						  DEVMEM_MEMDESC		*psSrcMemDesc,
+						  RGXFWIF_DEV_VIRTADDR	*psSrcFWDevVAddr,
+						  IMG_UINT32			uiOffset);
 #endif
 
 /*************************************************************************/ /*!
@@ -254,9 +335,9 @@ IMG_VOID RGXSetMetaDMAAddress(RGXFWIF_DMA_ADDR		*psDest,
 
 @Input          psSrc		 MemDesc describing the pointer
 
-@Return			IMG_VOID
+@Return			void
 */ /**************************************************************************/
-IMG_VOID RGXUnsetFirmwareAddress(DEVMEM_MEMDESC			*psSrc);
+void RGXUnsetFirmwareAddress(DEVMEM_MEMDESC			*psSrc);
 
 /*************************************************************************/ /*!
 @Function       FWCommonContextAllocate
@@ -267,7 +348,9 @@ IMG_VOID RGXUnsetFirmwareAddress(DEVMEM_MEMDESC			*psSrc);
 @Input          psConnection            Connection this context is being created on
 @Input          psDeviceNode		    Device node to create the FW context on
                                         (must be RGX device node)
-@Input          pszContextName          Name of the context
+@Input          eRGXCCBRequestor        RGX_CCB_REQUESTOR_TYPE enum constant which
+                                        which represents the requestor of this FWCC
+@Input          eDM                     Data Master type
 @Input          psAllocatedMemDesc      Pointer to pre-allocated MemDesc to use
                                         as the FW context or NULL if this function
                                         should allocate it
@@ -286,7 +369,8 @@ IMG_VOID RGXUnsetFirmwareAddress(DEVMEM_MEMDESC			*psSrc);
 */ /**************************************************************************/
 PVRSRV_ERROR FWCommonContextAllocate(CONNECTION_DATA *psConnection,
 									 PVRSRV_DEVICE_NODE *psDeviceNode,
-									 const IMG_CHAR *pszContextName,
+									 RGX_CCB_REQUESTOR_TYPE eRGXCCBRequestor,
+									 RGXFWIF_DM eDM,
 									 DEVMEM_MEMDESC *psAllocatedMemDesc,
 									 IMG_UINT32 ui32AllocatedOffset,
 									 DEVMEM_MEMDESC *psFWMemContextMemDesc,
@@ -298,15 +382,14 @@ PVRSRV_ERROR FWCommonContextAllocate(CONNECTION_DATA *psConnection,
 
 									 
 
-IMG_VOID FWCommonContextFree(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext);
+void FWCommonContextFree(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext);
 
 PRGXFWIF_FWCOMMONCONTEXT FWCommonContextGetFWAddress(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext);
 
 RGX_CLIENT_CCB *FWCommonContextGetClientCCB(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext);
 
-RGXFWIF_CONTEXT_RESET_REASON FWCommonContextGetLastResetReason(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext);
-
-PVRSRV_ERROR RGXStartFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo);
+RGXFWIF_CONTEXT_RESET_REASON FWCommonContextGetLastResetReason(RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
+                                                               IMG_UINT32 *pui32LastResetJobRef);
 
 /*!
 ******************************************************************************
@@ -320,7 +403,7 @@ PVRSRV_ERROR RGXStartFirmware(PVRSRV_RGXDEV_INFO 	*psDevInfo);
 
 ******************************************************************************/
 IMG_IMPORT
-IMG_VOID RGXScheduleProcessQueuesKM(PVRSRV_CMDCOMP_HANDLE hCmdCompHandle);
+void RGXScheduleProcessQueuesKM(PVRSRV_CMDCOMP_HANDLE hCmdCompHandle);
 
 /*!
 ******************************************************************************
@@ -358,10 +441,12 @@ PVRSRV_ERROR RGXSendCommandWithPowLock(PVRSRV_RGXDEV_INFO 	*psDevInfo,
 									 	IMG_BOOL			bPDumpContinuous);
 
 /*************************************************************************/ /*!
-@Function       RGXSendCommandRaw
+@Function       RGXSendCommand
 
 @Description    Sends a command to a particular DM without honouring
-				pending cache operations or the power lock.
+				pending cache operations or the power lock. 
+                                The function flushes any
+				deferred KCCB commands first.
 
 @Input          psDevInfo			Device Info
 @Input          eDM					To which DM the cmd is sent.
@@ -371,7 +456,7 @@ PVRSRV_ERROR RGXSendCommandWithPowLock(PVRSRV_RGXDEV_INFO 	*psDevInfo,
 
 @Return			PVRSRV_ERROR
 */ /**************************************************************************/
-PVRSRV_ERROR RGXSendCommandRaw(PVRSRV_RGXDEV_INFO 	*psDevInfo,
+PVRSRV_ERROR RGXSendCommand(PVRSRV_RGXDEV_INFO 	*psDevInfo,
 								 RGXFWIF_DM			eKCCBType,
 								 RGXFWIF_KCCB_CMD	*psKCCBCmd,
 								 IMG_UINT32			ui32CmdSize,
@@ -467,7 +552,7 @@ PVRSRV_ERROR PVRSRVRGXFrameworkCreateKM(PVRSRV_DEVICE_NODE * psDeviceNode,
 @Input          eDM					To which DM the cmd is sent.
 @Input          bPDumpContinuous	
 
-@Return			IMG_VOID
+@Return			void
 */ /**************************************************************************/
 PVRSRV_ERROR RGXWaitForFWOp(PVRSRV_RGXDEV_INFO	*psDevInfo,
 									RGXFWIF_DM	eDM,
@@ -491,7 +576,7 @@ PVRSRV_ERROR RGXWaitForFWOp(PVRSRV_RGXDEV_INFO	*psDevInfo,
 
 ******************************************************************************/
 PVRSRV_ERROR RGXFWRequestCommonContextCleanUp(PVRSRV_DEVICE_NODE *psDeviceNode,
-											  PRGXFWIF_FWCOMMONCONTEXT psFWContext,
+											  RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
 											  PVRSRV_CLIENT_SYNC_PRIM *psSyncPrim,
 											  RGXFWIF_DM eDM);
 
@@ -614,14 +699,14 @@ PVRSRV_ERROR RGXReadMETAAddr(PVRSRV_RGXDEV_INFO	*psDevInfo,
 /*!
 ******************************************************************************
 
- @Function	RGXCheckFirmwareCCBs
+ @Function	RGXCheckFirmwareCCB
 
- @Description Processes all commands that are found in any firmware CCB.
+ @Description Processes all commands that are found in the Firmware CCB.
 
  @Input psDevInfo - pointer to device
 
  ******************************************************************************/
-IMG_VOID RGXCheckFirmwareCCBs(PVRSRV_RGXDEV_INFO *psDevInfo);
+void RGXCheckFirmwareCCB(PVRSRV_RGXDEV_INFO *psDevInfo);
 
 /*!
 ******************************************************************************
@@ -648,7 +733,7 @@ PVRSRV_ERROR RGXUpdateHealthStatus(PVRSRV_DEVICE_NODE* psDevNode,
 
 PVRSRV_ERROR CheckStalledClientCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext);
 
-IMG_VOID DumpStalledFWCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext,
+void DumpStalledFWCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCommonContext,
 									DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
 /*!
@@ -668,7 +753,7 @@ IMG_VOID DumpStalledFWCommonContext(RGX_SERVER_COMMON_CONTEXT *psCurrentServerCo
  @Input         psZBuffer              Optional ZBuffer associated with the command.
  @Input         psSBuffer              Optional SBuffer associated with the command.
  ******************************************************************************/
-IMG_VOID AttachKickResourcesCleanupCtls(PRGXFWIF_CLEANUP_CTL *apsCleanupCtl,
+void AttachKickResourcesCleanupCtls(PRGXFWIF_CLEANUP_CTL *apsCleanupCtl,
 									IMG_UINT32 *pui32NumCleanupCtl,
 									RGXFWIF_DM eDM,
 									IMG_BOOL bKick,
@@ -691,6 +776,29 @@ IMG_VOID AttachKickResourcesCleanupCtls(PRGXFWIF_CLEANUP_CTL *apsCleanupCtl,
 PVRSRV_ERROR RGXResetHWRLogs(PVRSRV_DEVICE_NODE *psDevNode);
 
 
+/*!
+******************************************************************************
+
+ @Function			RGXGetPhyAddr
+
+ @Description 		Get the physical address of a certain PMR at a certain offset within it
+
+ @Input 			psPMR	    PMR of the allocation
+
+ @Input 			ui32LogicalOffset	    Logical offset
+
+ @Output			psPhyAddr	    Physical address of the allocation
+
+ @Return			PVRSRV_ERROR	PVRSRV_OK on success. Otherwise, a PVRSRV_
+									error code
+ ******************************************************************************/
+PVRSRV_ERROR RGXGetPhyAddr(PMR *psPMR,
+						   IMG_DEV_PHYADDR *psPhyAddr,
+						   IMG_UINT32 ui32LogicalOffset,
+						   IMG_UINT32 ui32Log2PageSize,
+						   IMG_UINT32 ui32NumOfPages,
+						   IMG_BOOL *bValid);
+
 #if defined(PDUMP)
 /*!
 ******************************************************************************
@@ -703,14 +811,10 @@ PVRSRV_ERROR RGXResetHWRLogs(PVRSRV_DEVICE_NODE *psDevNode);
 
  @Input                         ui32WriteOffset	  Woff we have to POL for the Roff to be equal to
 
- @Input                         eKCCBType	  Data Master of the KCCB
-
- @Return                        PVRSRV_ERROR	PVRSRV_OK on success. Otherwise, an
-                                                error code
+ @Return                        PVRSRV_ERROR	PVRSRV_OK on success. Otherwise, a PVRSRV_
+									error code
  ******************************************************************************/
-PVRSRV_ERROR RGXPdumpDrainKCCB(PVRSRV_RGXDEV_INFO *psDevInfo,
-                               IMG_UINT32 ui32WriteOffset,
-                               RGXFWIF_DM eKCCBType);
+PVRSRV_ERROR RGXPdumpDrainKCCB(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui32WriteOffset);
 #endif /* PDUMP */
 
 

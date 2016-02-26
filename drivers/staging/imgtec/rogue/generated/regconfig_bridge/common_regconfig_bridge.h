@@ -52,7 +52,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 #define PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST			0
-#define PVRSRV_BRIDGE_REGCONFIG_RGXSETREGCONFIGPI			PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST+0
+#define PVRSRV_BRIDGE_REGCONFIG_RGXSETREGCONFIGTYPE			PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST+0
 #define PVRSRV_BRIDGE_REGCONFIG_RGXADDREGCONFIG			PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST+1
 #define PVRSRV_BRIDGE_REGCONFIG_RGXCLEARREGCONFIG			PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST+2
 #define PVRSRV_BRIDGE_REGCONFIG_RGXENABLEREGCONFIG			PVRSRV_BRIDGE_REGCONFIG_CMD_FIRST+3
@@ -61,22 +61,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 /*******************************************
-            RGXSetRegConfigPI          
+            RGXSetRegConfigType          
  *******************************************/
 
-/* Bridge in structure for RGXSetRegConfigPI */
-typedef struct PVRSRV_BRIDGE_IN_RGXSETREGCONFIGPI_TAG
+/* Bridge in structure for RGXSetRegConfigType */
+typedef struct PVRSRV_BRIDGE_IN_RGXSETREGCONFIGTYPE_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_UINT8 ui8RegPowerIsland;
-} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXSETREGCONFIGPI;
+} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXSETREGCONFIGTYPE;
 
-
-/* Bridge out structure for RGXSetRegConfigPI */
-typedef struct PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGPI_TAG
+/* Bridge out structure for RGXSetRegConfigType */
+typedef struct PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGTYPE_TAG
 {
 	PVRSRV_ERROR eError;
-} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGPI;
+} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGTYPE;
+
 
 /*******************************************
             RGXAddRegconfig          
@@ -85,17 +84,17 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGPI_TAG
 /* Bridge in structure for RGXAddRegconfig */
 typedef struct PVRSRV_BRIDGE_IN_RGXADDREGCONFIG_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_UINT32 ui32RegAddr;
 	IMG_UINT64 ui64RegValue;
+	IMG_UINT64 ui64RegMask;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXADDREGCONFIG;
-
 
 /* Bridge out structure for RGXAddRegconfig */
 typedef struct PVRSRV_BRIDGE_OUT_RGXADDREGCONFIG_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXADDREGCONFIG;
+
 
 /*******************************************
             RGXClearRegConfig          
@@ -104,15 +103,15 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXADDREGCONFIG_TAG
 /* Bridge in structure for RGXClearRegConfig */
 typedef struct PVRSRV_BRIDGE_IN_RGXCLEARREGCONFIG_TAG
 {
-	IMG_HANDLE hDevNode;
+	 IMG_UINT32 ui32EmptyStructPlaceholder;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXCLEARREGCONFIG;
-
 
 /* Bridge out structure for RGXClearRegConfig */
 typedef struct PVRSRV_BRIDGE_OUT_RGXCLEARREGCONFIG_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXCLEARREGCONFIG;
+
 
 /*******************************************
             RGXEnableRegConfig          
@@ -121,15 +120,15 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXCLEARREGCONFIG_TAG
 /* Bridge in structure for RGXEnableRegConfig */
 typedef struct PVRSRV_BRIDGE_IN_RGXENABLEREGCONFIG_TAG
 {
-	IMG_HANDLE hDevNode;
+	 IMG_UINT32 ui32EmptyStructPlaceholder;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXENABLEREGCONFIG;
-
 
 /* Bridge out structure for RGXEnableRegConfig */
 typedef struct PVRSRV_BRIDGE_OUT_RGXENABLEREGCONFIG_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXENABLEREGCONFIG;
+
 
 /*******************************************
             RGXDisableRegConfig          
@@ -138,14 +137,14 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXENABLEREGCONFIG_TAG
 /* Bridge in structure for RGXDisableRegConfig */
 typedef struct PVRSRV_BRIDGE_IN_RGXDISABLEREGCONFIG_TAG
 {
-	IMG_HANDLE hDevNode;
+	 IMG_UINT32 ui32EmptyStructPlaceholder;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXDISABLEREGCONFIG;
-
 
 /* Bridge out structure for RGXDisableRegConfig */
 typedef struct PVRSRV_BRIDGE_OUT_RGXDISABLEREGCONFIG_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXDISABLEREGCONFIG;
+
 
 #endif /* COMMON_REGCONFIG_BRIDGE_H */

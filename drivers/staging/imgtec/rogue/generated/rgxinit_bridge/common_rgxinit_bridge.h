@@ -58,7 +58,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRSRV_BRIDGE_RGXINIT_CMD_FIRST			0
 #define PVRSRV_BRIDGE_RGXINIT_RGXINITALLOCFWIMGMEM			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+0
 #define PVRSRV_BRIDGE_RGXINIT_RGXINITFIRMWARE			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+1
-#define PVRSRV_BRIDGE_RGXINIT_RGXINITLOADFWIMAGE			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+2
+#define PVRSRV_BRIDGE_RGXINIT_RGXINITFINALISEFWIMAGE			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+2
 #define PVRSRV_BRIDGE_RGXINIT_RGXINITDEVPART2			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+3
 #define PVRSRV_BRIDGE_RGXINIT_GPUVIRTPOPULATELMASUBARENAS			PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+4
 #define PVRSRV_BRIDGE_RGXINIT_CMD_LAST			(PVRSRV_BRIDGE_RGXINIT_CMD_FIRST+4)
@@ -71,25 +71,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for RGXInitAllocFWImgMem */
 typedef struct PVRSRV_BRIDGE_IN_RGXINITALLOCFWIMGMEM_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_DEVMEM_SIZE_T uiFWCodeLen;
 	IMG_DEVMEM_SIZE_T uiFWDataLen;
 	IMG_DEVMEM_SIZE_T uiFWCoremem;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXINITALLOCFWIMGMEM;
 
-
 /* Bridge out structure for RGXInitAllocFWImgMem */
 typedef struct PVRSRV_BRIDGE_OUT_RGXINITALLOCFWIMGMEM_TAG
 {
-	DEVMEM_SERVER_EXPORTCOOKIE hFWCodeAllocServerExportCookie;
+	IMG_HANDLE hFWCodePMR;
 	IMG_DEV_VIRTADDR sFWCodeDevVAddrBase;
-	DEVMEM_SERVER_EXPORTCOOKIE hFWDataAllocServerExportCookie;
+	IMG_HANDLE hFWDataPMR;
 	IMG_DEV_VIRTADDR sFWDataDevVAddrBase;
-	DEVMEM_SERVER_EXPORTCOOKIE hFWCorememAllocServerExportCookie;
+	IMG_HANDLE hFWCorememPMR;
 	IMG_DEV_VIRTADDR sFWCorememDevVAddrBase;
 	RGXFWIF_DEV_VIRTADDR sFWCorememMetaVAddrBase;
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXINITALLOCFWIMGMEM;
+
 
 /*******************************************
             RGXInitFirmware          
@@ -98,7 +97,6 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXINITALLOCFWIMGMEM_TAG
 /* Bridge in structure for RGXInitFirmware */
 typedef struct PVRSRV_BRIDGE_IN_RGXINITFIRMWARE_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_BOOL bEnableSignatureChecks;
 	IMG_UINT32 ui32SignatureChecksBufSize;
 	IMG_UINT32 ui32HWPerfFWBufSizeKB;
@@ -113,37 +111,35 @@ typedef struct PVRSRV_BRIDGE_IN_RGXINITFIRMWARE_TAG
 	RGXFWIF_COMPCHECKS_BVNC sClientBVNC;
 	IMG_UINT32 ui32HWPerfCountersDataSize;
 	RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandConf;
+	FW_PERF_CONF eFirmwarePerf;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXINITFIRMWARE;
-
 
 /* Bridge out structure for RGXInitFirmware */
 typedef struct PVRSRV_BRIDGE_OUT_RGXINITFIRMWARE_TAG
 {
 	RGXFWIF_DEV_VIRTADDR spsRGXFwInit;
-	DEVMEM_SERVER_EXPORTCOOKIE hHWPerfDataAllocServerExportCookie;
+	IMG_HANDLE hHWPerfPMR;
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXINITFIRMWARE;
 
+
 /*******************************************
-            RGXInitLoadFWImage          
+            RGXInitFinaliseFWImage          
  *******************************************/
 
-/* Bridge in structure for RGXInitLoadFWImage */
-typedef struct PVRSRV_BRIDGE_IN_RGXINITLOADFWIMAGE_TAG
+/* Bridge in structure for RGXInitFinaliseFWImage */
+typedef struct PVRSRV_BRIDGE_IN_RGXINITFINALISEFWIMAGE_TAG
 {
-	IMG_HANDLE hImgDestImport;
-	IMG_HANDLE hImgSrcImport;
-	IMG_UINT64 ui64ImgLen;
-	IMG_HANDLE hSigImport;
-	IMG_UINT64 ui64SigLen;
-} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXINITLOADFWIMAGE;
+	IMG_HANDLE hFWImagePMRImport;
+	IMG_UINT64 ui64FWImgLen;
+} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXINITFINALISEFWIMAGE;
 
-
-/* Bridge out structure for RGXInitLoadFWImage */
-typedef struct PVRSRV_BRIDGE_OUT_RGXINITLOADFWIMAGE_TAG
+/* Bridge out structure for RGXInitFinaliseFWImage */
+typedef struct PVRSRV_BRIDGE_OUT_RGXINITFINALISEFWIMAGE_TAG
 {
 	PVRSRV_ERROR eError;
-} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXINITLOADFWIMAGE;
+} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXINITFINALISEFWIMAGE;
+
 
 /*******************************************
             RGXInitDevPart2          
@@ -152,32 +148,24 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXINITLOADFWIMAGE_TAG
 /* Bridge in structure for RGXInitDevPart2 */
 typedef struct PVRSRV_BRIDGE_IN_RGXINITDEVPART2_TAG
 {
-	IMG_HANDLE hDevNode;
-	RGX_INIT_COMMAND * psInitScript;
 	RGX_INIT_COMMAND * psDbgScript;
 	RGX_INIT_COMMAND * psDbgBusScript;
 	RGX_INIT_COMMAND * psDeinitScript;
-	IMG_UINT32 ui32ui32KernelCatBaseIdReg;
-	IMG_UINT32 ui32KernelCatBaseId;
-	IMG_UINT32 ui32KernelCatBaseReg;
-	IMG_UINT32 ui32KernelCatBaseWordSize;
-	IMG_UINT32 ui32KernelCatBaseAlignShift;
-	IMG_UINT32 ui32KernelCatBaseShift;
-	IMG_UINT64 ui64KernelCatBaseMask;
 	IMG_UINT32 ui32DeviceFlags;
+	IMG_UINT32 ui32HWPerfHostFilter;
 	IMG_UINT32 ui32RGXActivePMConf;
-	DEVMEM_SERVER_EXPORTCOOKIE hFWCodeAllocServerExportCookie;
-	DEVMEM_SERVER_EXPORTCOOKIE hFWDataAllocServerExportCookie;
-	DEVMEM_SERVER_EXPORTCOOKIE hFWCorememAllocServerExportCookie;
-	DEVMEM_SERVER_EXPORTCOOKIE hHWPerfDataAllocServerExportCookie;
+	IMG_HANDLE hFWCodePMR;
+	IMG_HANDLE hFWDataPMR;
+	IMG_HANDLE hFWCorememPMR;
+	IMG_HANDLE hHWPerfPMR;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXINITDEVPART2;
-
 
 /* Bridge out structure for RGXInitDevPart2 */
 typedef struct PVRSRV_BRIDGE_OUT_RGXINITDEVPART2_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXINITDEVPART2;
+
 
 /*******************************************
             GPUVIRTPopulateLMASubArenas          
@@ -186,16 +174,15 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXINITDEVPART2_TAG
 /* Bridge in structure for GPUVIRTPopulateLMASubArenas */
 typedef struct PVRSRV_BRIDGE_IN_GPUVIRTPOPULATELMASUBARENAS_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_UINT32 ui32NumElements;
 	IMG_UINT32 * pui32Elements;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_GPUVIRTPOPULATELMASUBARENAS;
-
 
 /* Bridge out structure for GPUVIRTPopulateLMASubArenas */
 typedef struct PVRSRV_BRIDGE_OUT_GPUVIRTPOPULATELMASUBARENAS_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_GPUVIRTPOPULATELMASUBARENAS;
+
 
 #endif /* COMMON_RGXINIT_BRIDGE_H */

@@ -88,8 +88,10 @@ typedef struct _TL_STREAM_
                                                            using this flag will need to manually signal when
                                                            appropriate using the TLStreamSync() API */
 
-	IMG_VOID			(*pfProducerCallback)(IMG_VOID); /*!< Optional producer callback of type TL_STREAM_SOURCECB */
-	IMG_PVOID			pvProducerUserData;	             /*!< Producer callback user data */
+	void				(*pfOnReaderOpenCallback)(void *); /*!< Optional on reader connect callback */
+	void				*pvOnReaderOpenUserData; /*!< On reader connect user data */
+	void				(*pfProducerCallback)(void); /*!< Optional producer callback of type TL_STREAM_SOURCECB */
+	void				*pvProducerUserData;	             /*!< Producer callback user data */
 
 	volatile IMG_UINT32 ui32Read; 				/*!< Pointer to the beginning of available data */
 	volatile IMG_UINT32 ui32Write;				/*!< Pointer to already committed data which are ready to be
@@ -102,7 +104,6 @@ typedef struct _TL_STREAM_
 
 	PTL_SNODE 			psNode;					/*!< Ptr to parent stream node */
 	DEVMEM_MEMDESC 		*psStreamMemDesc;		/*!< MemDescriptor used to allocate buffer space through PMR */
-	DEVMEM_EXPORTCOOKIE sExportCookie; 			/*!< Export cookie for stream DEVMEM */
 
 	IMG_HANDLE			hProducerEvent;			/*!< Handle to wait on if there is not enough space */
 	IMG_HANDLE			hProducerEventObj;		/*!< Handle to signal blocked reserve calls */
@@ -116,7 +117,8 @@ typedef struct _TL_STREAM_
 #define BUFFER_RESERVED_SPACE 2*PVRSRVTL_PACKET_ALIGNMENT
 
 /* ensure the space reserved follows the buffer's alignment */
-BLD_ASSERT(!(BUFFER_RESERVED_SPACE&(PVRSRVTL_PACKET_ALIGNMENT-1)), tlintern_h);
+static_assert(!(BUFFER_RESERVED_SPACE&(PVRSRVTL_PACKET_ALIGNMENT-1)),
+			  "BUFFER_RESERVED_SPACE must be a multiple of PVRSRVTL_PACKET_ALIGNMENT");
 
 /* Define the largest value that a uint that matches the 
  * PVRSRVTL_PACKET_ALIGNMENT size can hold */
@@ -174,7 +176,7 @@ PTL_SNODE TLMakeSNode(IMG_HANDLE f2, TL_STREAM *f3, TL_STREAM_DESC *f4);
  */
 typedef struct _TL_GDATA_
 {
-	IMG_PVOID  psRgxDevNode;        /* Device node to use for buffer allocations */
+	void      *psRgxDevNode;        /* Device node to use for buffer allocations */
 	IMG_HANDLE hTLEventObj;         /* Global TL signal object, new streams, etc */
 
 	IMG_UINT   uiClientCnt;         /* Counter to track the number of client stream connections. */
@@ -186,14 +188,14 @@ typedef struct _TL_GDATA_
 /*
  * Transport Layer Internal Kernel-Mode Server API
  */
-TL_GLOBAL_DATA* TLGGD(IMG_VOID);		/* TLGetGlobalData() */
+TL_GLOBAL_DATA* TLGGD(void);		/* TLGetGlobalData() */
 
 PVRSRV_ERROR TLInit(PVRSRV_DEVICE_NODE *psDevNode);
-IMG_VOID TLDeInit(IMG_VOID);
+void TLDeInit(void);
 
-PVRSRV_DEVICE_NODE* TLGetGlobalRgxDevice(IMG_VOID);
+PVRSRV_DEVICE_NODE* TLGetGlobalRgxDevice(void);
 
-IMG_VOID  TLAddStreamNode(PTL_SNODE psAdd);
+void  TLAddStreamNode(PTL_SNODE psAdd);
 PTL_SNODE TLFindStreamNodeByName(IMG_PCHAR pszName);
 PTL_SNODE TLFindStreamNodeByDesc(PTL_STREAM_DESC psDesc);
 
@@ -244,9 +246,9 @@ IMG_BOOL  TLRemoveDescAndTryFreeStreamNode(PTL_SNODE psRemove);
  * circular dependency.
  */
 IMG_UINT32 TLStreamAcquireReadPos(PTL_STREAM psStream, IMG_UINT32* puiReadOffset);
-IMG_VOID TLStreamAdvanceReadPos(PTL_STREAM psStream, IMG_UINT32 uiReadLen);
+void TLStreamAdvanceReadPos(PTL_STREAM psStream, IMG_UINT32 uiReadLen);
 
-DEVMEM_EXPORTCOOKIE* TLStreamGetBufferCookie(PTL_STREAM psStream);
+DEVMEM_MEMDESC* TLStreamGetBufferPointer(PTL_STREAM psStream);
 IMG_BOOL TLStreamEOS(PTL_STREAM psStream);
 
 /****************************************************************************************
@@ -257,13 +259,13 @@ IMG_BOOL TLStreamEOS(PTL_STREAM psStream);
  Description	: This function performs all the clean-up operations required for
  			destruction of this stream
 *****************************************************************************************/
-IMG_VOID TLStreamDestroy (PTL_STREAM);
+void TLStreamDestroy (PTL_STREAM);
 
 /*
  * Test related functions
  */
-PVRSRV_ERROR TUtilsInit (IMG_VOID);
-PVRSRV_ERROR TUtilsDeinit (IMG_VOID);
+PVRSRV_ERROR TUtilsInit (void);
+PVRSRV_ERROR TUtilsDeinit (void);
 
 
 #endif /* __TLINTERN_H__ */

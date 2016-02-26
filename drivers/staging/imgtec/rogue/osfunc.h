@@ -55,6 +55,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <services_kernel_client.h>
 #endif
 
+#if defined(__QNXNTO__)
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#endif
+
 #include "img_types.h"
 #include "pvrsrv_device.h"
 #include "device.h"
@@ -65,26 +71,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define KERNEL_ID			0xffffffffL
 #define ISR_ID				0xfffffffdL
 
-IMG_UINT64 OSClockns64(IMG_VOID);
-IMG_UINT64 OSClockus64(IMG_VOID);
-IMG_UINT32 OSClockus(IMG_VOID);
-IMG_UINT32 OSClockms(IMG_VOID);
+IMG_UINT64 OSClockns64(void);
+IMG_UINT64 OSClockus64(void);
+IMG_UINT32 OSClockus(void);
+IMG_UINT32 OSClockms(void);
 
-IMG_SIZE_T OSGetPageSize(IMG_VOID);
-IMG_SIZE_T OSGetPageShift(IMG_VOID);
-IMG_SIZE_T OSGetPageMask(IMG_VOID);
+size_t OSGetPageSize(void);
+size_t OSGetPageShift(void);
+size_t OSGetPageMask(void);
+size_t OSGetOrder(size_t uSize);
 
-typedef IMG_VOID (*PFN_THREAD)(IMG_PVOID pvData);
+typedef void (*PFN_THREAD)(void *pvData);
+
+PVRSRV_ERROR OSChangeSparseMemCPUAddrMap(void **psPageArray,
+										IMG_UINT64 sCpuVAddrBase,
+										uintptr_t sCpuPAHeapBase,
+										IMG_UINT32 ui32AllocPageCount,
+										IMG_UINT32 *pai32AllocIndices,
+										IMG_UINT32 ui32FreePageCount,
+										IMG_UINT32 *pai32FreeIndices,
+										IMG_UINT32	*pui32Status,
+										IMG_BOOL bIsLMA);
 
 PVRSRV_ERROR OSInstallDeviceLISR(PVRSRV_DEVICE_CONFIG *psDevConfig,
 								 IMG_HANDLE *hLISRData,
 								 PFN_LISR pfnLISR,
-								 IMG_VOID *hData);
+								 void *hData);
 PVRSRV_ERROR OSUninstallDeviceLISR(IMG_HANDLE hLISRData);
 
 PVRSRV_ERROR OSInstallMISR(IMG_HANDLE *hMISRData,
 						   PFN_MISR pfnMISR,
-						   IMG_VOID *hData);
+						   void *hData);
 PVRSRV_ERROR OSUninstallMISR(IMG_HANDLE hMISRData);
 PVRSRV_ERROR OSScheduleMISR(IMG_HANDLE hMISRData);
 
@@ -108,18 +125,18 @@ PVRSRV_ERROR OSScheduleMISR(IMG_HANDLE hMISRData);
 PVRSRV_ERROR OSThreadCreate(IMG_HANDLE *phThread,
 							IMG_CHAR *pszThreadName,
 							PFN_THREAD pfnThread,
-							IMG_VOID *hData);
+							void *hData);
 
 /*! Available priority levels for the creation of a new Kernel Thread. */
 typedef enum priority_levels
 {
-	HIGHEST_PRIORITY = 0,
-	HIGH_PRIRIOTY,
-	NORMAL_PRIORITY,
-	LOW_PRIORITY,
-	LOWEST_PRIORITY,
-	NOSET_PRIORITY,   /* With this option the priority level is is the default for the given OS */
-	LAST_PRIORITY     /* This must be always the last entry */
+	OS_THREAD_HIGHEST_PRIORITY = 0,
+	OS_THREAD_HIGH_PRIORITY,
+	OS_THREAD_NORMAL_PRIORITY,
+	OS_THREAD_LOW_PRIORITY,
+	OS_THREAD_LOWEST_PRIORITY,
+	OS_THREAD_NOSET_PRIORITY,   /* With this option the priority level is is the default for the given OS */
+	OS_THREAD_LAST_PRIORITY     /* This must be always the last entry */
 } OS_THREAD_LEVEL;
 
 /*************************************************************************/ /*!
@@ -137,10 +154,10 @@ typedef enum priority_levels
 @Return         Standard PVRSRV_ERROR error code.
 */ /**************************************************************************/
 PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
-                                    IMG_CHAR *pszThreadName,
-                                    PFN_THREAD pfnThread,
-                                    IMG_VOID *hData,
-                                    OS_THREAD_LEVEL eThreadPriority);
+									IMG_CHAR *pszThreadName,
+									PFN_THREAD pfnThread,
+									void *hData,
+									OS_THREAD_LEVEL eThreadPriority);
 
 /*************************************************************************/ /*!
 @Function       OSThreadDestroy
@@ -154,59 +171,86 @@ PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
 */ /**************************************************************************/
 PVRSRV_ERROR OSThreadDestroy(IMG_HANDLE hThread);
 
-IMG_VOID OSMemCopy(IMG_VOID *pvDst, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Size);
-#define OSCachedMemCopy OSMemCopy
-#define OSDeviceMemCopy OSMemCopy
-IMG_VOID *OSMapPhysToLin(IMG_CPU_PHYADDR BasePAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
-IMG_BOOL OSUnMapPhysToLin(IMG_VOID *pvLinAddr, IMG_SIZE_T ui32Bytes, IMG_UINT32 ui32Flags);
+void PVRSRVDeviceMemSet(void *pvDest, IMG_UINT8 ui8Value, size_t ui32Size);
+void PVRSRVDeviceMemCopy(void *pvDst, const void *pvSrc, size_t ui32Size);
+
+#if defined(__arm64__) || defined(__aarch64__) || defined (PVRSRV_DEVMEM_TEST_SAFE_MEMSETCPY)
+#define OSDeviceMemSet(a,b,c) PVRSRVDeviceMemSet((a), (b), (c))
+#define OSDeviceMemCopy(a,b,c) PVRSRVDeviceMemCopy((a), (b), (c))
+#define OSMemSet(a,b,c)  PVRSRVDeviceMemSet((a), (b), (c))
+#define OSMemCopy(a,b,c)  PVRSRVDeviceMemCopy((a), (b), (c))
+#else
+#define OSDeviceMemSet(a,b,c) memset((a), (b), (c))
+#define OSDeviceMemCopy(a,b,c) memcpy((a), (b), (c))
+#define OSMemSet(a,b,c)  memset((a), (b), (c))
+#define OSMemCopy(a,b,c)  memcpy((a), (b), (c))
+#endif
+
+#define OSCachedMemSet(a,b,c) memset((a), (b), (c))
+#define OSCachedMemCopy(a,b,c) memcpy((a), (b), (c))
+
+void *OSMapPhysToLin(IMG_CPU_PHYADDR BasePAddr, size_t ui32Bytes, IMG_UINT32 ui32Flags);
+IMG_BOOL OSUnMapPhysToLin(void *pvLinAddr, size_t ui32Bytes, IMG_UINT32 ui32Flags);
 
 
-IMG_VOID OSCPUOperation(PVRSRV_CACHE_OP eCacheOp);
+PVRSRV_ERROR OSCPUOperation(PVRSRV_CACHE_OP eCacheOp);
 
-IMG_VOID OSFlushCPUCacheRangeKM(IMG_PVOID pvVirtStart,
-								IMG_PVOID pvVirtEnd,
-								IMG_CPU_PHYADDR sCPUPhysStart,
-								IMG_CPU_PHYADDR sCPUPhysEnd);
-
-
-IMG_VOID OSCleanCPUCacheRangeKM(IMG_PVOID pvVirtStart,
-								IMG_PVOID pvVirtEnd,
-								IMG_CPU_PHYADDR sCPUPhysStart,
-								IMG_CPU_PHYADDR sCPUPhysEnd);
-
-IMG_VOID OSInvalidateCPUCacheRangeKM(IMG_PVOID pvVirtStart,
-									 IMG_PVOID pvVirtEnd,
-									 IMG_CPU_PHYADDR sCPUPhysStart,
-									 IMG_CPU_PHYADDR sCPUPhysEnd);
+void OSFlushCPUCacheRangeKM(void *pvVirtStart,
+							void *pvVirtEnd,
+							IMG_CPU_PHYADDR sCPUPhysStart,
+							IMG_CPU_PHYADDR sCPUPhysEnd);
 
 
-IMG_PID OSGetCurrentProcessID(IMG_VOID);
-IMG_CHAR *OSGetCurrentProcessName(IMG_VOID);
-IMG_UINTPTR_T OSGetCurrentThreadID(IMG_VOID);
-IMG_VOID OSMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_SIZE_T ui32Size);
-#define OSCachedMemSet OSMemSet
-#define OSDeviceMemSet OSMemSet
-IMG_INT OSMemCmp(IMG_VOID *pvBufA, IMG_VOID *pvBufB, IMG_SIZE_T uiLen);
+void OSCleanCPUCacheRangeKM(void *pvVirtStart,
+							void *pvVirtEnd,
+							IMG_CPU_PHYADDR sCPUPhysStart,
+							IMG_CPU_PHYADDR sCPUPhysEnd);
 
-PVRSRV_ERROR OSMMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,
-							Px_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
+void OSInvalidateCPUCacheRangeKM(void *pvVirtStart,
+								 void *pvVirtEnd,
+								 IMG_CPU_PHYADDR sCPUPhysStart,
+								 IMG_CPU_PHYADDR sCPUPhysEnd);
 
-IMG_VOID OSMMUPxFree(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle);
+typedef enum _IMG_DCACHE_ATTRIBUTE_
+{
+	PVR_DCACHE_LINE_SIZE = 0,
+	PVR_DCACHE_ATTRIBUTE_COUNT
+} IMG_DCACHE_ATTRIBUTE;
 
-PVRSRV_ERROR OSMMUPxMap(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle,
-						IMG_SIZE_T uiSize, IMG_DEV_PHYADDR *psDevPAddr,
-						IMG_VOID **pvPtr);
+IMG_UINT32 OSCPUCacheAttributeSize(IMG_DCACHE_ATTRIBUTE eCacheAttribute);
 
-IMG_VOID OSMMUPxUnmap(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle, IMG_VOID *pvPtr);
+IMG_PID OSGetCurrentProcessID(void);
+IMG_CHAR *OSGetCurrentProcessName(void);
+uintptr_t OSGetCurrentThreadID(void);
+
+IMG_PID OSGetCurrentClientProcessIDKM(void);
+IMG_CHAR *OSGetCurrentClientProcessNameKM(void);
+uintptr_t OSGetCurrentClientThreadIDKM(void);
 
 
-PVRSRV_ERROR OSInitEnvData(IMG_VOID);
-IMG_VOID OSDeInitEnvData(IMG_VOID);
 
-IMG_CHAR* OSStringNCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, IMG_SIZE_T uSize);
-IMG_INT32 OSSNPrintf(IMG_CHAR *pStr, IMG_SIZE_T ui32Size, const IMG_CHAR *pszFormat, ...) IMG_FORMAT_PRINTF(3, 4);
-IMG_SIZE_T OSStringLength(const IMG_CHAR *pStr);
-IMG_SIZE_T OSStringNLength(const IMG_CHAR *pStr, IMG_SIZE_T uiCount);
+
+IMG_INT OSMemCmp(void *pvBufA, void *pvBufB, size_t uiLen);
+
+PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
+							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
+
+void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle);
+
+PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
+						size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
+						void **pvPtr);
+
+void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle, void *pvPtr);
+
+
+PVRSRV_ERROR OSInitEnvData(void);
+void OSDeInitEnvData(void);
+
+IMG_CHAR* OSStringNCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uSize);
+IMG_INT32 OSSNPrintf(IMG_CHAR *pStr, size_t ui32Size, const IMG_CHAR *pszFormat, ...) IMG_FORMAT_PRINTF(3, 4);
+size_t OSStringLength(const IMG_CHAR *pStr);
+size_t OSStringNLength(const IMG_CHAR *pStr, size_t uiCount);
 IMG_INT32 OSStringCompare(const IMG_CHAR *pStr1, const IMG_CHAR *pStr2);
 
 PVRSRV_ERROR OSEventObjectCreate(const IMG_CHAR *pszName,
@@ -221,16 +265,10 @@ PVRSRV_ERROR OSEventObjectOpen(IMG_HANDLE hEventObject,
 											IMG_HANDLE *phOSEvent);
 PVRSRV_ERROR OSEventObjectClose(IMG_HANDLE hOSEventKM);
 
-/* Avoid macros so we don't evaluate pszSrc twice */
+/* Avoid macros so we don't evaluate pslzSrc twice */
 static INLINE IMG_CHAR *OSStringCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc)
 {
-	IMG_CHAR  *result; /* Helps with klocwork, will be optimised away */
-
-	result = OSStringNCopy(pszDest, pszSrc, OSStringLength(pszSrc)+1);
-#if defined(__KLOCWORK__)
-	pszDest[OSStringLength(pszSrc)] = '\0';
-#endif
-	return result;
+	return OSStringNCopy(pszDest, pszSrc, OSStringLength(pszSrc) + 1);
 }
 
 /*!
@@ -244,10 +282,10 @@ static INLINE IMG_CHAR *OSStringCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc)
  
  @Input ui32Timeus - (us)
 
- @Return IMG_VOID
+ @Return void
 
 ******************************************************************************/ 
-IMG_VOID OSWaitus(IMG_UINT32 ui32Timeus);
+void OSWaitus(IMG_UINT32 ui32Timeus);
 
 
 /*!
@@ -261,27 +299,27 @@ IMG_VOID OSWaitus(IMG_UINT32 ui32Timeus);
  
  @Input ui32Timems - (ms)
 
- @Return IMG_VOID
+ @Return void
 
 ******************************************************************************/ 
-IMG_VOID OSSleepms(IMG_UINT32 ui32Timems);
+void OSSleepms(IMG_UINT32 ui32Timems);
 
-IMG_VOID OSReleaseThreadQuanta(IMG_VOID);
+void OSReleaseThreadQuanta(void);
 
-IMG_UINT8 OSReadHWReg8(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
-IMG_UINT16 OSReadHWReg16(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
-IMG_UINT32 OSReadHWReg32(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
-IMG_UINT64 OSReadHWReg64(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
-IMG_UINT64 OSReadHWRegBank(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 *pui8DstBuf, IMG_UINT64 ui64DstBufLen);
+IMG_UINT8 OSReadHWReg8(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+IMG_UINT16 OSReadHWReg16(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+IMG_UINT32 OSReadHWReg32(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+IMG_UINT64 OSReadHWReg64(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset);
+IMG_UINT64 OSReadHWRegBank(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 *pui8DstBuf, IMG_UINT64 ui64DstBufLen);
 
-IMG_VOID OSWriteHWReg8(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 ui32Value);
-IMG_VOID OSWriteHWReg16(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT16 ui32Value);
-IMG_VOID OSWriteHWReg32(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT32 ui32Value);
-IMG_VOID OSWriteHWReg64(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT64 ui64Value);
-IMG_UINT64 OSWriteHWRegBank(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 *pui8SrcBuf, IMG_UINT64 ui64rcBufLen);
+void OSWriteHWReg8(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 ui32Value);
+void OSWriteHWReg16(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT16 ui32Value);
+void OSWriteHWReg32(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT32 ui32Value);
+void OSWriteHWReg64(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT64 ui64Value);
+IMG_UINT64 OSWriteHWRegBank(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT8 *pui8SrcBuf, IMG_UINT64 ui64rcBufLen);
 
-typedef IMG_VOID (*PFN_TIMER_FUNC)(IMG_VOID*);
-IMG_HANDLE OSAddTimer(PFN_TIMER_FUNC pfnTimerFunc, IMG_VOID *pvData, IMG_UINT32 ui32MsTimeout);
+typedef void (*PFN_TIMER_FUNC)(void*);
+IMG_HANDLE OSAddTimer(PFN_TIMER_FUNC pfnTimerFunc, void *pvData, IMG_UINT32 ui32MsTimeout);
 PVRSRV_ERROR OSRemoveTimer(IMG_HANDLE hTimer);
 PVRSRV_ERROR OSEnableTimer(IMG_HANDLE hTimer);
 PVRSRV_ERROR OSDisableTimer(IMG_HANDLE hTimer);
@@ -293,14 +331,14 @@ PVRSRV_ERROR OSDisableTimer(IMG_HANDLE hTimer);
 
  @Description	Take action in response to an unrecoverable driver error
 
- @Input    IMG_VOID
+ @Input    void
 
- @Return   IMG_VOID
+ @Return   void
 
 ******************************************************************************/
-IMG_VOID OSPanic(IMG_VOID);
+void OSPanic(void);
 
-IMG_BOOL OSProcHasPrivSrvInit(IMG_VOID);
+IMG_BOOL OSProcHasPrivSrvInit(void);
 
 typedef enum _img_verify_test
 {
@@ -308,33 +346,40 @@ typedef enum _img_verify_test
 	PVR_VERIFY_READ
 } IMG_VERIFY_TEST;
 
-IMG_BOOL OSAccessOK(IMG_VERIFY_TEST eVerification, IMG_VOID *pvUserPtr, IMG_SIZE_T ui32Bytes);
+IMG_BOOL OSAccessOK(IMG_VERIFY_TEST eVerification, void *pvUserPtr, size_t ui32Bytes);
 
-PVRSRV_ERROR OSCopyToUser(IMG_PVOID pvProcess, IMG_VOID *pvDest, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Bytes);
-PVRSRV_ERROR OSCopyFromUser(IMG_PVOID pvProcess, IMG_VOID *pvDest, const IMG_VOID *pvSrc, IMG_SIZE_T ui32Bytes);
+PVRSRV_ERROR OSCopyToUser(void *pvProcess, void *pvDest, const void *pvSrc, size_t ui32Bytes);
+PVRSRV_ERROR OSCopyFromUser(void *pvProcess, void *pvDest, const void *pvSrc, size_t ui32Bytes);
 
-#if defined (__linux__)
+#if defined (__linux__) || defined (WINDOWS_WDF)
 #define OSBridgeCopyFromUser OSCopyFromUser
 #define OSBridgeCopyToUser OSCopyToUser
 #else
-PVRSRV_ERROR OSBridgeCopyFromUser (IMG_PVOID pvProcess,
-						IMG_PVOID pvDest,
-						const IMG_PVOID pvSrc,
-						IMG_SIZE_T ui32Bytes);
-PVRSRV_ERROR OSBridgeCopyToUser (IMG_PVOID pvProcess,
-						IMG_VOID *pvDest,
-						const IMG_VOID *pvSrc,
-						IMG_SIZE_T ui32Bytes);
+PVRSRV_ERROR OSBridgeCopyFromUser (void *pvProcess,
+						void *pvDest,
+						const void *pvSrc,
+						size_t ui32Bytes);
+PVRSRV_ERROR OSBridgeCopyToUser (void *pvProcess,
+						void *pvDest,
+						const void *pvSrc,
+						size_t ui32Bytes);
 #endif
 
-PVRSRV_ERROR OSGetGlobalBridgeBuffers (IMG_VOID **ppvBridgeInBuffer,
+/* Fairly arbitrary sizes - hopefully enough for all bridge calls */
+#define PVRSRV_MAX_BRIDGE_IN_SIZE      0x2000
+#define PVRSRV_MAX_BRIDGE_OUT_SIZE     0x1000
+
+PVRSRV_ERROR OSGetGlobalBridgeBuffers (void **ppvBridgeInBuffer,
 							IMG_UINT32 *pui32BridgeInBufferSize,
-							IMG_VOID **ppvBridgeOutBuffer,
+							void **ppvBridgeOutBuffer,
 							IMG_UINT32 *pui32BridgeOutBufferSize);
 
+IMG_BOOL OSSetDriverSuspended(void);
+IMG_BOOL OSClearDriverSuspended(void);
+IMG_BOOL OSGetDriverSuspended(void);
 
-IMG_VOID OSWriteMemoryBarrier(IMG_VOID);
-IMG_VOID OSMemoryBarrier(IMG_VOID);
+void OSWriteMemoryBarrier(void);
+void OSMemoryBarrier(void);
 
 #if defined(LINUX) && defined(__KERNEL__)
 
@@ -363,43 +408,47 @@ typedef struct rw_semaphore *POSWR_LOCK;
 typedef struct _OSWR_LOCK_ *POSWR_LOCK;
 
 PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock);
-IMG_VOID OSWRLockDestroy(POSWR_LOCK psLock);
-IMG_VOID OSWRLockAcquireRead(POSWR_LOCK psLock);
-IMG_VOID OSWRLockReleaseRead(POSWR_LOCK psLock);
-IMG_VOID OSWRLockAcquireWrite(POSWR_LOCK psLock);
-IMG_VOID OSWRLockReleaseWrite(POSWR_LOCK psLock);
+void OSWRLockDestroy(POSWR_LOCK psLock);
+void OSWRLockAcquireRead(POSWR_LOCK psLock);
+void OSWRLockReleaseRead(POSWR_LOCK psLock);
+void OSWRLockAcquireWrite(POSWR_LOCK psLock);
+void OSWRLockReleaseWrite(POSWR_LOCK psLock);
 
 #else
 struct _OSWR_LOCK_ {
 	IMG_UINT32 ui32Dummy;
 };
+#if defined(WINDOWS_WDF)
+	typedef struct _OSWR_LOCK_ *POSWR_LOCK;
+#endif
+
 static INLINE PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock)
 {
 	PVR_UNREFERENCED_PARAMETER(ppsLock);
 	return PVRSRV_OK;
 }
 
-static INLINE IMG_VOID OSWRLockDestroy(POSWR_LOCK psLock)
+static INLINE void OSWRLockDestroy(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
 
-static INLINE IMG_VOID OSWRLockAcquireRead(POSWR_LOCK psLock)
+static INLINE void OSWRLockAcquireRead(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
 
-static INLINE IMG_VOID OSWRLockReleaseRead(POSWR_LOCK psLock)
+static INLINE void OSWRLockReleaseRead(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
 
-static INLINE IMG_VOID OSWRLockAcquireWrite(POSWR_LOCK psLock)
+static INLINE void OSWRLockAcquireWrite(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
 
-static INLINE IMG_VOID OSWRLockReleaseWrite(POSWR_LOCK psLock)
+static INLINE void OSWRLockReleaseWrite(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
 }
@@ -408,32 +457,45 @@ static INLINE IMG_VOID OSWRLockReleaseWrite(POSWR_LOCK psLock)
 IMG_UINT64 OSDivide64r64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UINT32 *pui32Remainder);
 IMG_UINT32 OSDivide64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UINT32 *pui32Remainder);
 
-IMG_VOID OSDumpStack(IMG_VOID);
+void OSDumpStack(void);
 
-IMG_VOID OSAcquireBridgeLock(IMG_VOID);
-IMG_VOID OSReleaseBridgeLock(IMG_VOID);
+void OSAcquireBridgeLock(void);
+void OSReleaseBridgeLock(void);
+#if defined(LINUX)
+void PMRLock(void);
+void PMRUnlock(void);
+IMG_BOOL PMRIsLocked(void);
+IMG_BOOL PMRIsLockedByMe(void);
+#else
+#define PMRLock()
+#define PMRUnlock()
+#define PMRIsLocked() IMG_FALSE
+#define PMRIsLockedByMe() IMG_FALSE
+#endif
 
 
 /*
  *  Functions for providing support for PID statistics.
  */
-typedef void (OS_STATS_PRINTF_FUNC)(IMG_PVOID pvFilePtr, const IMG_CHAR *pszFormat, ...);
+typedef void (OS_STATS_PRINTF_FUNC)(void *pvFilePtr, const IMG_CHAR *pszFormat, ...);
  
-typedef void (OS_STATS_PRINT_FUNC)(IMG_PVOID pvFilePtr,
-								   IMG_PVOID pvStatPtr,
-                                   OS_STATS_PRINTF_FUNC* pfnOSGetStatsPrintf);
+typedef void (OS_STATS_PRINT_FUNC)(void *pvFilePtr,
+								   void *pvStatPtr,
+								   OS_STATS_PRINTF_FUNC* pfnOSGetStatsPrintf);
 
-typedef IMG_UINT32 (OS_INC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
-typedef IMG_UINT32 (OS_DEC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
-IMG_PVOID OSCreateStatisticEntry(IMG_CHAR* pszName, IMG_PVOID pvFolder,
-                                 OS_STATS_PRINT_FUNC* pfnStatsPrint,
-							 	 OS_INC_STATS_MEM_REFCOUNT_FUNC* pfnIncMemRefCt,
-							 	 OS_DEC_STATS_MEM_REFCOUNT_FUNC* pfnDecMemRefCt,
-                                 IMG_PVOID pvData);
-IMG_VOID OSRemoveStatisticEntry(IMG_PVOID pvEntry);
-IMG_PVOID OSCreateStatisticFolder(IMG_CHAR *pszName, IMG_PVOID pvFolder);
-IMG_VOID OSRemoveStatisticFolder(IMG_PVOID pvFolder);
+typedef IMG_UINT32 (OS_INC_STATS_MEM_REFCOUNT_FUNC)(void *pvStatPtr);
+typedef IMG_UINT32 (OS_DEC_STATS_MEM_REFCOUNT_FUNC)(void *pvStatPtr);
 
+void *OSCreateStatisticEntry(IMG_CHAR* pszName, void *pvFolder,
+							 OS_STATS_PRINT_FUNC* pfnStatsPrint,
+							 OS_INC_STATS_MEM_REFCOUNT_FUNC* pfnIncMemRefCt,
+							 OS_DEC_STATS_MEM_REFCOUNT_FUNC* pfnDecMemRefCt,
+							 void *pvData);
+void OSRemoveStatisticEntry(void *pvEntry);
+void *OSCreateStatisticFolder(IMG_CHAR *pszName, void *pvFolder);
+void OSRemoveStatisticFolder(void **ppvFolder);
+
+void OSUserModeAccessToPerfCountersEn(void);
 
 #endif /* __OSFUNC_H__ */
 

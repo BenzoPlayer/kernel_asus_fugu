@@ -65,7 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * The OS implementation of this function should return the virtual
  * address and length for the User to use.  The "PrivData" is to be
  * stored opaquely by the caller (N.B. he should make no assumptions,
- * in particular, IMG_NULL is a valid handle) and given back to the
+ * in particular, NULL is a valid handle) and given back to the
  * call to OSMunmapPMR.
  *
  * The OS implementation is free to use the PrivData handle for any
@@ -78,8 +78,8 @@ OSMMapPMR(IMG_HANDLE hBridge,
           IMG_DEVMEM_SIZE_T uiPMRLength,
           IMG_UINT32 uiFlags,
           IMG_HANDLE *phOSMMapPrivDataOut,
-          IMG_VOID **ppvMappingAddressOut,
-          IMG_SIZE_T *puiMappingLengthOut);
+          void **ppvMappingAddressOut,
+          size_t *puiMappingLengthOut);
 
 /*
  *
@@ -92,17 +92,11 @@ OSMMapPMR(IMG_HANDLE hBridge,
  * OSMMapPMR
  *
  */
-/* 
-   FIXME:
-   perhaps this function should take _only_ the hOSMMapPrivData arg,
-   and the implementation is required to store any of the other data
-   items that it requires to do the unmap?
-*/
-extern IMG_VOID
+extern void
 OSMUnmapPMR(IMG_HANDLE hBridge,
             IMG_HANDLE hPMR,
             IMG_HANDLE hOSMMapPrivData,
-            IMG_VOID *pvMappingAddress,
-            IMG_SIZE_T uiMappingLength);
+            void *pvMappingAddress,
+            size_t uiMappingLength);
 
 #endif

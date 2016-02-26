@@ -48,7 +48,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "lists.h"
 #include "pvrsrv.h"
 #include "pvr_debug.h"
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "process_stats.h"
+#endif
 
 static IMG_BOOL gbInitServerRunning = IMG_FALSE;
 static IMG_BOOL gbInitServerRan = IMG_FALSE;
@@ -189,7 +191,7 @@ PVRSRV_ERROR PVRSRVPowerLock()
 
 ******************************************************************************/
 IMG_EXPORT
-IMG_VOID PVRSRVForcedPowerLock()
+void PVRSRVForcedPowerLock()
 {
 	PVRSRV_DATA		*psPVRSRVData = PVRSRVGetPVRSRVData();
 	OSLockAcquire(psPVRSRVData->hPowerLock);
@@ -207,7 +209,7 @@ IMG_VOID PVRSRVForcedPowerLock()
 
 ******************************************************************************/
 IMG_EXPORT
-IMG_VOID PVRSRVPowerUnlock()
+void PVRSRVPowerUnlock()
 {
 	PVRSRV_DATA	*psPVRSRVData = PVRSRVGetPVRSRVData();
 
@@ -248,7 +250,8 @@ static PVRSRV_ERROR PVRSRVDevicePrePowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPowe
 	IMG_UINT32				ui32DeviceIndex;
 	PVRSRV_DEV_POWER_STATE	eNewPowerState;
 	IMG_BOOL				bForced;
-	IMG_UINT64				ui32SysTimer1=0, ui32SysTimer2=0, ui32DevTimer1=0, ui32DevTimer2=0;
+	IMG_UINT64				ui64SysTimer1 = 0, ui64SysTimer2 = 0;
+	IMG_UINT64				ui64DevTimer1 = 0, ui64DevTimer2 = 0;
 
 	/*WARNING! if types were not aligned to 4 bytes, this could be dangerous!!!*/
 	bAllDevices = va_arg(va, IMG_BOOL);
@@ -263,18 +266,18 @@ static PVRSRV_ERROR PVRSRVDevicePrePowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPowe
 
 		if (psPowerDevice->eCurrentPowerState != eNewDevicePowerState)
 		{
-			if (psPowerDevice->pfnDevicePrePower != IMG_NULL)
+			if (psPowerDevice->pfnDevicePrePower != NULL)
 			{
 				/* Call the device's power callback. */
 
-				ui32DevTimer1=OSClockns64();
+				ui64DevTimer1 = OSClockns64();
 
 				eError = psPowerDevice->pfnDevicePrePower(psPowerDevice->hDevCookie,
 															eNewDevicePowerState,
 															psPowerDevice->eCurrentPowerState,
 															bForced);
 
-				ui32DevTimer2=OSClockns64();
+				ui64DevTimer2 = OSClockns64();
 
 				if (eError != PVRSRV_OK)
 				{
@@ -283,32 +286,33 @@ static PVRSRV_ERROR PVRSRVDevicePrePowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPowe
 			}
 
 			/* Do any required system-layer processing. */
-			if (psPowerDevice->pfnSystemPrePower != IMG_NULL)
+			if (psPowerDevice->pfnSystemPrePower != NULL)
 			{
 
-				ui32SysTimer1=OSClockus();
+				ui64SysTimer1 = OSClockns64();
 
 				eError = psPowerDevice->pfnSystemPrePower(eNewDevicePowerState,
 														  psPowerDevice->eCurrentPowerState,
 														  bForced);
 
-				ui32SysTimer2=OSClockus();
+				ui64SysTimer2 = OSClockns64();
 
 				if (eError != PVRSRV_OK)
 				{
 					return eError;
 				}
 			}
+
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+			InsertPowerTimeStatistic(ui64SysTimer1, ui64SysTimer2,
+			                         ui64DevTimer1, ui64DevTimer2,
+			                         bForced,
+			                         eNewDevicePowerState == PVRSRV_DEV_POWER_STATE_ON,
+			                         IMG_TRUE);
+#endif
+
 		}
 	}
-
-
-    InsertPowerTimeStatistic(PVRSRV_POWER_ENTRY_TYPE_PRE,
-			psPowerDevice->eCurrentPowerState, eNewPowerState,
-            ui32SysTimer1,ui32SysTimer2,
-			ui32DevTimer1,ui32DevTimer2,
-			bForced);
-
 
 	return  PVRSRV_OK;
 }
@@ -351,9 +355,9 @@ static PVRSRV_ERROR PVRSRVDeviceIdleKM_AnyVaCb(PVRSRV_POWER_DEV *psPowerDevice, 
 
 	if (bAllDevices || (ui32DeviceIndex == psPowerDevice->ui32DeviceIndex))
 	{
-		if (psPowerDevice->pfnForcedIdleRequest != IMG_NULL)
+		if (psPowerDevice->pfnForcedIdleRequest != NULL)
 		{
-			if ((pfnIsDefaultStateOff == IMG_NULL) || pfnIsDefaultStateOff(psPowerDevice))
+			if ((pfnIsDefaultStateOff == NULL) || pfnIsDefaultStateOff(psPowerDevice))
 			{
 				eError = psPowerDevice->pfnForcedIdleRequest(psPowerDevice->hDevCookie, bDeviceOffPermitted);
 			}
@@ -431,7 +435,7 @@ static PVRSRV_ERROR PVRSRVDeviceIdleCancelKM_AnyVaCb(PVRSRV_POWER_DEV *psPowerDe
 
 	if (bAllDevices || (ui32DeviceIndex == psPowerDevice->ui32DeviceIndex))
 	{
-		if (psPowerDevice->pfnForcedIdleCancelRequest != IMG_NULL)
+		if (psPowerDevice->pfnForcedIdleCancelRequest != NULL)
 		{
 			eError = psPowerDevice->pfnForcedIdleCancelRequest(psPowerDevice->hDevCookie);
 		}
@@ -537,7 +541,8 @@ static PVRSRV_ERROR PVRSRVDevicePostPowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPow
 	IMG_UINT32				ui32DeviceIndex;
 	PVRSRV_DEV_POWER_STATE	eNewPowerState;
 	IMG_BOOL				bForced;
-	IMG_UINT64				ui32SysTimer1=0, ui32SysTimer2=0, ui32DevTimer1=0, ui32DevTimer2=0;
+	IMG_UINT64				ui64SysTimer1 = 0, ui64SysTimer2 = 0;
+	IMG_UINT64				ui64DevTimer1 = 0, ui64DevTimer2 = 0;
 
 	/*WARNING! if types were not aligned to 4 bytes, this could be dangerous!!!*/
 	bAllDevices = va_arg(va, IMG_BOOL);
@@ -553,16 +558,16 @@ static PVRSRV_ERROR PVRSRVDevicePostPowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPow
 		if (psPowerDevice->eCurrentPowerState != eNewDevicePowerState)
 		{
 			/* Do any required system-layer processing. */
-			if (psPowerDevice->pfnSystemPostPower != IMG_NULL)
+			if (psPowerDevice->pfnSystemPostPower != NULL)
 			{
 
-				ui32SysTimer1=OSClockns64();
+				ui64SysTimer1 = OSClockns64();
 
 				eError = psPowerDevice->pfnSystemPostPower(eNewDevicePowerState,
 														   psPowerDevice->eCurrentPowerState,
 														   bForced);
 
-				ui32SysTimer2=OSClockns64();
+				ui64SysTimer2 = OSClockns64();
 
 				if (eError != PVRSRV_OK)
 				{
@@ -570,18 +575,18 @@ static PVRSRV_ERROR PVRSRVDevicePostPowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPow
 				}
 			}
 
-			if (psPowerDevice->pfnDevicePostPower != IMG_NULL)
+			if (psPowerDevice->pfnDevicePostPower != NULL)
 			{
 				/* Call the device's power callback. */
 
-				ui32DevTimer1=OSClockus();
+				ui64DevTimer1 = OSClockns64();
 
 				eError = psPowerDevice->pfnDevicePostPower(psPowerDevice->hDevCookie,
 														   eNewDevicePowerState,
 														   psPowerDevice->eCurrentPowerState,
 														   bForced);
 
-				ui32DevTimer2=OSClockus();
+				ui64DevTimer2 = OSClockns64();
 
 				if (eError != PVRSRV_OK)
 				{
@@ -589,17 +594,17 @@ static PVRSRV_ERROR PVRSRVDevicePostPowerStateKM_AnyVaCb(PVRSRV_POWER_DEV *psPow
 				}
 			}
 
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
+			InsertPowerTimeStatistic(ui64SysTimer1, ui64SysTimer2,
+			                         ui64DevTimer1, ui64DevTimer2,
+			                         bForced,
+			                         eNewDevicePowerState == PVRSRV_DEV_POWER_STATE_ON,
+			                         IMG_FALSE);
+#endif
+
 			psPowerDevice->eCurrentPowerState = eNewDevicePowerState;
 		}
 	}
-
-
-    InsertPowerTimeStatistic(PVRSRV_POWER_ENTRY_TYPE_POST,
-							psPowerDevice->eCurrentPowerState, eNewPowerState,
-                            ui32SysTimer1,ui32SysTimer2,
-							ui32DevTimer1,ui32DevTimer2,
-							bForced);
-
 
 	return PVRSRV_OK;
 }
@@ -664,6 +669,12 @@ PVRSRV_ERROR PVRSRVSetDevicePowerStateKM(IMG_UINT32				ui32DeviceIndex,
 	PVRSRV_ERROR	eError;
 	PVRSRV_DATA*    psPVRSRVData = PVRSRVGetPVRSRVData();
 	PVRSRV_DEV_POWER_STATE eOldPowerState;
+
+	if (PVRSRV_SYS_POWER_STATE_ON != psPVRSRVData->eCurrentPowerState)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVSetDevicePowerStateKM: System power state is not ON"));
+		return PVRSRV_ERROR_DEVICE_POWER_CHANGE_DENIED;
+	}
 
 	eError = PVRSRVGetDevicePowerState(ui32DeviceIndex, &eOldPowerState);
 	if (eError != PVRSRV_OK)
@@ -740,6 +751,14 @@ PVRSRV_ERROR PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE eNewSysPowerState, IMG
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
+#if defined(PDUMP)
+	/* required because sending the idle command to the RGX FW includes
+	* pdumping a SyncPrimSet value and pdumping a CCB command.
+	* The PMR lock must be taken before the power lock, otherwise
+	* lockdep detects a AB-BA style locking scenario
+	*/
+	PMRLock();
+#endif
 	/* Prevent simultaneous SetPowerStateKM calls */
 	PVRSRVForcedPowerLock();
 
@@ -747,6 +766,9 @@ PVRSRV_ERROR PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE eNewSysPowerState, IMG
 	if (eNewSysPowerState == psPVRSRVData->eCurrentPowerState)
 	{
 		PVRSRVPowerUnlock();
+#if defined(PDUMP)
+		PMRUnlock();
+#endif
 		return PVRSRV_OK;
 	}
 
@@ -755,7 +777,7 @@ PVRSRV_ERROR PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE eNewSysPowerState, IMG
 	{
 		/* If setting devices to default state, selectively force idle all devices whose default state is off */
 		 PFN_SYS_DEV_IS_DEFAULT_STATE_OFF pfnIsDefaultStateOff =
-			(eNewDevicePowerState == PVRSRV_DEV_POWER_STATE_DEFAULT) ? PVRSRVDeviceIsDefaultStateOFF : IMG_NULL;
+			(eNewDevicePowerState == PVRSRV_DEV_POWER_STATE_DEFAULT) ? PVRSRVDeviceIsDefaultStateOFF : NULL;
 
 		LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 		{
@@ -811,6 +833,9 @@ PVRSRV_ERROR PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE eNewSysPowerState, IMG
 	psPVRSRVData->eFailedPowerState = PVRSRV_SYS_POWER_STATE_Unspecified;
 
 	PVRSRVPowerUnlock();
+#if defined(PDUMP)
+		PMRUnlock();
+#endif
 
 	/*
 		Reprocess the devices' queues in case commands were blocked during
@@ -819,7 +844,7 @@ PVRSRV_ERROR PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE eNewSysPowerState, IMG
 	if (_IsSystemStatePowered(eNewSysPowerState) &&
 			PVRSRVGetInitServerState(PVRSRV_INIT_SERVER_SUCCESSFUL))
 	{
-		PVRSRVCheckStatus(IMG_NULL);
+		PVRSRVCheckStatus(NULL);
 	}
 
 	return PVRSRV_OK;
@@ -829,12 +854,15 @@ ErrorExit:
 	psPVRSRVData->eFailedPowerState = eNewSysPowerState;
 
 	PVRSRVPowerUnlock();
+#if defined(PDUMP)
+	PMRUnlock();
+#endif
 
 	PVR_DPF((PVR_DBG_ERROR,
 			"PVRSRVSetPowerStateKM: Transition from %d to %d FAILED (%s) at stage %d, forced: %d. Dumping debug info.",
 			psPVRSRVData->eCurrentPowerState, eNewSysPowerState, PVRSRVGetErrorStringKM(eError), uiStage, bForced));
 
-	PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, IMG_NULL);
+	PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL);
 
 	return eError;
 }
@@ -857,14 +885,14 @@ PVRSRV_ERROR PVRSRVRegisterPowerDevice(IMG_UINT32					ui32DeviceIndex,
 	PVRSRV_DATA			*psPVRSRVData = PVRSRVGetPVRSRVData();
 	PVRSRV_POWER_DEV	*psPowerDevice;
 
-	if (pfnDevicePrePower == IMG_NULL &&
-		pfnDevicePostPower == IMG_NULL)
+	if (pfnDevicePrePower == NULL &&
+		pfnDevicePostPower == NULL)
 	{
 		return PVRSRVRemovePowerDevice(ui32DeviceIndex);
 	}
 
 	psPowerDevice = OSAllocMem(sizeof(PVRSRV_POWER_DEV));
-	if (psPowerDevice == IMG_NULL)
+	if (psPowerDevice == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVRegisterPowerDevice: Failed to alloc PVRSRV_POWER_DEV"));
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -953,7 +981,7 @@ PVRSRV_ERROR PVRSRVGetDevicePowerState(IMG_UINT32 ui32DeviceIndex, PPVRSRV_DEV_P
 					List_PVRSRV_POWER_DEV_Any_va(psPVRSRVData->psPowerDeviceList,
 												 &MatchPowerDeviceIndex_AnyVaCb,
 												 ui32DeviceIndex);
-	if (psPowerDevice == IMG_NULL)
+	if (psPowerDevice == NULL)
 	{
 		return PVRSRV_ERROR_UNKNOWN_POWER_STATE;
 	}
@@ -1010,12 +1038,12 @@ IMG_BOOL PVRSRVIsDevicePowered(IMG_UINT32 ui32DeviceIndex)
  @Input		bIdleDevice : whether the device should be idled
  @Input		pvInfo
 
- @Return	IMG_VOID
+ @Return	void
 
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVDevicePreClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 											 IMG_BOOL	bIdleDevice,
-											 IMG_VOID	*pvInfo)
+											 void	*pvInfo)
 {
 	PVRSRV_ERROR		eError = PVRSRV_OK;
 	PVRSRV_DATA			*psPVRSRVData = PVRSRVGetPVRSRVData();
@@ -1048,7 +1076,7 @@ PVRSRV_ERROR PVRSRVDevicePreClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 		{
 			LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 			{	/* We can change the clock speed if the device is either IDLE or OFF */
-				eError = PVRSRVDeviceIdleRequestKM(IMG_FALSE, ui32DeviceIndex, IMG_NULL, IMG_TRUE);
+				eError = PVRSRVDeviceIdleRequestKM(IMG_FALSE, ui32DeviceIndex, NULL, IMG_TRUE);
 
 				if (eError == PVRSRV_OK)
 				{
@@ -1095,7 +1123,9 @@ PVRSRV_ERROR PVRSRVDevicePreClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 
 	ui64StopTimer = OSClockus();
 
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
 	InsertPowerTimeStatisticExtraPre(ui64StartTimer, ui64StopTimer);
+#endif
 
 	return eError;
 }
@@ -1114,12 +1144,12 @@ PVRSRV_ERROR PVRSRVDevicePreClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
  @Input		bIdleDevice : whether the device had been idled
  @Input		pvInfo
 
- @Return	IMG_VOID
+ @Return	void
 
 ******************************************************************************/
-IMG_VOID PVRSRVDevicePostClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
-										  IMG_BOOL		bIdleDevice,
-										  IMG_VOID		*pvInfo)
+void PVRSRVDevicePostClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
+									  IMG_BOOL		bIdleDevice,
+									  void		*pvInfo)
 {
 	PVRSRV_ERROR		eError;
 	PVRSRV_DATA			*psPVRSRVData = PVRSRVGetPVRSRVData();
@@ -1163,8 +1193,9 @@ IMG_VOID PVRSRVDevicePostClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 
 	ui64StopTimer = OSClockus();
 
+#if defined(PVRSRV_ENABLE_PROCESS_STATS)
 	InsertPowerTimeStatisticExtraPost(ui64StartTimer, ui64StopTimer);
-
+#endif
 }
 
 /*!
@@ -1188,6 +1219,7 @@ PVRSRV_ERROR PVRSRVDeviceDustCountChange(IMG_UINT32	ui32DeviceIndex,
 	PVRSRV_ERROR		eError = PVRSRV_OK;
 	PVRSRV_DATA		*psPVRSRVData = PVRSRVGetPVRSRVData();
 	PVRSRV_POWER_DEV	*psPowerDevice;
+	PVRSRV_DEV_POWER_STATE	eCurrentPowerState;
 
 	/*search the device and then do the pre clock speed change*/
 	psPowerDevice = (PVRSRV_POWER_DEV*)
@@ -1202,7 +1234,32 @@ PVRSRV_ERROR PVRSRVDeviceDustCountChange(IMG_UINT32	ui32DeviceIndex,
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR,	"PVRSRVDeviceDustCountChange : failed to acquire lock, error:0x%x", eError));
-			return eError;
+			goto ErrorExit;
+		}
+
+		eError = PVRSRVGetDevicePowerState(ui32DeviceIndex, &eCurrentPowerState);
+		if (eError != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR,	"PVRSRVDeviceDustCountChange : failed to get current device power state, error:0x%x", eError));
+			goto ErrorExit;
+		}
+
+		if (eCurrentPowerState == PVRSRV_DEV_POWER_STATE_OFF)
+		{
+			PVRSRV_ERROR eError2 = PVRSRV_ERROR_NOT_IMPLEMENTED;
+			if (psPowerDevice->pfnDustCountRequest != NULL)
+			{
+				eError2 = psPowerDevice->pfnDustCountRequest(psPowerDevice->hDevCookie, ui32DustCount);
+
+				if (eError2 != PVRSRV_OK)
+				{
+					PVR_DPF((PVR_DBG_ERROR,
+							"PVRSRVDeviceDustCountChange : Device %u failed, error:0x%x",
+							ui32DeviceIndex, eError));
+				}
+			}
+			PVRSRVPowerUnlock();
+			return eError2;
 		}
 
 		/* Device must be idle to change dust count  */
@@ -1221,7 +1278,7 @@ PVRSRV_ERROR PVRSRVDeviceDustCountChange(IMG_UINT32	ui32DeviceIndex,
 				goto ErrorExit;
 			}
 
-			eError = PVRSRVDeviceIdleRequestKM(IMG_FALSE, ui32DeviceIndex, IMG_NULL, IMG_FALSE);
+			eError = PVRSRVDeviceIdleRequestKM(IMG_FALSE, ui32DeviceIndex, NULL, IMG_FALSE);
 
 			if (eError == PVRSRV_OK)
 			{
@@ -1254,7 +1311,7 @@ PVRSRV_ERROR PVRSRVDeviceDustCountChange(IMG_UINT32	ui32DeviceIndex,
 			goto ErrorExit;
 		}
 
-		if (psPowerDevice->pfnDustCountRequest != IMG_NULL)
+		if (psPowerDevice->pfnDustCountRequest != NULL)
 		{
 			PVRSRV_ERROR	eError2 = psPowerDevice->pfnDustCountRequest(psPowerDevice->hDevCookie, ui32DustCount);
 

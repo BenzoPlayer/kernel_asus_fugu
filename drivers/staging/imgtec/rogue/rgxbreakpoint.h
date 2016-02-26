@@ -65,12 +65,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  @Return   PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-					IMG_HANDLE		hMemCtxPrivData,
-					RGXFWIF_DM		eFWDataMaster,
-					IMG_UINT32		ui32BPAddr,
-					IMG_UINT32		ui32HandlerAddr,
-					IMG_UINT32		ui32DataMaster);
+PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
+                                      PVRSRV_DEVICE_NODE * psDeviceNode,
+                                      IMG_HANDLE           hMemCtxPrivData,
+                                      RGXFWIF_DM           eFWDataMaster,
+                                      IMG_UINT32           ui32BPAddr,
+                                      IMG_UINT32           ui32HandlerAddr,
+                                      IMG_UINT32           ui32DataMaster);
 
 /*!
 *******************************************************************************
@@ -84,8 +85,9 @@ PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
  @Return   PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-					IMG_HANDLE		hMemCtxPrivData);
+PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(CONNECTION_DATA    * psConnection,
+                                        PVRSRV_DEVICE_NODE * psDeviceNode,
+                                        IMG_HANDLE           hMemCtxPrivData);
 
 /*!
 *******************************************************************************
@@ -99,8 +101,9 @@ PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
  @Return   PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-					IMG_HANDLE		hMemCtxPrivData);
+PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(CONNECTION_DATA    * psConnection,
+                                         PVRSRV_DEVICE_NODE * psDeviceNode,
+                                         IMG_HANDLE           hMemCtxPrivData);
 
 /*!
 *******************************************************************************
@@ -114,8 +117,9 @@ PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
  @Return   PVRSRV_ERROR
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-					IMG_HANDLE		hMemCtxPrivData);
+PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(CONNECTION_DATA    * psConnection,
+                                          PVRSRV_DEVICE_NODE * psDeviceNode,
+                                          IMG_HANDLE           hMemCtxPrivData);
 
 /*!
 *******************************************************************************
@@ -129,8 +133,9 @@ PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
  @Input ui32SharedRegs - Number of shared registers to overallocate
 
  @Return   PVRSRV_ERROR
-******************************************************************************/					
-PVRSRV_ERROR PVRSRVRGXOverallocateBPRegistersKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-					IMG_UINT32		ui32TempRegs,
-					IMG_UINT32		ui32SharedRegs);
+******************************************************************************/
+PVRSRV_ERROR PVRSRVRGXOverallocateBPRegistersKM(CONNECTION_DATA    * psConnection,
+                                                PVRSRV_DEVICE_NODE * psDeviceNode,
+                                                IMG_UINT32           ui32TempRegs,
+                                                IMG_UINT32           ui32SharedRegs);
 #endif /* __RGXBREAKPOINT_H__ */

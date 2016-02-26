@@ -83,10 +83,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @Input          pfnCallBack   The function to be applied to each element of the list.
 */ /**************************************************************************/
 #define DECLARE_LIST_FOR_EACH(TYPE) \
-IMG_VOID List_##TYPE##_ForEach(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode))
+void List_##TYPE##_ForEach(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode))
 
 #define IMPLEMENT_LIST_FOR_EACH(TYPE) \
-IMG_VOID List_##TYPE##_ForEach(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode))\
+void List_##TYPE##_ForEach(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode))\
 {\
 	while(psHead)\
 	{\
@@ -104,10 +104,10 @@ IMG_VOID List_##TYPE##_ForEach(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode
 @Input          pfnCallBack   The function to be applied to each element of the list.
 */ /**************************************************************************/
 #define DECLARE_LIST_FOR_EACH_SAFE(TYPE) \
-IMG_VOID List_##TYPE##_ForEachSafe(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode))
+void List_##TYPE##_ForEachSafe(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode))
 
 #define IMPLEMENT_LIST_FOR_EACH_SAFE(TYPE) \
-IMG_VOID List_##TYPE##_ForEachSafe(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode))\
+void List_##TYPE##_ForEachSafe(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode))\
 {\
 	TYPE *psNext;\
 \
@@ -121,10 +121,10 @@ IMG_VOID List_##TYPE##_ForEachSafe(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* ps
 
 
 #define DECLARE_LIST_FOR_EACH_VA(TYPE) \
-IMG_VOID List_##TYPE##_ForEach_va(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode, va_list va), ...)
+void List_##TYPE##_ForEach_va(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode, va_list va), ...)
 
 #define IMPLEMENT_LIST_FOR_EACH_VA(TYPE) \
-IMG_VOID List_##TYPE##_ForEach_va(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psNode, va_list va), ...) \
+void List_##TYPE##_ForEach_va(TYPE *psHead, void(*pfnCallBack)(TYPE* psNode, va_list va), ...) \
 {\
 	va_list ap;\
 	while(psHead)\
@@ -146,14 +146,14 @@ IMG_VOID List_##TYPE##_ForEach_va(TYPE *psHead, IMG_VOID(*pfnCallBack)(TYPE* psN
 @Return         The first non null value returned by the callback function.
 */ /**************************************************************************/
 #define DECLARE_LIST_ANY(TYPE) \
-IMG_VOID* List_##TYPE##_Any(TYPE *psHead, IMG_VOID* (*pfnCallBack)(TYPE* psNode))
+void* List_##TYPE##_Any(TYPE *psHead, void* (*pfnCallBack)(TYPE* psNode))
 
 #define IMPLEMENT_LIST_ANY(TYPE) \
-IMG_VOID* List_##TYPE##_Any(TYPE *psHead, IMG_VOID* (*pfnCallBack)(TYPE* psNode))\
+void* List_##TYPE##_Any(TYPE *psHead, void* (*pfnCallBack)(TYPE* psNode))\
 { \
-	IMG_VOID *pResult;\
+	void *pResult;\
 	TYPE *psNextNode;\
-	pResult = IMG_NULL;\
+	pResult = NULL;\
 	psNextNode = psHead;\
 	while(psHead && !pResult)\
 	{\
@@ -168,14 +168,14 @@ IMG_VOID* List_##TYPE##_Any(TYPE *psHead, IMG_VOID* (*pfnCallBack)(TYPE* psNode)
 /*with variable arguments, that will be passed as a va_list to the callback function*/
 
 #define DECLARE_LIST_ANY_VA(TYPE) \
-IMG_VOID* List_##TYPE##_Any_va(TYPE *psHead, IMG_VOID*(*pfnCallBack)(TYPE* psNode, va_list va), ...)
+void* List_##TYPE##_Any_va(TYPE *psHead, void*(*pfnCallBack)(TYPE* psNode, va_list va), ...)
 
 #define IMPLEMENT_LIST_ANY_VA(TYPE) \
-IMG_VOID* List_##TYPE##_Any_va(TYPE *psHead, IMG_VOID*(*pfnCallBack)(TYPE* psNode, va_list va), ...)\
+void* List_##TYPE##_Any_va(TYPE *psHead, void*(*pfnCallBack)(TYPE* psNode, va_list va), ...)\
 {\
 	va_list ap;\
 	TYPE *psNextNode;\
-	IMG_VOID* pResult = IMG_NULL;\
+	void* pResult = NULL;\
 	while(psHead && !pResult)\
 	{\
 		psNextNode = psHead->psNext;\
@@ -236,10 +236,10 @@ RTYPE List_##TYPE##_##RTYPE##_Any_va(TYPE *psHead, RTYPE(*pfnCallBack)(TYPE* psN
 @Input          psNode      The pointer to the node to be removed.
 */ /**************************************************************************/
 #define DECLARE_LIST_REMOVE(TYPE) \
-IMG_VOID List_##TYPE##_Remove(TYPE *psNode)
+void List_##TYPE##_Remove(TYPE *psNode)
 
 #define IMPLEMENT_LIST_REMOVE(TYPE) \
-IMG_VOID List_##TYPE##_Remove(TYPE *psNode)\
+void List_##TYPE##_Remove(TYPE *psNode)\
 {\
 	(*psNode->ppsThis)=psNode->psNext;\
 	if(psNode->psNext)\
@@ -255,10 +255,10 @@ IMG_VOID List_##TYPE##_Remove(TYPE *psNode)\
 @Input          psNode   The pointer to the node to be inserted.
 */ /**************************************************************************/
 #define DECLARE_LIST_INSERT(TYPE) \
-IMG_VOID List_##TYPE##_Insert(TYPE **ppsHead, TYPE *psNewNode)
+void List_##TYPE##_Insert(TYPE **ppsHead, TYPE *psNewNode)
 
 #define IMPLEMENT_LIST_INSERT(TYPE) \
-IMG_VOID List_##TYPE##_Insert(TYPE **ppsHead, TYPE *psNewNode)\
+void List_##TYPE##_Insert(TYPE **ppsHead, TYPE *psNewNode)\
 {\
 	psNewNode->ppsThis = ppsHead;\
 	psNewNode->psNext = *ppsHead;\
@@ -275,15 +275,15 @@ IMG_VOID List_##TYPE##_Insert(TYPE **ppsHead, TYPE *psNewNode)\
 @Input          ppsHead    The pointer to the pointer to the head node.
 */ /**************************************************************************/
 #define DECLARE_LIST_REVERSE(TYPE) \
-IMG_VOID List_##TYPE##_Reverse(TYPE **ppsHead)
+void List_##TYPE##_Reverse(TYPE **ppsHead)
 
 #define IMPLEMENT_LIST_REVERSE(TYPE) \
-IMG_VOID List_##TYPE##_Reverse(TYPE **ppsHead)\
+void List_##TYPE##_Reverse(TYPE **ppsHead)\
 {\
     TYPE *psTmpNode1; \
     TYPE *psTmpNode2; \
     TYPE *psCurNode; \
-	psTmpNode1 = IMG_NULL; \
+	psTmpNode1 = NULL; \
 	psCurNode = *ppsHead; \
 	while(psCurNode) { \
     	psTmpNode2 = psCurNode->psNext; \
@@ -302,7 +302,7 @@ IMG_VOID List_##TYPE##_Reverse(TYPE **ppsHead)\
 	*ppsHead = psTmpNode1; \
 }
 
-#define IS_LAST_ELEMENT(x) ((x)->psNext == IMG_NULL)
+#define IS_LAST_ELEMENT(x) ((x)->psNext == NULL)
 
 
 DECLARE_LIST_ANY(PVRSRV_DEVICE_NODE);
@@ -327,8 +327,8 @@ DECLARE_LIST_REMOVE(PVRSRV_POWER_DEV);
 #undef DECLARE_LIST_INSERT
 #undef DECLARE_LIST_REMOVE
 
-IMG_VOID* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va);
-IMG_VOID* MatchPowerDeviceIndex_AnyVaCb(PVRSRV_POWER_DEV *psPowerDev, va_list va);
+void* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va);
+void* MatchPowerDeviceIndex_AnyVaCb(PVRSRV_POWER_DEV *psPowerDev, va_list va);
 
 #endif
 

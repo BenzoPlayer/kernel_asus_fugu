@@ -63,14 +63,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for CacheOpQueue */
 typedef struct PVRSRV_BRIDGE_IN_CACHEOPQUEUE_TAG
 {
+	IMG_HANDLE hPMR;
+	IMG_DEVMEM_OFFSET_T uiOffset;
+	IMG_DEVMEM_SIZE_T uiSize;
 	PVRSRV_CACHE_OP iuCacheOp;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_CACHEOPQUEUE;
-
 
 /* Bridge out structure for CacheOpQueue */
 typedef struct PVRSRV_BRIDGE_OUT_CACHEOPQUEUE_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_CACHEOPQUEUE;
+
 
 #endif /* COMMON_CACHEGENERIC_BRIDGE_H */

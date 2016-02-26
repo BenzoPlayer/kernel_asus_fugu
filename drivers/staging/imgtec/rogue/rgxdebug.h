@@ -63,10 +63,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  @Input psDevInfo - RGX device info
 
- @Return IMG_VOID
+ @Return void
 
 ******************************************************************************/
-IMG_VOID RGXPanic(PVRSRV_RGXDEV_INFO	*psDevInfo);
+void RGXPanic(PVRSRV_RGXDEV_INFO	*psDevInfo);
 
 /*!
 *******************************************************************************
@@ -81,11 +81,11 @@ IMG_VOID RGXPanic(PVRSRV_RGXDEV_INFO	*psDevInfo);
  @Input pfnDumpDebugPrintf  - Optional replacement print function
  @Input psDevInfo	        - RGX device info
 
- @Return   IMG_VOID
+ @Return   void
 
 ******************************************************************************/
-IMG_VOID RGXDumpDebugInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-                          PVRSRV_RGXDEV_INFO	*psDevInfo);
+void RGXDumpDebugInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					  PVRSRV_RGXDEV_INFO	*psDevInfo);
 
 /*!
 *******************************************************************************
@@ -101,12 +101,12 @@ IMG_VOID RGXDumpDebugInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
  @Input psDevInfo	        - RGX device info
  @Input ui32VerbLevel       - Verbosity level
 
- @Return   IMG_VOID
+ @Return   void
 
 ******************************************************************************/
-IMG_VOID RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-                                PVRSRV_RGXDEV_INFO	*psDevInfo,
-                                IMG_UINT32			ui32VerbLevel);
+void RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+							PVRSRV_RGXDEV_INFO	*psDevInfo,
+							IMG_UINT32			ui32VerbLevel);
 
 
 #if defined(PVRSRV_ENABLE_FW_TRACE_DEBUGFS)
@@ -122,31 +122,13 @@ IMG_VOID RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
  @Input pfnDumpDebugPrintf  - Optional replacement print function
  @Input psDevInfo	        - RGX device info
 
- @Return   IMG_VOID
+ @Return   void
 
 ******************************************************************************/
-IMG_VOID RGXDumpFirmwareTrace(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-                              PVRSRV_RGXDEV_INFO	*psDevInfo);
+void RGXDumpFirmwareTrace(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+						  PVRSRV_RGXDEV_INFO	*psDevInfo);
 #endif
 
-
-/*!
-*******************************************************************************
-
- @Function	RGXQueryDMState
-
- @Description
-
- Query DM state
-
- @Input  psDevInfo        - RGX device info
- @Input  eDM              - DM number for which to return status
- @Output peState          - RGXFWIF_DM_STATE
- @Output psComCtxDevVAddr - If DM is locked-up, Firmware address of Firmware Common Context, otherwise IMG_NULL
-
- @Return PVRSRV_ERROR
-******************************************************************************/
-PVRSRV_ERROR RGXQueryDMState(PVRSRV_RGXDEV_INFO *psDevInfo, RGXFWIF_DM eDM, RGXFWIF_DM_STATE *peState, RGXFWIF_DEV_VIRTADDR *psComCtxDevVAddr);
 
 /*!
 *******************************************************************************
@@ -162,5 +144,22 @@ PVRSRV_ERROR RGXQueryDMState(PVRSRV_RGXDEV_INFO *psDevInfo, RGXFWIF_DM eDM, RGXF
  @Return IMG_UINT32
 ******************************************************************************/
 IMG_UINT32 RGXReadWithSP(IMG_UINT32 ui32FWAddr);
+
+
+#if defined(SUPPORT_EXTRA_METASP_DEBUG)
+/*!
+*******************************************************************************
+
+ @Function     ValidateFWImageWithSP
+
+ @Description  Compare the Firmware image as seen from the CPU point of view
+               against the same memory area as seen from the META point of view
+
+ @Input        psDevInfo - Device Info
+
+ @Return       PVRSRV_ERROR
+******************************************************************************/
+PVRSRV_ERROR ValidateFWImageWithSP(PVRSRV_RGXDEV_INFO *psDevInfo);
+#endif /* defined(SUPPORT_EXTRA_METASP_DEBUG) */
 
 #endif /* __RGXDEBUG_H__ */

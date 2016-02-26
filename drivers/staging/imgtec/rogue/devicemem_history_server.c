@@ -67,26 +67,124 @@ typedef struct _DEVICEMEM_HISTORY_ALLOCATION_
 /* this number of entries makes the history buffer allocation just under 2MB */
 #define DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN 29127
 
+#define DECREMENT_WITH_WRAP(value, sz) ((value) ? ((value) - 1) : ((sz) - 1))
+
 typedef struct _DEVICEMEM_HISTORY_DATA_
 {
 	IMG_UINT32 ui32Head;
 	DEVICEMEM_HISTORY_ALLOCATION *psAllocations;
 	POS_LOCK hLock;
+	void *pvStatsEntry;
 } DEVICEMEM_HISTORY_DATA;
 
 static DEVICEMEM_HISTORY_DATA gsDevicememHistoryData = { 0 };
 
-static INLINE IMG_VOID DevicememHistoryLock(IMG_VOID)
+static void DevicememHistoryLock(void)
 {
 	OSLockAcquire(gsDevicememHistoryData.hLock);
 }
 
-static INLINE IMG_VOID DevicememHistoryUnlock(IMG_VOID)
+static void DevicememHistoryUnlock(void)
 {
 	OSLockRelease(gsDevicememHistoryData.hLock);
 }
 
-PVRSRV_ERROR DevicememHistoryInitKM(IMG_VOID)
+/* given a time stamp, calculate the age in nanoseconds (relative to now) */
+static IMG_UINT64 _CalculateAge(IMG_UINT64 ui64Then)
+{
+	IMG_UINT64 ui64Now;
+
+	ui64Now = OSClockns64();
+
+	if(ui64Now >= ui64Then)
+	{
+		/* no clock wrap */
+		return ui64Now - ui64Then;
+	}
+	else
+	{
+		/* clock has wrapped */
+		return ((~(IMG_UINT64) 0) - ui64Then) + ui64Now + 1;
+	}
+}
+
+static void DeviceMemHistoryFmt(IMG_UINT32 ui32Off, IMG_CHAR szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN])
+{
+	DEVICEMEM_HISTORY_ALLOCATION *psAlloc;
+
+	psAlloc = &gsDevicememHistoryData.psAllocations[ui32Off % DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN];
+
+	szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN - 1] = '\0';
+	OSSNPrintf(szBuffer, PVR_MAX_DEBUG_MESSAGE_LEN,
+				/* PID NAME MAP/UNMAP MIN-MAX SIZE AbsUS AgeUS*/
+				"%04u %-40s %-6s "
+				IMG_DEV_VIRTADDR_FMTSPEC "-" IMG_DEV_VIRTADDR_FMTSPEC" "
+				"0x%08llX "
+				"%013llu", /* 13 digits is over 2 hours of ns */
+				psAlloc->uiPID,
+				psAlloc->szString,
+				psAlloc->bAllocated ? "MAP" : "UNMAP",
+				psAlloc->sDevVAddr.uiAddr,
+				psAlloc->sDevVAddr.uiAddr + psAlloc->uiSize - 1,
+				psAlloc->uiSize,
+				psAlloc->ui64Time);
+}
+
+static void DeviceMemHistoryFmtHeader(IMG_CHAR szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN])
+{
+	OSSNPrintf(szBuffer, PVR_MAX_DEBUG_MESSAGE_LEN,
+				"%-4s %-40s %-6s   %10s   %10s   %8s %13s",
+				"PID",
+				"NAME",
+				"ACTION",
+				"ADDR MIN",
+				"ADDR MAX",
+				"SIZE",
+				"ABS NS");
+}
+
+static void DevicememHistoryPrintAll(void *pvFilePtr, OS_STATS_PRINTF_FUNC* pfnOSStatsPrintf)
+{
+	IMG_CHAR szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN];
+	IMG_UINT32 ui32Iter;
+
+	DeviceMemHistoryFmtHeader(szBuffer);
+	pfnOSStatsPrintf(pvFilePtr, "%s\n", szBuffer);
+
+	for(ui32Iter = DECREMENT_WITH_WRAP(gsDevicememHistoryData.ui32Head, DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN);
+			;
+			ui32Iter = DECREMENT_WITH_WRAP(ui32Iter, DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN))
+	{
+		DEVICEMEM_HISTORY_ALLOCATION *psAlloc;
+
+		psAlloc = &gsDevicememHistoryData.psAllocations[ui32Iter];
+
+		/* no more written elements */
+		if(psAlloc->sDevVAddr.uiAddr == 0)
+		{
+			break;
+		}
+
+		DeviceMemHistoryFmt(ui32Iter, szBuffer);
+pfnOSStatsPrintf(pvFilePtr, "%s\n", szBuffer);
+
+		if(ui32Iter == gsDevicememHistoryData.ui32Head)
+		{
+			break;
+		}
+	}
+	pfnOSStatsPrintf(pvFilePtr, "\nTimestamp reference: %013llu\n", OSClockns64());
+}
+
+static void DevicememHistoryPrintAllWrapper(void *pvFilePtr, void *pvData, OS_STATS_PRINTF_FUNC* pfnOSStatsPrintf)
+{
+	PVR_UNREFERENCED_PARAMETER(pvData);
+	DevicememHistoryLock();
+	DevicememHistoryPrintAll(pvFilePtr, pfnOSStatsPrintf);
+	DevicememHistoryUnlock();
+}
+
+PVRSRV_ERROR DevicememHistoryInitKM(void)
 {
 	PVRSRV_ERROR eError;
 
@@ -100,11 +198,18 @@ PVRSRV_ERROR DevicememHistoryInitKM(IMG_VOID)
 
 	gsDevicememHistoryData.psAllocations = OSAllocZMem(sizeof(DEVICEMEM_HISTORY_ALLOCATION) * DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN);
 
-	if(gsDevicememHistoryData.psAllocations == IMG_NULL)
+	if(gsDevicememHistoryData.psAllocations == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "DevicememHistoryInitKM: Failed to allocate space for allocations list"));
 		goto err_allocations;
 	}
+
+	gsDevicememHistoryData.pvStatsEntry = OSCreateStatisticEntry("devicemem_history",
+						NULL,
+						DevicememHistoryPrintAllWrapper,
+						NULL,
+						NULL,
+						NULL);
 
 	return PVRSRV_OK;
 
@@ -114,19 +219,23 @@ err_lock:
 	return eError;
 }
 
-IMG_VOID DevicememHistoryDeInitKM(IMG_VOID)
+void DevicememHistoryDeInitKM(void)
 {
+	if(gsDevicememHistoryData.pvStatsEntry != NULL)
+	{
+		OSRemoveStatisticEntry(gsDevicememHistoryData.pvStatsEntry);
+	}
 	OSFREEMEM(gsDevicememHistoryData.psAllocations);
 	OSLockDestroy(gsDevicememHistoryData.hLock);
 }
 
-static PVRSRV_ERROR DevicememHistoryWrite(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize,
+static PVRSRV_ERROR DevicememHistoryWrite(IMG_DEV_VIRTADDR sDevVAddr, size_t uiSize,
 						const char szString[DEVICEMEM_HISTORY_TEXT_BUFSZ],
 						IMG_BOOL bAlloc)
 {
 	DEVICEMEM_HISTORY_ALLOCATION *psAlloc;
 
-	PVR_ASSERT(gsDevicememHistoryData.psAllocations != IMG_NULL);
+	PVR_ASSERT(gsDevicememHistoryData.psAllocations != NULL);
 
 	DevicememHistoryLock();
 
@@ -148,33 +257,14 @@ static PVRSRV_ERROR DevicememHistoryWrite(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR DevicememHistoryMapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szString[DEVICEMEM_HISTORY_TEXT_BUFSZ])
+PVRSRV_ERROR DevicememHistoryMapKM(IMG_DEV_VIRTADDR sDevVAddr, size_t uiSize, const char szString[DEVICEMEM_HISTORY_TEXT_BUFSZ])
 {
 	return DevicememHistoryWrite(sDevVAddr, uiSize, szString, IMG_TRUE);
 }
 
-PVRSRV_ERROR DevicememHistoryUnmapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szString[DEVICEMEM_HISTORY_TEXT_BUFSZ])
+PVRSRV_ERROR DevicememHistoryUnmapKM(IMG_DEV_VIRTADDR sDevVAddr, size_t uiSize, const char szString[DEVICEMEM_HISTORY_TEXT_BUFSZ])
 {
 	return DevicememHistoryWrite(sDevVAddr, uiSize, szString, IMG_FALSE);
-}
-
-/* given a time stamp, calculate the age in nanoseconds (relative to now) */
-static IMG_UINT64 _CalculateAge(IMG_UINT64 ui64Then)
-{
-	IMG_UINT64 ui64Now;
-
-	ui64Now = OSClockns64();
-
-	if(ui64Now >= ui64Then)
-	{
-		/* no clock wrap */
-		return ui64Now - ui64Then;
-	}
-	else
-	{
-		/* clock has wrapped */
-		return ((~(IMG_UINT64) 0) - ui64Then) + ui64Now + 1;
-	}
 }
 
 IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn, DEVICEMEM_HISTORY_QUERY_OUT *psQueryOut)
@@ -200,7 +290,7 @@ IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn, DEVICEMEM_
 		ui32Entry = (ui32Entry != 0) ? ui32Entry - 1 : DEVICEMEM_HISTORY_ALLOCATION_HISTORY_LEN - 1;
 		psAlloc = &gsDevicememHistoryData.psAllocations[ui32Entry];
 
-		if((psAlloc->uiPID == psQueryIn->uiPID) &&
+		if(((psAlloc->uiPID == psQueryIn->uiPID) || (psQueryIn->uiPID == DEVICEMEM_HISTORY_PID_ANY)) &&
 			(psQueryIn->sDevVAddr.uiAddr >= psAlloc->sDevVAddr.uiAddr) &&
 			(psQueryIn->sDevVAddr.uiAddr < psAlloc->sDevVAddr.uiAddr + psAlloc->uiSize))
 		{
@@ -213,6 +303,8 @@ IMG_BOOL DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn, DEVICEMEM_
 				psResult->bAllocated = psAlloc->bAllocated;
 				psResult->ui64Age = _CalculateAge(psAlloc->ui64Time);
 				psResult->ui64When = psAlloc->ui64Time;
+				/* write the responsible PID in the placeholder */
+				psResult->sProcessInfo.uiPID = psAlloc->uiPID;
 
 				psQueryOut->ui32NumResults++;
 		}

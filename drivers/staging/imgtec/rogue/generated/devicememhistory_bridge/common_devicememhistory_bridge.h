@@ -70,12 +70,12 @@ typedef struct PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYMAP_TAG
 	const IMG_CHAR * puiText;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYMAP;
 
-
 /* Bridge out structure for DevicememHistoryMap */
 typedef struct PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYMAP_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYMAP;
+
 
 /*******************************************
             DevicememHistoryUnmap          
@@ -89,11 +89,11 @@ typedef struct PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYUNMAP_TAG
 	const IMG_CHAR * puiText;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYUNMAP;
 
-
 /* Bridge out structure for DevicememHistoryUnmap */
 typedef struct PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYUNMAP_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYUNMAP;
+
 
 #endif /* COMMON_DEVICEMEMHISTORY_BRIDGE_H */

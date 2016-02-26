@@ -59,10 +59,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
-#if defined (SUPPORT_AUTH)
-#include "osauth.h"
-#endif
-
 #include <linux/slab.h>
 
 #include "lock.h"
@@ -100,30 +96,6 @@ PVRSRVBridgePVRSRVPDumpIsCapturing(IMG_UINT32 ui32DispatchTableEntry,
 }
 
 static IMG_INT
-PVRSRVBridgePVRSRVPDumpSetFrame(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PVRSRVPDUMPSETFRAME *psPVRSRVPDumpSetFrameIN,
-					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSETFRAME *psPVRSRVPDumpSetFrameOUT,
-					 CONNECTION_DATA *psConnection)
-{
-
-
-
-
-
-
-
-	psPVRSRVPDumpSetFrameOUT->eError =
-		PDumpSetFrameKM(psConnection,
-					psPVRSRVPDumpSetFrameIN->ui32Frame);
-
-
-
-
-
-	return 0;
-}
-
-static IMG_INT
 PVRSRVBridgePVRSRVPDumpGetFrame(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_IN_PVRSRVPDUMPGETFRAME *psPVRSRVPDumpGetFrameIN,
 					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPGETFRAME *psPVRSRVPDumpGetFrameOUT,
@@ -138,7 +110,7 @@ PVRSRVBridgePVRSRVPDumpGetFrame(IMG_UINT32 ui32DispatchTableEntry,
 
 
 	psPVRSRVPDumpGetFrameOUT->eError =
-		PDumpGetFrameKM(psConnection,
+		PDumpGetFrameKM(psConnection, OSGetDevData(psConnection),
 					&psPVRSRVPDumpGetFrameOUT->ui32Frame);
 
 
@@ -203,57 +175,6 @@ PVRSRVBridgePVRSRVPDumpIsLastCaptureFrame(IMG_UINT32 ui32DispatchTableEntry,
 	return 0;
 }
 
-static IMG_INT
-PVRSRVBridgePVRSRVPDumpStartInitPhase(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PVRSRVPDUMPSTARTINITPHASE *psPVRSRVPDumpStartInitPhaseIN,
-					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSTARTINITPHASE *psPVRSRVPDumpStartInitPhaseOUT,
-					 CONNECTION_DATA *psConnection)
-{
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	PVR_UNREFERENCED_PARAMETER(psPVRSRVPDumpStartInitPhaseIN);
-
-
-
-
-
-
-	psPVRSRVPDumpStartInitPhaseOUT->eError =
-		PDumpStartInitPhaseKM(
-					);
-
-
-
-
-
-	return 0;
-}
-
-static IMG_INT
-PVRSRVBridgePVRSRVPDumpStopInitPhase(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PVRSRVPDUMPSTOPINITPHASE *psPVRSRVPDumpStopInitPhaseIN,
-					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSTOPINITPHASE *psPVRSRVPDumpStopInitPhaseOUT,
-					 CONNECTION_DATA *psConnection)
-{
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-
-
-
-
-
-
-	psPVRSRVPDumpStopInitPhaseOUT->eError =
-		PDumpStopInitPhaseKM(
-					psPVRSRVPDumpStopInitPhaseIN->eModuleID);
-
-
-
-
-
-	return 0;
-}
-
 
 
 /* *************************************************************************** 
@@ -261,45 +182,29 @@ PVRSRVBridgePVRSRVPDumpStopInitPhase(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 static POS_LOCK pPDUMPCTRLBridgeLock;
-static IMG_BYTE pbyPDUMPCTRLBridgeBuffer[20 +  8];
+static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitPDUMPCTRLBridge(IMG_VOID);
-PVRSRV_ERROR DeinitPDUMPCTRLBridge(IMG_VOID);
+PVRSRV_ERROR InitPDUMPCTRLBridge(void);
+PVRSRV_ERROR DeinitPDUMPCTRLBridge(void);
 
 /*
  * Register all PDUMPCTRL functions with services
  */
-PVRSRV_ERROR InitPDUMPCTRLBridge(IMG_VOID)
+PVRSRV_ERROR InitPDUMPCTRLBridge(void)
 {
 	PVR_LOGR_IF_ERROR(OSLockCreate(&pPDUMPCTRLBridgeLock, LOCK_TYPE_PASSIVE), "OSLockCreate");
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPISCAPTURING, PVRSRVBridgePVRSRVPDumpIsCapturing,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPSETFRAME, PVRSRVBridgePVRSRVPDumpSetFrame,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
+					pPDUMPCTRLBridgeLock, bUseLock);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPGETFRAME, PVRSRVBridgePVRSRVPDumpGetFrame,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
+					pPDUMPCTRLBridgeLock, bUseLock);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPSETDEFAULTCAPTUREPARAMS, PVRSRVBridgePVRSRVPDumpSetDefaultCaptureParams,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
+					pPDUMPCTRLBridgeLock, bUseLock);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPISLASTCAPTUREFRAME, PVRSRVBridgePVRSRVPDumpIsLastCaptureFrame,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPSTARTINITPHASE, PVRSRVBridgePVRSRVPDumpStartInitPhase,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL, PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPSTOPINITPHASE, PVRSRVBridgePVRSRVPDumpStopInitPhase,
-					pPDUMPCTRLBridgeLock, pbyPDUMPCTRLBridgeBuffer,
-					20,  8);
+					pPDUMPCTRLBridgeLock, bUseLock);
 
 
 	return PVRSRV_OK;
@@ -308,7 +213,7 @@ PVRSRV_ERROR InitPDUMPCTRLBridge(IMG_VOID)
 /*
  * Unregister all pdumpctrl functions with services
  */
-PVRSRV_ERROR DeinitPDUMPCTRLBridge(IMG_VOID)
+PVRSRV_ERROR DeinitPDUMPCTRLBridge(void)
 {
 	PVR_LOGR_IF_ERROR(OSLockDestroy(pPDUMPCTRLBridgeLock), "OSLockDestroy");
 	return PVRSRV_OK;

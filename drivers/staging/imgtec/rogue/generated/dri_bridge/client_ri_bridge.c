@@ -77,6 +77,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWriteMEMDESCEntry(IMG_HANDLE hBri
 								 const IMG_CHAR *puiTextB,
 								 IMG_UINT64 ui64Offset,
 								 IMG_UINT64 ui64Size,
+								 IMG_UINT64 ui64BackedSize,
 								 IMG_BOOL bIsImport,
 								 IMG_BOOL bIsExportable,
 								 IMG_HANDLE *phRIHandle)
@@ -95,8 +96,35 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWriteMEMDESCEntry(IMG_HANDLE hBri
 					puiTextB,
 					ui64Offset,
 					ui64Size,
+					ui64BackedSize,
 					bIsImport,
 					bIsExportable,
+					&psRIHandleInt);
+
+	*phRIHandle = psRIHandleInt;
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIWriteProcListEntry(IMG_HANDLE hBridge,
+								  IMG_UINT32 ui32TextBSize,
+								  const IMG_CHAR *puiTextB,
+								  IMG_UINT64 ui64Size,
+								  IMG_UINT64 ui64BackedSize,
+								  IMG_UINT64 ui64DevVAddr,
+								  IMG_HANDLE *phRIHandle)
+{
+	PVRSRV_ERROR eError;
+	RI_HANDLE psRIHandleInt;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
+
+
+	eError =
+		RIWriteProcListEntryKM(
+					ui32TextBSize,
+					puiTextB,
+					ui64Size,
+					ui64BackedSize,
+					ui64DevVAddr,
 					&psRIHandleInt);
 
 	*phRIHandle = psRIHandleInt;
@@ -117,6 +145,42 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIUpdateMEMDESCAddr(IMG_HANDLE hBri
 		RIUpdateMEMDESCAddrKM(
 					psRIHandleInt,
 					sAddr);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIUpdateMEMDESCPinning(IMG_HANDLE hBridge,
+								    IMG_HANDLE hRIHandle,
+								    IMG_BOOL bIsPinned)
+{
+	PVRSRV_ERROR eError;
+	RI_HANDLE psRIHandleInt;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
+
+	psRIHandleInt = (RI_HANDLE) hRIHandle;
+
+	eError =
+		RIUpdateMEMDESCPinningKM(
+					psRIHandleInt,
+					bIsPinned);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeRIUpdateMEMDESCBacking(IMG_HANDLE hBridge,
+								    IMG_HANDLE hRIHandle,
+								    IMG_INT32 i32NumModified)
+{
+	PVRSRV_ERROR eError;
+	RI_HANDLE psRIHandleInt;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
+
+	psRIHandleInt = (RI_HANDLE) hRIHandle;
+
+	eError =
+		RIUpdateMEMDESCBackingKM(
+					psRIHandleInt,
+					i32NumModified);
 
 	return eError;
 }

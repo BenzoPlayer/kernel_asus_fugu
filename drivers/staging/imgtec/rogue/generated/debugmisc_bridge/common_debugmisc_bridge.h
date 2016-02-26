@@ -68,17 +68,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for DebugMiscSLCSetBypassState */
 typedef struct PVRSRV_BRIDGE_IN_DEBUGMISCSLCSETBYPASSSTATE_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_UINT32 ui32Flags;
 	IMG_BOOL bIsBypassed;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_DEBUGMISCSLCSETBYPASSSTATE;
-
 
 /* Bridge out structure for DebugMiscSLCSetBypassState */
 typedef struct PVRSRV_BRIDGE_OUT_DEBUGMISCSLCSETBYPASSSTATE_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_DEBUGMISCSLCSETBYPASSSTATE;
+
 
 /*******************************************
             RGXDebugMiscSetFWLog          
@@ -87,16 +86,15 @@ typedef struct PVRSRV_BRIDGE_OUT_DEBUGMISCSLCSETBYPASSSTATE_TAG
 /* Bridge in structure for RGXDebugMiscSetFWLog */
 typedef struct PVRSRV_BRIDGE_IN_RGXDEBUGMISCSETFWLOG_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_UINT32 ui32RGXFWLogType;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXDEBUGMISCSETFWLOG;
-
 
 /* Bridge out structure for RGXDebugMiscSetFWLog */
 typedef struct PVRSRV_BRIDGE_OUT_RGXDEBUGMISCSETFWLOG_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXDEBUGMISCSETFWLOG;
+
 
 /*******************************************
             RGXDebugMiscDumpFreelistPageList          
@@ -105,15 +103,15 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXDEBUGMISCSETFWLOG_TAG
 /* Bridge in structure for RGXDebugMiscDumpFreelistPageList */
 typedef struct PVRSRV_BRIDGE_IN_RGXDEBUGMISCDUMPFREELISTPAGELIST_TAG
 {
-	IMG_HANDLE hDevNode;
+	 IMG_UINT32 ui32EmptyStructPlaceholder;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXDEBUGMISCDUMPFREELISTPAGELIST;
-
 
 /* Bridge out structure for RGXDebugMiscDumpFreelistPageList */
 typedef struct PVRSRV_BRIDGE_OUT_RGXDEBUGMISCDUMPFREELISTPAGELIST_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXDEBUGMISCDUMPFREELISTPAGELIST;
+
 
 /*******************************************
             PhysmemImportSecBuf          
@@ -122,18 +120,18 @@ typedef struct PVRSRV_BRIDGE_OUT_RGXDEBUGMISCDUMPFREELISTPAGELIST_TAG
 /* Bridge in structure for PhysmemImportSecBuf */
 typedef struct PVRSRV_BRIDGE_IN_PHYSMEMIMPORTSECBUF_TAG
 {
-	IMG_HANDLE hDevNode;
 	IMG_DEVMEM_SIZE_T uiSize;
-	IMG_UINT32 ui32Log2PageSize;
 	PVRSRV_MEMALLOCFLAGS_T uiFlags;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_PHYSMEMIMPORTSECBUF;
-
 
 /* Bridge out structure for PhysmemImportSecBuf */
 typedef struct PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTSECBUF_TAG
 {
+	IMG_UINT32 ui32Align;
 	IMG_HANDLE hPMRPtr;
+	IMG_UINT64 ui64SecBufHandle;
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTSECBUF;
+
 
 #endif /* COMMON_DEBUGMISC_BRIDGE_H */

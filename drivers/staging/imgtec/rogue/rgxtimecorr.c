@@ -43,6 +43,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "rgxtimecorr.h"
 #include "rgxfwutils.h"
+#include "htbserver.h"
 
 /******************************************************************************
  *
@@ -64,7 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  *****************************************************************************/
 
-static IMG_VOID _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode)
+static void _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_BOOL bLogToHTB)
 {
 	PVRSRV_RGXDEV_INFO    *psDevInfo     = psDeviceNode->pvDevice;
 	RGXFWIF_GPU_UTIL_FWCB *psGpuUtilFWCB = psDevInfo->psRGXFWIfGpuUtilFWCb;
@@ -93,10 +94,16 @@ static IMG_VOID _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	PVR_DPF((PVR_DBG_MESSAGE,"RGXMakeTimeCorrData: Correlated OS timestamp %llu (ns) with CR timestamp %llu, GPU clock speed %uHz",
 	         psTimeCorr->ui64OSTimeStamp, psTimeCorr->ui64CRTimeStamp, psTimeCorr->ui32CoreClockSpeed));
+
+	HTBSyncScale(
+		bLogToHTB,
+		psTimeCorr->ui64OSTimeStamp,
+		psTimeCorr->ui64CRTimeStamp,
+		psTimeCorr->ui32CoreClockSpeed);
 }
 
 
-static IMG_VOID _RGXGPUFreqCalibrationPeriodStart(PVRSRV_DEVICE_NODE *psDeviceNode, RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
+static void _RGXGPUFreqCalibrationPeriodStart(PVRSRV_DEVICE_NODE *psDeviceNode, RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
 {
 	PVRSRV_RGXDEV_INFO *psDevInfo         = psDeviceNode->pvDevice;
 	RGX_DATA           *psRGXData         = (RGX_DATA*)psDeviceNode->psDevConfig->hDevData;
@@ -132,7 +139,8 @@ static IMG_VOID _RGXGPUFreqCalibrationPeriodStart(PVRSRV_DEVICE_NODE *psDeviceNo
 }
 
 
-static IMG_VOID _RGXGPUFreqCalibrationPeriodStop(PVRSRV_DEVICE_NODE *psDeviceNode, RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
+static void _RGXGPUFreqCalibrationPeriodStop(PVRSRV_DEVICE_NODE *psDeviceNode,
+											 RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
 {
 	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
 
@@ -145,18 +153,24 @@ static IMG_VOID _RGXGPUFreqCalibrationPeriodStop(PVRSRV_DEVICE_NODE *psDeviceNod
 		psGpuDVFSTable->ui64CalibrationOSTimediff = 0;
 	}
 
-	psGpuDVFSTable->ui64CalibrationCRTimediff += ui64CRTimestamp - psGpuDVFSTable->ui64CalibrationCRTimestamp;
-	psGpuDVFSTable->ui64CalibrationOSTimediff += ui64OSTimestamp - psGpuDVFSTable->ui64CalibrationOSTimestamp;
+	psGpuDVFSTable->ui64CalibrationCRTimediff +=
+	    ui64CRTimestamp - psGpuDVFSTable->ui64CalibrationCRTimestamp;
+	psGpuDVFSTable->ui64CalibrationOSTimediff +=
+	    ui64OSTimestamp - psGpuDVFSTable->ui64CalibrationOSTimestamp;
 }
 
 
-static IMG_UINT32 _RGXGPUFreqCalibrationCalculate(PVRSRV_DEVICE_NODE *psDeviceNode, RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
+static IMG_UINT32 _RGXGPUFreqCalibrationCalculate(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                                  RGX_GPU_DVFS_TABLE *psGpuDVFSTable)
 {
+#if !defined(NO_HARDWARE)
 	IMG_UINT32 ui32CalibratedClockSpeed;
 	IMG_UINT32 ui32Remainder;
 
 	ui32CalibratedClockSpeed =
-	    RGXFWIF_GET_GPU_CLOCK_FREQUENCY_HZ(psGpuDVFSTable->ui64CalibrationCRTimediff, psGpuDVFSTable->ui64CalibrationOSTimediff, ui32Remainder);
+	    RGXFWIF_GET_GPU_CLOCK_FREQUENCY_HZ(psGpuDVFSTable->ui64CalibrationCRTimediff,
+	                                       psGpuDVFSTable->ui64CalibrationOSTimediff,
+	                                       ui32Remainder);
 
 	PVR_DPF((PVR_DBG_MESSAGE, "GPU frequency calibration: %u -> %u done over %llu us",
 	         psGpuDVFSTable->aui32DVFSClock[psGpuDVFSTable->ui32CurrentDVFSId],
@@ -165,14 +179,23 @@ static IMG_UINT32 _RGXGPUFreqCalibrationCalculate(PVRSRV_DEVICE_NODE *psDeviceNo
 
 	psGpuDVFSTable->aui32DVFSClock[psGpuDVFSTable->ui32CurrentDVFSId] = ui32CalibratedClockSpeed;
 
+	/* Reset time deltas to avoid recalibrating the same frequency over and over again */
+	psGpuDVFSTable->ui64CalibrationCRTimediff = 0;
+	psGpuDVFSTable->ui64CalibrationOSTimediff = 0;
+
 	return ui32CalibratedClockSpeed;
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
+
+	return psGpuDVFSTable->aui32DVFSClock[psGpuDVFSTable->ui32CurrentDVFSId];
+#endif
 }
 
 
 /*
 	RGXGPUFreqCalibratePrePowerState
 */
-IMG_VOID RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle)
+void RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle)
 {
 	PVRSRV_DEVICE_NODE  *psDeviceNode   = hDevHandle;
 	PVRSRV_RGXDEV_INFO  *psDevInfo      = psDeviceNode->pvDevice;
@@ -190,7 +213,7 @@ IMG_VOID RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle)
 /*
 	RGXGPUFreqCalibratePostPowerState
 */
-IMG_VOID RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle)
+void RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle)
 {
 	PVRSRV_DEVICE_NODE  *psDeviceNode      = hDevHandle;
 	PVRSRV_RGXDEV_INFO  *psDevInfo         = psDeviceNode->pvDevice;
@@ -199,19 +222,25 @@ IMG_VOID RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle)
 	IMG_UINT32          ui32CoreClockSpeed = psRGXData->psRGXTimingInfo->ui32CoreClockSpeed;
 
 	/* If the frequency hasn't changed then accumulate the time diffs to get a better result */
-	psGpuDVFSTable->bAccumulatePeriod = (RGX_GPU_DVFS_GET_INDEX(ui32CoreClockSpeed) == psGpuDVFSTable->ui32CurrentDVFSId);
+	psGpuDVFSTable->bAccumulatePeriod =
+	    (RGX_GPU_DVFS_GET_INDEX(ui32CoreClockSpeed) == psGpuDVFSTable->ui32CurrentDVFSId);
 
 	_RGXGPUFreqCalibrationPeriodStart(psDeviceNode, psGpuDVFSTable);
 
 	/* Update the timer correlation data */
-	_RGXMakeTimeCorrData(psDeviceNode);
+	/* Don't log timing data to the HTB log post power transition.
+	 * Otherwise this will be logged before the HTB partition marker, breaking
+	 * the log sync grammar. This data will be automatically repeated when the
+	 * partition marker is written
+	 */
+	_RGXMakeTimeCorrData(psDeviceNode, IMG_FALSE);
 }
 
 
 /*
 	RGXGPUFreqCalibratePreClockSpeedChange
 */
-IMG_VOID RGXGPUFreqCalibratePreClockSpeedChange(IMG_HANDLE hDevHandle)
+void RGXGPUFreqCalibratePreClockSpeedChange(IMG_HANDLE hDevHandle)
 {
 	PVRSRV_DEVICE_NODE  *psDeviceNode   = hDevHandle;
 	PVRSRV_RGXDEV_INFO  *psDevInfo      = psDeviceNode->pvDevice;
@@ -245,8 +274,7 @@ IMG_UINT32 RGXGPUFreqCalibratePostClockSpeedChange(IMG_HANDLE hDevHandle, IMG_UI
 		_RGXGPUFreqCalibrationPeriodStart(psDeviceNode, psGpuDVFSTable);
 
 		/* Update the timer correlation data */
-		_RGXMakeTimeCorrData(psDeviceNode);
-
+		_RGXMakeTimeCorrData(psDeviceNode, IMG_TRUE);
 		psGpuDVFSTable->bAccumulatePeriod = IMG_FALSE;
 	}
 	else
@@ -261,7 +289,7 @@ IMG_UINT32 RGXGPUFreqCalibratePostClockSpeedChange(IMG_HANDLE hDevHandle, IMG_UI
 /*
 	RGXGPUFreqCalibrateCorrelatePeriodic
 */
-IMG_VOID RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle)
+void RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle)
 {
 	PVRSRV_DEVICE_NODE     *psDeviceNode   = hDevHandle;
 	PVRSRV_RGXDEV_INFO     *psDevInfo      = psDeviceNode->pvDevice;
@@ -276,8 +304,7 @@ IMG_VOID RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle)
 	/* Try to acquire the powerlock, if not possible then don't wait */
 	psPVRSRVData     = PVRSRVGetPVRSRVData();
 	if (OSLockIsLocked(psPVRSRVData->hPowerLock)) return; /* Better to not wait here if possible */
-	/* There's a chance that the powerlock could be taken here, it's not that bad even if not desirable
-	   (TODO use OSTryLockAcquire, currently implemented under Linux only) */
+	/* There's a chance that the powerlock could be taken here, it's not that bad even if not desirable */
 	if (PVRSRVPowerLock() != PVRSRV_OK) return;
 
 	/* If the GPU is off then we can't do anything */
@@ -292,10 +319,7 @@ IMG_VOID RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle)
 	_RGXGPUFreqCalibrationPeriodStop(psDeviceNode, psGpuDVFSTable);
 	_RGXGPUFreqCalibrationCalculate(psDeviceNode, psGpuDVFSTable);
 	_RGXGPUFreqCalibrationPeriodStart(psDeviceNode, psGpuDVFSTable);
-	_RGXMakeTimeCorrData(psDeviceNode);
-
-	/* Force Accumulate Period to false to not trigger a periodic calibration over and over again */
-	psGpuDVFSTable->bAccumulatePeriod = IMG_FALSE;
+	_RGXMakeTimeCorrData(psDeviceNode, IMG_TRUE);
 
 	PVRSRVPowerUnlock();
 }

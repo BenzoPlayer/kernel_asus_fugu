@@ -49,15 +49,83 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debug.h"
 #include "pvrsrv_error.h"
 
+#include "connection_server.h"
+
 #include "pmr.h"
+
 
 typedef struct _DEVMEMINT_CTX_ DEVMEMINT_CTX;
 typedef struct _DEVMEMINT_CTX_EXPORT_ DEVMEMINT_CTX_EXPORT;
 typedef struct _DEVMEMINT_HEAP_ DEVMEMINT_HEAP;
-/* FIXME: can we unify RESERVATION and MAPPING to save data structures? */
+
 typedef struct _DEVMEMINT_RESERVATION_ DEVMEMINT_RESERVATION;
 typedef struct _DEVMEMINT_MAPPING_ DEVMEMINT_MAPPING;
 
+
+/**************************************************************************/ /*!
+@Function       DevmemIntUnpin
+@Description    This is the counterpart to DevmemPin(). It is meant to be
+                called when the allocation is NOT mapped in the device virtual
+                space.
+
+@Input          psPMR           The physical memory to unpin.
+
+@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the memory is
+                                registered to be reclaimed. Error otherwise.
+*/ /***************************************************************************/
+PVRSRV_ERROR DevmemIntUnpin(PMR *psPMR);
+
+/**************************************************************************/ /*!
+@Function       DevmemIntUnpinInvalidate
+@Description    This is the counterpart to DevmemIntPinValidate(). It is meant to be
+                called for allocations that ARE mapped in the device virtual space
+                and we have to invalidate the mapping.
+
+@Input          psPMR           The physical memory to unpin.
+
+@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the memory is
+                                registered to be reclaimed. Error otherwise.
+*/ /***************************************************************************/
+PVRSRV_ERROR DevmemIntUnpinInvalidate(DEVMEMINT_MAPPING *psDevmemMapping, PMR *psPMR);
+
+/**************************************************************************/ /*!
+@Function       DevmemIntPin
+@Description    This is the counterpart to DevmemIntUnpin().
+                Is meant to be called if there is NO device mapping present.
+
+@Input          psPMR           The physical memory to pin.
+
+@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the allocation content
+                                was successfully restored.
+
+                                PVRSRV_ERROR_PMR_NEW_MEMORY when the content
+                                could not be restored and new physical memory
+                                was allocated.
+
+                                A different error otherwise.
+*/ /***************************************************************************/
+PVRSRV_ERROR DevmemIntPin(PMR *psPMR);
+
+/**************************************************************************/ /*!
+@Function       DevmemIntPinValidate
+@Description    This is the counterpart to DevmemIntUnpinInvalidate().
+                Is meant to be called if there is IS a device mapping present
+                that needs to be taken care of.
+
+@Input          psDevmemMapping The mapping structure used for the passed PMR.
+
+@Input          psPMR           The physical memory to pin.
+
+@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the allocation content
+                                was successfully restored.
+
+                                PVRSRV_ERROR_PMR_NEW_MEMORY when the content
+                                could not be restored and new physical memory
+                                was allocated.
+
+                                A different error otherwise.
+*/ /***************************************************************************/
+PVRSRV_ERROR DevmemIntPinValidate(DEVMEMINT_MAPPING *psDevmemMapping, PMR *psPMR);
 /*
  * DevmemServerGetImportHandle()
  *
@@ -102,13 +170,12 @@ DevmemServerGetHeapHandle(DEVMEMINT_RESERVATION *psReservation,
  * that will be created by this call.
  */
 extern PVRSRV_ERROR
-DevmemIntCtxCreate(
-                 PVRSRV_DEVICE_NODE *psDeviceNode,
-                 /* devnode / perproc etc */
-
-                 DEVMEMINT_CTX **ppsDevmemCtxPtr,
-                 IMG_HANDLE *hPrivData
-                 );
+DevmemIntCtxCreate(CONNECTION_DATA *psConnection,
+                   PVRSRV_DEVICE_NODE *psDeviceNode,
+                   /* devnode / perproc etc */
+                   IMG_BOOL bKernelMemoryCtx,
+                   DEVMEMINT_CTX **ppsDevmemCtxPtr,
+                   IMG_HANDLE *hPrivData);
 /*
  * DevmemIntCtxDestroy()
  *
@@ -118,35 +185,6 @@ extern PVRSRV_ERROR
 DevmemIntCtxDestroy(
                   DEVMEMINT_CTX *psDevmemCtx
                   );
-
-/*
- * DevmemIntCtxExport()
- *
- * Export a device memory context created with DevmemIntCtxCreate to another
- * process
- */
- 
-extern PVRSRV_ERROR
-DevmemIntCtxExport(DEVMEMINT_CTX *psDevmemCtx,
-                   DEVMEMINT_CTX_EXPORT **ppsExport);
-
-/*
- * DevmemIntCtxUnexport
- *
- * Unexport an exported a device memory context.
- */
-extern PVRSRV_ERROR
-DevmemIntCtxUnexport(DEVMEMINT_CTX_EXPORT *psExport);
-
-/*
- * DevmemIntCtxImport
- *
- * Import an exported a device memory context.
- */
-extern PVRSRV_ERROR
-DevmemIntCtxImport(DEVMEMINT_CTX_EXPORT *psExport,
-				   DEVMEMINT_CTX **ppsDevmemCtxPtr,
-				   IMG_HANDLE *hPrivData);
 
 /*
  * DevmemIntHeapCreate()
@@ -230,6 +268,38 @@ DevmemIntMapPMR(DEVMEMINT_HEAP *psDevmemHeap,
 extern PVRSRV_ERROR
 DevmemIntUnmapPMR(DEVMEMINT_MAPPING *psMapping);
 
+/* DevmemIntMapPages()
+ *
+ * Maps an arbitrary amount of pages from a PMR to a reserved range
+ *
+ * @input         psReservation      Reservation handle for the range
+ * @input         psPMR              PMR that is mapped
+ * @input         ui32PageCount      Number of consecutive pages that are mapped
+ * @input         uiPhysicalOffset   Logical offset in the PMR
+ * @input         uiFlags            Mapping flags
+ * @input         sDevVAddrBase      Virtual address base to start the mapping from
+ */
+extern PVRSRV_ERROR
+DevmemIntMapPages(DEVMEMINT_RESERVATION *psReservation,
+                  PMR *psPMR,
+                  IMG_UINT32 ui32PageCount,
+                  IMG_UINT32 ui32PhysicalPgOffset,
+                  PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                  IMG_DEV_VIRTADDR sDevVAddrBase);
+
+/* DevmemIntUnmapPages()
+ *
+ * Unmaps an arbitrary amount of pages from a reserved range
+ *
+ * @input         psReservation      Reservation handle for the range
+ * @input         sDevVAddrBase      Virtual address base to start from
+ * @input         ui32PageCount      Number of consecutive pages that are unmapped
+  */
+extern PVRSRV_ERROR
+DevmemIntUnmapPages(DEVMEMINT_RESERVATION *psReservation,
+                    IMG_DEV_VIRTADDR sDevVAddrBase,
+                    IMG_UINT32 ui32PageCount);
+
 /*
  * DevmemIntReserveRange()
  *
@@ -255,6 +325,42 @@ DevmemIntReserveRange(DEVMEMINT_HEAP *psDevmemHeap,
 extern PVRSRV_ERROR
 DevmemIntUnreserveRange(DEVMEMINT_RESERVATION *psDevmemReservation);
 
+/*************************************************************************/ /*!
+@Function       DeviceMemChangeSparseServer
+@Description    Changes the sparse allocations of a PMR by allocating and freeing
+				pages and changing their corresponding CPU and GPU mappings.
+
+@input          psDevmemHeap          Pointer to the heap we map on
+@input          psPMR                 The PMR we want to map
+@input          ui32AllocPageCount    Number of pages to allocate
+@input          pai32AllocIndices     The logical PMR indices where pages will
+                                      be allocated. May be NULL.
+@input          ui32FreePageCount     Number of pages to free
+@input          pai32FreeIndices      The logical PMR indices where pages will
+                                      be freed. May be NULL.
+@input          uiSparseFlags         Flags passed in to determine which kind
+                                      of sparse change the user wanted.
+                                      See devicemem_typedefs.h for details.
+@input          uiFlags               The memalloc flags for this virtual range.
+@input          sDevVAddrBase         The base address of the virtual range of
+                                      this sparse allocation.
+@input          sCpuVAddrBase         The CPU base address of this allocation.
+                                      May be 0 if not existing.
+@Return         PVRSRV_ERROR failure code
+*/ /**************************************************************************/
+extern PVRSRV_ERROR
+DeviceMemChangeSparseServer(DEVMEMINT_HEAP *psDevmemHeap,
+					PMR *psPMR,
+					IMG_UINT32 ui32AllocPageCount,
+					IMG_UINT32 *pai32AllocIndices,
+					IMG_UINT32 ui32FreePageCount,
+					IMG_UINT32 *pai32FreeIndices,
+					SPARSE_MEM_RESIZE_FLAGS uiSparseFlags,
+					PVRSRV_MEMALLOCFLAGS_T uiFlags,
+					IMG_DEV_VIRTADDR sDevVAddrBase,
+					IMG_UINT64 sCpuVAddrBase,
+					IMG_UINT32 *pui32Status);
+
 /*
  * SLCFlushInvalRequest()
  *
@@ -276,8 +382,6 @@ DevmemIntIsVDevAddrValid(DEVMEMINT_CTX *psDevMemContext,
  * Writes out PDump "SAB" commands with the data found in memory at
  * the given virtual address.
  */
-/* FIXME: uiArraySize shouldn't be here, and is an
-   artefact of the bridging */
 extern PVRSRV_ERROR
 DevmemIntPDumpSaveToFileVirtual(DEVMEMINT_CTX *psDevmemCtx,
                                 IMG_DEV_VIRTADDR sDevAddrStart,
@@ -291,18 +395,19 @@ extern IMG_UINT32
 DevmemIntMMUContextID(DEVMEMINT_CTX *psDevMemContext);
 
 extern PVRSRV_ERROR
-DevmemIntPDumpBitmap(PVRSRV_DEVICE_NODE *psDeviceNode,
-						IMG_CHAR *pszFileName,
-						IMG_UINT32 ui32FileOffset,
-						IMG_UINT32 ui32Width,
-						IMG_UINT32 ui32Height,
-						IMG_UINT32 ui32StrideInBytes,
-						IMG_DEV_VIRTADDR sDevBaseAddr,
-						DEVMEMINT_CTX *psDevMemContext,
-						IMG_UINT32 ui32Size,
-						PDUMP_PIXEL_FORMAT ePixelFormat,
-						IMG_UINT32 ui32AddrMode,
-						IMG_UINT32 ui32PDumpFlags);
+DevmemIntPDumpBitmap(CONNECTION_DATA * psConnection,
+                     PVRSRV_DEVICE_NODE *psDeviceNode,
+                     IMG_CHAR *pszFileName,
+                     IMG_UINT32 ui32FileOffset,
+                     IMG_UINT32 ui32Width,
+                     IMG_UINT32 ui32Height,
+                     IMG_UINT32 ui32StrideInBytes,
+                     IMG_DEV_VIRTADDR sDevBaseAddr,
+                     DEVMEMINT_CTX *psDevMemContext,
+                     IMG_UINT32 ui32Size,
+                     PDUMP_PIXEL_FORMAT ePixelFormat,
+                     IMG_UINT32 ui32AddrMode,
+                     IMG_UINT32 ui32PDumpFlags);
 #else	/* PDUMP */
 
 #ifdef INLINE_IS_PRAGMA
@@ -331,19 +436,21 @@ DevmemIntPDumpSaveToFileVirtual(DEVMEMINT_CTX *psDevmemCtx,
 #pragma inline(PVRSRVSyncPrimPDumpPolKM)
 #endif
 static INLINE PVRSRV_ERROR
-DevmemIntPDumpBitmap(PVRSRV_DEVICE_NODE *psDeviceNode,
-						IMG_CHAR *pszFileName,
-						IMG_UINT32 ui32FileOffset,
-						IMG_UINT32 ui32Width,
-						IMG_UINT32 ui32Height,
-						IMG_UINT32 ui32StrideInBytes,
-						IMG_DEV_VIRTADDR sDevBaseAddr,
-						DEVMEMINT_CTX *psDevMemContext,
-						IMG_UINT32 ui32Size,
-						PDUMP_PIXEL_FORMAT ePixelFormat,
-						IMG_UINT32 ui32AddrMode,
-						IMG_UINT32 ui32PDumpFlags)
+DevmemIntPDumpBitmap(CONNECTION_DATA * psConnection,
+                     PVRSRV_DEVICE_NODE *psDeviceNode,
+                     IMG_CHAR *pszFileName,
+                     IMG_UINT32 ui32FileOffset,
+                     IMG_UINT32 ui32Width,
+                     IMG_UINT32 ui32Height,
+                     IMG_UINT32 ui32StrideInBytes,
+                     IMG_DEV_VIRTADDR sDevBaseAddr,
+                     DEVMEMINT_CTX *psDevMemContext,
+                     IMG_UINT32 ui32Size,
+                     PDUMP_PIXEL_FORMAT ePixelFormat,
+                     IMG_UINT32 ui32AddrMode,
+                     IMG_UINT32 ui32PDumpFlags)
 {
+	PVR_UNREFERENCED_PARAMETER(psConnection);
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(pszFileName);
 	PVR_UNREFERENCED_PARAMETER(ui32FileOffset);
@@ -359,4 +466,18 @@ DevmemIntPDumpBitmap(PVRSRV_DEVICE_NODE *psDeviceNode,
 	return PVRSRV_OK;
 }
 #endif	/* PDUMP */
+
+PVRSRV_ERROR
+DevmemIntExportCtx(DEVMEMINT_CTX *psContext,
+                   PMR *psPMR,
+                   DEVMEMINT_CTX_EXPORT **ppsContextExport);
+
+PVRSRV_ERROR
+DevmemIntUnexportCtx(DEVMEMINT_CTX_EXPORT *psContextExport);
+
+PVRSRV_ERROR
+DevmemIntAcquireRemoteCtx(PMR *psPMR,
+						  DEVMEMINT_CTX **ppsContext,
+						  IMG_HANDLE *phPrivData);
+
 #endif /* ifndef __DEVICEMEM_SERVER_H__ */

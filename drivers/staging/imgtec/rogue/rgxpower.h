@@ -47,6 +47,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 #include "img_types.h"
 #include "servicesext.h"
+#include "rgxdevice.h"
 
 
 /*!
@@ -212,5 +213,33 @@ PVRSRV_ERROR RGXForcedIdleRequest(IMG_HANDLE hDevHandle, IMG_BOOL bDeviceOffPerm
 
 ******************************************************************************/
 PVRSRV_ERROR RGXCancelForcedIdleRequest(IMG_HANDLE hDevHandle);
+
+/*!
+******************************************************************************
+
+ @Function	PVRSRVGetNextDustCount
+
+ @Description
+
+	Calculate a sequence of dust counts to achieve full transition coverage.
+	We increment two counts of dusts and switch up and down between them.
+	It does	contain a few redundant transitions. If two dust exist, the
+	output transitions should be as follows.
+
+	0->1, 0<-1, 0->2, 0<-2, (0->1)
+	1->1, 1->2, 1<-2, (1->2)
+	2->2, (2->0),
+	0->0. Repeat.
+
+	Redundant transitions in brackets.
+
+ @Input		psDustReqState : Counter state used to calculate next dust count
+ @Input		ui32DustCount : Number of dusts in the core
+
+ @Return	PVRSRV_ERROR
+
+******************************************************************************/
+IMG_UINT32 RGXGetNextDustCount(RGX_DUST_STATE *psDustState, IMG_UINT32 ui32DustCount);
+
 
 #endif /* __RGXPOWER_H__ */

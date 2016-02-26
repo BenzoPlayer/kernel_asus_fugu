@@ -78,13 +78,13 @@ struct _BUCKET_
 	struct _BUCKET_ *pNext;
 
 	/* entry value */
-	IMG_UINTPTR_T v;
+	uintptr_t v;
 
 	/* entry key */
 #if defined (WIN32)
-	IMG_UINTPTR_T k[1];
+	uintptr_t k[1];
 #else
-	IMG_UINTPTR_T k[];		/* PRQA S 0642 */ /* override dynamic array declaration warning */
+	uintptr_t k[];		/* PRQA S 0642 */ /* override dynamic array declaration warning */
 #endif
 };
 typedef struct _BUCKET_ BUCKET;
@@ -116,23 +116,23 @@ struct _HASH_TABLE_
 /*************************************************************************/ /*!
 @Function       HASH_Func_Default
 @Description    Hash function intended for hashing keys composed of
-                IMG_UINTPTR_T arrays.
+                uintptr_t arrays.
 @Input          uKeySize     The size of the hash key, in bytes.
 @Input          pKey         A pointer to the key to hash.
 @Input          uHashTabLen  The length of the hash table.
 @Return         The hash value.
 */ /**************************************************************************/
 IMG_INTERNAL IMG_UINT32
-HASH_Func_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey, IMG_UINT32 uHashTabLen)
+HASH_Func_Default (size_t uKeySize, void *pKey, IMG_UINT32 uHashTabLen)
 {
-	IMG_UINTPTR_T *p = (IMG_UINTPTR_T *)pKey;
-	IMG_UINT32 uKeyLen = uKeySize / sizeof(IMG_UINTPTR_T);
+	uintptr_t *p = (uintptr_t *)pKey;
+	IMG_UINT32 uKeyLen = uKeySize / sizeof(uintptr_t);
 	IMG_UINT32 ui;
 	IMG_UINT32 uHashKey = 0;
 
 	PVR_UNREFERENCED_PARAMETER(uHashTabLen);
 
-	PVR_ASSERT((uKeySize % sizeof(IMG_UINTPTR_T)) == 0);
+	PVR_ASSERT((uKeySize % sizeof(uintptr_t)) == 0);
 
 	for (ui = 0; ui < uKeyLen; ui++)
 	{
@@ -155,7 +155,7 @@ HASH_Func_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey, IMG_UINT32 uHashTabLen)
 
 /*************************************************************************/ /*!
 @Function       HASH_Key_Comp_Default
-@Description    Compares keys composed of IMG_UINTPTR_T arrays.
+@Description    Compares keys composed of uintptr_t arrays.
 @Input          uKeySize    The size of the hash key, in bytes.
 @Input          pKey1       Pointer to first hash key to compare.
 @Input          pKey2       Pointer to second hash key to compare.
@@ -163,14 +163,14 @@ HASH_Func_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey, IMG_UINT32 uHashTabLen)
                 IMG_FALSE   The keys don't match.
 */ /**************************************************************************/
 IMG_INTERNAL IMG_BOOL
-HASH_Key_Comp_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey1, IMG_VOID *pKey2)
+HASH_Key_Comp_Default (size_t uKeySize, void *pKey1, void *pKey2)
 {
-	IMG_UINTPTR_T *p1 = (IMG_UINTPTR_T *)pKey1;
-	IMG_UINTPTR_T *p2 = (IMG_UINTPTR_T *)pKey2;
-	IMG_UINT32 uKeyLen = uKeySize / sizeof(IMG_UINTPTR_T);
+	uintptr_t *p1 = (uintptr_t *)pKey1;
+	uintptr_t *p2 = (uintptr_t *)pKey2;
+	IMG_UINT32 uKeyLen = uKeySize / sizeof(uintptr_t);
 	IMG_UINT32 ui;
 
-	PVR_ASSERT((uKeySize % sizeof(IMG_UINTPTR_T)) == 0);
+	PVR_ASSERT((uKeySize % sizeof(uintptr_t)) == 0);
 
 	for (ui = 0; ui < uKeyLen; ui++)
 	{
@@ -187,28 +187,20 @@ HASH_Key_Comp_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey1, IMG_VOID *pKey2)
 @Input          pBucket       The bucket
 @Input          ppBucketTable The hash table
 @Input          uSize         The size of the hash table
-@Return         PVRSRV_ERROR
 */ /**************************************************************************/
-static PVRSRV_ERROR
+static void
 _ChainInsert (HASH_TABLE *pHash, BUCKET *pBucket, BUCKET **ppBucketTable, IMG_UINT32 uSize)
 {
 	IMG_UINT32 uIndex;
 
-	PVR_ASSERT (pBucket != IMG_NULL);
-	PVR_ASSERT (ppBucketTable != IMG_NULL);
+	/* We assume that all parameters passed by the caller are valid. */
+	PVR_ASSERT (pBucket != NULL);
+	PVR_ASSERT (ppBucketTable != NULL);
 	PVR_ASSERT (uSize != 0);
-
-	if ((pBucket == IMG_NULL) || (ppBucketTable == IMG_NULL) || (uSize == 0))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "_ChainInsert: invalid parameter"));
-		return PVRSRV_ERROR_INVALID_PARAMS;
-	}
 
 	uIndex = KEY_TO_INDEX(pHash, pBucket->k, uSize);	/* PRQA S 0432,0541 */ /* ignore dynamic array warning */
 	pBucket->pNext = ppBucketTable[uIndex];
 	ppBucketTable[uIndex] = pBucket;
-
-	return PVRSRV_OK;
 }
 
 /*************************************************************************/ /*!
@@ -219,11 +211,10 @@ _ChainInsert (HASH_TABLE *pHash, BUCKET *pBucket, BUCKET **ppBucketTable, IMG_UI
 @Input          uOldSize     The size of the old hash table
 @Input          ppNewTable   The new hash table
 @Input          uNewSize     The size of the new hash table
-@Return         None
 */ /**************************************************************************/
-static PVRSRV_ERROR
+static void
 _Rehash (HASH_TABLE *pHash,
-	 BUCKET **ppOldTable, IMG_UINT32 uOldSize,
+         BUCKET **ppOldTable, IMG_UINT32 uOldSize,
          BUCKET **ppNewTable, IMG_UINT32 uNewSize)
 {
 	IMG_UINT32 uIndex;
@@ -231,20 +222,13 @@ _Rehash (HASH_TABLE *pHash,
     {
 		BUCKET *pBucket;
 		pBucket = ppOldTable[uIndex];
-		while (pBucket != IMG_NULL)
+		while (pBucket != NULL)
 		{
-			PVRSRV_ERROR eError;
 			BUCKET *pNextBucket = pBucket->pNext;
-			eError = _ChainInsert (pHash, pBucket, ppNewTable, uNewSize);
-			if (eError != PVRSRV_OK)
-			{
-				PVR_DPF((PVR_DBG_ERROR, "_Rehash: call to _ChainInsert failed"));
-				return eError;
-			}
+			_ChainInsert (pHash, pBucket, ppNewTable, uNewSize);
 			pBucket = pNextBucket;
 		}
     }
-	return PVRSRV_OK;
 }
 
 /*************************************************************************/ /*!
@@ -267,33 +251,22 @@ _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
         IMG_UINT32 uIndex;
 
 #if defined(__linux__) && defined(__KERNEL__)
-		ppNewTable = OSAllocMemstatMem(sizeof (BUCKET *) * uNewSize);
+		ppNewTable = OSAllocMemNoStats(sizeof (BUCKET *) * uNewSize);
 #else
 		ppNewTable = OSAllocMem(sizeof (BUCKET *) * uNewSize);
 #endif
-		if (ppNewTable == IMG_NULL)
+		if (ppNewTable == NULL)
         {
             return IMG_FALSE;
         }
 
         for (uIndex=0; uIndex<uNewSize; uIndex++)
-            ppNewTable[uIndex] = IMG_NULL;
+            ppNewTable[uIndex] = NULL;
 
-        if (_Rehash (pHash, pHash->ppBucketTable, pHash->uSize, ppNewTable, uNewSize) != PVRSRV_OK)
-		{
-			/*
-				If we fail the rehash then there is nothing we can do as we've already
-				started to modify some of the entries if we just return FALSE here then
-				we will have dropped some items off the hash table.
-				The only reason the rehash can fail if is there is bug in another part
-				of the driver so in reality we should never hit this
-			*/
-			PVR_ASSERT(IMG_FALSE);
-			return IMG_FALSE;
-		}
+        _Rehash(pHash, pHash->ppBucketTable, pHash->uSize, ppNewTable, uNewSize);
 
 #if defined(__linux__) && defined(__KERNEL__)
-        OSFreeMemstatMem(pHash->ppBucketTable);
+        OSFreeMemNoStats(pHash->ppBucketTable);
 #else
         OSFreeMem(pHash->ppBucketTable);
 #endif
@@ -317,24 +290,30 @@ _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
 @Input          uKeySize      The size of the key, in bytes.
 @Input          pfnHashFunc   Pointer to hash function.
 @Input          pfnKeyComp    Pointer to key comparsion function.
-@Return         IMG_NULL or hash table handle.
+@Return         NULL or hash table handle.
 */ /**************************************************************************/
 IMG_INTERNAL 
-HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, HASH_FUNC *pfnHashFunc, HASH_KEY_COMP *pfnKeyComp)
+HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, size_t uKeySize, HASH_FUNC *pfnHashFunc, HASH_KEY_COMP *pfnKeyComp)
 {
 	HASH_TABLE *pHash;
 	IMG_UINT32 uIndex;
 
+	if (uInitialLen == 0 || uKeySize == 0 || pfnHashFunc == NULL || pfnKeyComp == NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "HASH_Create_Extended: invalid input parameters"));
+		return NULL;
+	}
+
 	PVR_DPF ((PVR_DBG_MESSAGE, "HASH_Create_Extended: InitialSize=0x%x", uInitialLen));
 
 #if defined(__linux__) && defined(__KERNEL__)
-	pHash = OSAllocMemstatMem(sizeof(HASH_TABLE));
+	pHash = OSAllocMemNoStats(sizeof(HASH_TABLE));
 #else
 	pHash = OSAllocMem(sizeof(HASH_TABLE));
 #endif
-    if (pHash == IMG_NULL)
+    if (pHash == NULL)
 	{
-		return IMG_NULL;
+		return NULL;
 	}
 
 	pHash->uCount = 0;
@@ -345,41 +324,41 @@ HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, 
 	pHash->pfnKeyComp = pfnKeyComp;
 
 #if defined(__linux__) && defined(__KERNEL__)
-    pHash->ppBucketTable = OSAllocMemstatMem(sizeof (BUCKET *) * pHash->uSize);
+    pHash->ppBucketTable = OSAllocMemNoStats(sizeof (BUCKET *) * pHash->uSize);
 #else
     pHash->ppBucketTable = OSAllocMem(sizeof (BUCKET *) * pHash->uSize);
 #endif
-    if (pHash->ppBucketTable == IMG_NULL)
+    if (pHash->ppBucketTable == NULL)
     {
 #if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash);
+		OSFreeMemNoStats(pHash);
 #else
 		OSFreeMem(pHash);
 #endif
 		/*not nulling pointer, out of scope*/
-		return IMG_NULL;
+		return NULL;
     }
 
 	for (uIndex=0; uIndex<pHash->uSize; uIndex++)
-		pHash->ppBucketTable[uIndex] = IMG_NULL;
+		pHash->ppBucketTable[uIndex] = NULL;
 	return pHash;
 }
 
 /*************************************************************************/ /*!
 @Function       HASH_Create
 @Description    Create a self scaling hash table with a key
-                consisting of a single IMG_UINTPTR_T, and using
+                consisting of a single uintptr_t, and using
                 the default hash and key comparison functions.
 @Input          uInitialLen   Initial and minimum length of the
                               hash table, where the length refers to the
                               number of entries in the hash table, not its size
                               in bytes.
-@Return         IMG_NULL or hash table handle.
+@Return         NULL or hash table handle.
 */ /**************************************************************************/
 IMG_INTERNAL 
 HASH_TABLE * HASH_Create (IMG_UINT32 uInitialLen)
 {
-	return HASH_Create_Extended(uInitialLen, sizeof(IMG_UINTPTR_T),
+	return HASH_Create_Extended(uInitialLen, sizeof(uintptr_t),
 		&HASH_Func_Default, &HASH_Key_Comp_Default);
 }
 
@@ -391,14 +370,14 @@ HASH_TABLE * HASH_Create (IMG_UINT32 uInitialLen)
 @Input          pHash     Hash table
 @Return         None
 */ /**************************************************************************/
-IMG_INTERNAL IMG_VOID
+IMG_INTERNAL void
 HASH_Delete (HASH_TABLE *pHash)
 {
 	IMG_BOOL bDoCheck = IMG_TRUE;
 #if defined(__KERNEL__) && !defined(__QNXNTO__)
 	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
 
-	if (psPVRSRVData != IMG_NULL)
+	if (psPVRSRVData != NULL)
 	{
 		if (psPVRSRVData->eServicesState != PVRSRV_SERVICES_STATE_OK)
 		{
@@ -406,8 +385,10 @@ HASH_Delete (HASH_TABLE *pHash)
 		}
 	}
 #endif
-	if (pHash != IMG_NULL)
+	if (pHash != NULL)
     {
+		PVR_DPF ((PVR_DBG_MESSAGE, "HASH_Delete"));
+
 		if (bDoCheck)
 		{
 			PVR_ASSERT (pHash->uCount==0);
@@ -418,13 +399,13 @@ HASH_Delete (HASH_TABLE *pHash)
 			PVR_DPF ((PVR_DBG_ERROR, "Likely Cause: client drivers not freeing alocations before destroying devmemcontext"));
 		}
 #if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash->ppBucketTable);
+		OSFreeMemNoStats(pHash->ppBucketTable);
 #else
 		OSFreeMem(pHash->ppBucketTable);
 #endif
-		pHash->ppBucketTable = IMG_NULL;
+		pHash->ppBucketTable = NULL;
 #if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pHash);
+		OSFreeMemNoStats(pHash);
 #else
 		OSFreeMem(pHash);
 #endif
@@ -443,24 +424,24 @@ HASH_Delete (HASH_TABLE *pHash)
                 IMG_FALSE  - failure
 */ /**************************************************************************/
 IMG_INTERNAL IMG_BOOL
-HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
+HASH_Insert_Extended (HASH_TABLE *pHash, void *pKey, uintptr_t v)
 {
 	BUCKET *pBucket;
 
-	PVR_ASSERT (pHash != IMG_NULL);
+	PVR_ASSERT (pHash != NULL);
 
-	if (pHash == IMG_NULL)
+	if (pHash == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "HASH_Insert_Extended: invalid parameter"));
 		return IMG_FALSE;
 	}
 
 #if defined(__linux__) && defined(__KERNEL__)
-	pBucket = OSAllocMemstatMem(sizeof(BUCKET) + pHash->uKeySize);
+	pBucket = OSAllocMemNoStats(sizeof(BUCKET) + pHash->uKeySize);
 #else
 	pBucket = OSAllocMem(sizeof(BUCKET) + pHash->uKeySize);
 #endif
-    if (pBucket == IMG_NULL)
+    if (pBucket == NULL)
 	{
 		return IMG_FALSE;
 	}
@@ -468,15 +449,8 @@ HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
 	pBucket->v = v;
 	/* PRQA S 0432,0541 1 */ /* ignore warning about dynamic array k (linux)*/
 	OSCachedMemCopy(pBucket->k, pKey, pHash->uKeySize);
-	if (_ChainInsert (pHash, pBucket, pHash->ppBucketTable, pHash->uSize) != PVRSRV_OK)
-	{
-#if defined(__linux__) && defined(__KERNEL__)
-		OSFreeMemstatMem(pBucket);
-#else
-		OSFreeMem(pBucket);
-#endif
-		return IMG_FALSE;
-	}
+
+	_ChainInsert (pHash, pBucket, pHash->ppBucketTable, pHash->uSize);
 
 	pHash->uCount++;
 
@@ -504,7 +478,7 @@ HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v)
                 IMG_FALSE - failure.
 */ /**************************************************************************/
 IMG_INTERNAL IMG_BOOL
-HASH_Insert (HASH_TABLE *pHash, IMG_UINTPTR_T k, IMG_UINTPTR_T v)
+HASH_Insert (HASH_TABLE *pHash, uintptr_t k, uintptr_t v)
 {
 	return HASH_Insert_Extended(pHash, &k, v);
 }
@@ -517,15 +491,15 @@ HASH_Insert (HASH_TABLE *pHash, IMG_UINTPTR_T k, IMG_UINTPTR_T v)
 @Input          pKey      Pointer to key.
 @Return         0 if the key is missing, or the value associated with the key.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_UINTPTR_T
-HASH_Remove_Extended(HASH_TABLE *pHash, IMG_VOID *pKey)
+IMG_INTERNAL uintptr_t
+HASH_Remove_Extended(HASH_TABLE *pHash, void *pKey)
 {
 	BUCKET **ppBucket;
 	IMG_UINT32 uIndex;
 
-	PVR_ASSERT (pHash != IMG_NULL);
+	PVR_ASSERT (pHash != NULL);
 
-	if (pHash == IMG_NULL)
+	if (pHash == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "HASH_Remove_Extended: Null hash table"));
 		return 0;
@@ -533,17 +507,17 @@ HASH_Remove_Extended(HASH_TABLE *pHash, IMG_VOID *pKey)
 
 	uIndex = KEY_TO_INDEX(pHash, pKey, pHash->uSize);
 
-	for (ppBucket = &(pHash->ppBucketTable[uIndex]); *ppBucket != IMG_NULL; ppBucket = &((*ppBucket)->pNext))
+	for (ppBucket = &(pHash->ppBucketTable[uIndex]); *ppBucket != NULL; ppBucket = &((*ppBucket)->pNext))
 	{
 		/* PRQA S 0432,0541 1 */ /* ignore warning about dynamic array k */
 		if (KEY_COMPARE(pHash, (*ppBucket)->k, pKey))
 		{
 			BUCKET *pBucket = *ppBucket;
-			IMG_UINTPTR_T v = pBucket->v;
+			uintptr_t v = pBucket->v;
 			(*ppBucket) = pBucket->pNext;
 
 #if defined(__linux__) && defined(__KERNEL__)
-			OSFreeMemstatMem(pBucket);
+			OSFreeMemNoStats(pBucket);
 #else
 			OSFreeMem(pBucket);
 #endif
@@ -577,8 +551,8 @@ HASH_Remove_Extended(HASH_TABLE *pHash, IMG_VOID *pKey)
 @Input          k         The key
 @Return         0 if the key is missing, or the value associated with the key.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_UINTPTR_T
-HASH_Remove (HASH_TABLE *pHash, IMG_UINTPTR_T k)
+IMG_INTERNAL uintptr_t
+HASH_Remove (HASH_TABLE *pHash, uintptr_t k)
 {
 	return HASH_Remove_Extended(pHash, &k);
 }
@@ -591,15 +565,15 @@ HASH_Remove (HASH_TABLE *pHash, IMG_UINTPTR_T k)
 @Input          pKey      Pointer to the key.
 @Return         0 if the key is missing, or the value associated with the key.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_UINTPTR_T
-HASH_Retrieve_Extended (HASH_TABLE *pHash, IMG_VOID *pKey)
+IMG_INTERNAL uintptr_t
+HASH_Retrieve_Extended (HASH_TABLE *pHash, void *pKey)
 {
 	BUCKET **ppBucket;
 	IMG_UINT32 uIndex;
 
-	PVR_ASSERT (pHash != IMG_NULL);
+	PVR_ASSERT (pHash != NULL);
 
-	if (pHash == IMG_NULL)
+	if (pHash == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "HASH_Retrieve_Extended: Null hash table"));
 		return 0;
@@ -607,13 +581,13 @@ HASH_Retrieve_Extended (HASH_TABLE *pHash, IMG_VOID *pKey)
 
 	uIndex = KEY_TO_INDEX(pHash, pKey, pHash->uSize);
 
-	for (ppBucket = &(pHash->ppBucketTable[uIndex]); *ppBucket != IMG_NULL; ppBucket = &((*ppBucket)->pNext))
+	for (ppBucket = &(pHash->ppBucketTable[uIndex]); *ppBucket != NULL; ppBucket = &((*ppBucket)->pNext))
 	{
 		/* PRQA S 0432,0541 1 */ /* ignore warning about dynamic array k */
 		if (KEY_COMPARE(pHash, (*ppBucket)->k, pKey))
 		{
 			BUCKET *pBucket = *ppBucket;
-			IMG_UINTPTR_T v = pBucket->v;
+			uintptr_t v = pBucket->v;
 
 			return v;
 		}
@@ -629,8 +603,8 @@ HASH_Retrieve_Extended (HASH_TABLE *pHash, IMG_VOID *pKey)
 @Input          k         The key
 @Return         0 if the key is missing, or the value associated with the key.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_UINTPTR_T
-HASH_Retrieve (HASH_TABLE *pHash, IMG_UINTPTR_T k)
+IMG_INTERNAL uintptr_t
+HASH_Retrieve (HASH_TABLE *pHash, uintptr_t k)
 {
 	return HASH_Retrieve_Extended(pHash, &k);
 }
@@ -651,12 +625,12 @@ HASH_Iterate(HASH_TABLE *pHash, HASH_pfnCallback pfnCallback)
     {
         BUCKET *pBucket;
         pBucket = pHash->ppBucketTable[uIndex];
-        while (pBucket != IMG_NULL)
+        while (pBucket != NULL)
         {
             PVRSRV_ERROR eError;
             BUCKET *pNextBucket = pBucket->pNext;
 
-            eError = pfnCallback((IMG_UINTPTR_T) ((IMG_VOID *) *(pBucket->k)), (IMG_UINTPTR_T) pBucket->v);
+            eError = pfnCallback((uintptr_t) ((void *) *(pBucket->k)), (uintptr_t) pBucket->v);
 
             /* The callback might want us to break out early */
             if (eError != PVRSRV_OK)
@@ -676,24 +650,24 @@ HASH_Iterate(HASH_TABLE *pHash, HASH_pfnCallback pfnCallback)
                 form.
 @Input          pHash     Hash table
 */ /**************************************************************************/
-IMG_VOID
+void
 HASH_Dump (HASH_TABLE *pHash)
 {
 	IMG_UINT32 uIndex;
 	IMG_UINT32 uMaxLength=0;
 	IMG_UINT32 uEmptyCount=0;
 
-	PVR_ASSERT (pHash != IMG_NULL);
+	PVR_ASSERT (pHash != NULL);
 	for (uIndex=0; uIndex<pHash->uSize; uIndex++)
 	{
 		BUCKET *pBucket;
 		IMG_UINT32 uLength = 0;
-		if (pHash->ppBucketTable[uIndex] == IMG_NULL)
+		if (pHash->ppBucketTable[uIndex] == NULL)
 		{
 			uEmptyCount++;
 		}
 		for (pBucket=pHash->ppBucketTable[uIndex];
-				pBucket != IMG_NULL;
+				pBucket != NULL;
 				pBucket = pBucket->pNext)
 		{
 			uLength++;

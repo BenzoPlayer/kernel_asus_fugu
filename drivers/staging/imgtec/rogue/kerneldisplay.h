@@ -48,6 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C" {
 #endif
 
+#include "pvrsrv_error.h"
 #include "img_types.h"
 #include "pvrsrv_surface.h"
 #include "dc_external.h"
@@ -65,8 +66,8 @@ extern "C" {
 @Return         PVRSRV_OK if the query was successful
 */
 /*****************************************************************************/
-typedef IMG_VOID (*GetInfo)(IMG_HANDLE hDeviceData,
-							DC_DISPLAY_INFO *psDisplayInfo);
+typedef void (*GetInfo)(IMG_HANDLE hDeviceData,
+						DC_DISPLAY_INFO *psDisplayInfo);
 
 /*************************************************************************/ /*!
 @Function       PanelQueryCount
@@ -217,7 +218,7 @@ typedef PVRSRV_ERROR (*BufferSystemAcquire)(IMG_HANDLE hDeviceData,
 											IMG_UINT32 *pui32ByteStride,
 											IMG_HANDLE *phSystemBuffer);
 
-typedef	IMG_VOID (*BufferSystemRelease)(IMG_HANDLE hSystemBuffer);
+typedef	void (*BufferSystemRelease)(IMG_HANDLE hSystemBuffer);
 
 /*************************************************************************/ /*!
 @Function       ContextCreate
@@ -285,12 +286,12 @@ typedef PVRSRV_ERROR (*ContextConfigureCheck)(IMG_HANDLE hDisplayContext,
 @Return         PVRSRV_OK if the configuration was successfully queued
 */
 /*****************************************************************************/
-typedef IMG_VOID (*ContextConfigure)(IMG_HANDLE hDisplayContext,
-									 IMG_UINT32 ui32PipeCount,
-									 PVRSRV_SURFACE_CONFIG_INFO *pasSurfAttrib,
-									 IMG_HANDLE *ahBuffers,
-									 IMG_UINT32 ui32DisplayPeriod,
-									 IMG_HANDLE hConfigData);
+typedef void (*ContextConfigure)(IMG_HANDLE hDisplayContext,
+								 IMG_UINT32 ui32PipeCount,
+								 PVRSRV_SURFACE_CONFIG_INFO *pasSurfAttrib,
+								 IMG_HANDLE *ahBuffers,
+								 IMG_UINT32 ui32DisplayPeriod,
+								 IMG_HANDLE hConfigData);
 
 /*************************************************************************/ /*!
 @Function       ContextDestroy
@@ -302,7 +303,7 @@ typedef IMG_VOID (*ContextConfigure)(IMG_HANDLE hDisplayContext,
 @Return         None
 */
 /*****************************************************************************/
-typedef IMG_VOID (*ContextDestroy)(IMG_HANDLE hDisplayContext);
+typedef void (*ContextDestroy)(IMG_HANDLE hDisplayContext);
 
 /*************************************************************************/ /*!
 @Function       BufferAlloc
@@ -396,7 +397,7 @@ typedef PVRSRV_ERROR (*BufferImport)(IMG_HANDLE hDisplayContext,
 /*****************************************************************************/
 typedef PVRSRV_ERROR (*BufferAcquire)(IMG_HANDLE hBuffer,
 									  IMG_DEV_PHYADDR *pasDevPAddr,
-									  IMG_PVOID *ppvLinAddr);
+									  void **ppvLinAddr);
 
 /*************************************************************************/ /*!
 @Function       BufferRelease
@@ -408,7 +409,7 @@ typedef PVRSRV_ERROR (*BufferAcquire)(IMG_HANDLE hBuffer,
 @Return         None
 */
 /*****************************************************************************/
-typedef IMG_VOID (*BufferRelease)(IMG_HANDLE hBuffer);
+typedef void (*BufferRelease)(IMG_HANDLE hBuffer);
 
 /*************************************************************************/ /*!
 @Function       BufferFree
@@ -422,7 +423,7 @@ typedef IMG_VOID (*BufferRelease)(IMG_HANDLE hBuffer);
 @Return         None
 */
 /*****************************************************************************/
-typedef IMG_VOID (*BufferFree)(IMG_HANDLE hBuffer);
+typedef void (*BufferFree)(IMG_HANDLE hBuffer);
 
 /*************************************************************************/ /*!
 @Function       BufferMap
@@ -450,7 +451,7 @@ typedef PVRSRV_ERROR (*BufferMap)(IMG_HANDLE hBuffer);
 @Return         None
 */
 /*****************************************************************************/
-typedef IMG_VOID (*BufferUnmap)(IMG_HANDLE hBuffer);
+typedef void (*BufferUnmap)(IMG_HANDLE hBuffer);
 
 
 /*
@@ -533,7 +534,7 @@ PVRSRV_ERROR DCRegisterDevice(DC_DEVICE_FUNCTIONS *psFuncTable,
 @Return         None
 */
 /*****************************************************************************/
-IMG_VOID DCUnregisterDevice(IMG_HANDLE hSrvHandle);
+void DCUnregisterDevice(IMG_HANDLE hSrvHandle);
 
 /*************************************************************************/ /*!
 @Function       DCDisplayConfigurationRetired
@@ -546,7 +547,7 @@ IMG_VOID DCUnregisterDevice(IMG_HANDLE hSrvHandle);
 @Return         None
 */
 /*****************************************************************************/
-IMG_VOID DCDisplayConfigurationRetired(IMG_HANDLE hConfigData);
+void DCDisplayConfigurationRetired(IMG_HANDLE hConfigData);
 
 /*************************************************************************/ /*!
 @Function       DCDisplayHasPendingCommand
@@ -598,8 +599,8 @@ PVRSRV_ERROR DCImportBufferAcquire(IMG_HANDLE hImport,
 @Return         None
 */
 /*****************************************************************************/
-IMG_VOID DCImportBufferRelease(IMG_HANDLE hImport,
-							   IMG_DEV_PHYADDR *pasDevPAddr);
+void DCImportBufferRelease(IMG_HANDLE hImport,
+						   IMG_DEV_PHYADDR *pasDevPAddr);
 
 #if defined (__cplusplus)
 }
