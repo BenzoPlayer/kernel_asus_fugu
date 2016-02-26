@@ -46,10 +46,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if !defined(__LINKAGE_H__)
 #define __LINKAGE_H__
 
-/*
- * FIXME: This is declared here to save creating a new header which should be
- * removed soon anyway as bridge gen should be providing this interface.
- */
 PVRSRV_ERROR LinuxBridgeInit(void);
 PVRSRV_ERROR LinuxBridgeDeInit(void);
 
@@ -61,12 +57,12 @@ long PVRSRV_BridgeCompatDispatchKM(struct file *file, unsigned int cmd, unsigned
 #endif
 #endif
 
+int PVRSRV_MMap(struct file *file, struct vm_area_struct *ps_vma);
+
 PVRSRV_ERROR PVROSFuncInit(void);
 void PVROSFuncDeInit(void);
 
 int PVRDebugCreateDebugFSEntries(void);
 void PVRDebugRemoveDebugFSEntries(void);
-
-int MMapPMR(struct file *file, struct vm_area_struct *ps_vma);
 
 #endif /* !defined(__LINKAGE_H__) */

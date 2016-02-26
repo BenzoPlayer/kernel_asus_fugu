@@ -42,8 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _RGXCONFIG_KM_1_V_4_6_H_
 #define _RGXCONFIG_KM_1_V_4_6_H_
 
-/***** Automatically generated file (3/25/2015 5:08:35 AM): Do not edit manually ********************/
-/***** Timestamp:  (3/25/2015 5:08:35 AM)************************************************************/
+/***** Automatically generated file (22/02/2016 07:00:34): Do not edit manually ********************/
+/***** Timestamp:  (22/02/2016 07:00:34)************************************************************/
 
 #define RGX_BNC_KM_B 1
 #define RGX_BNC_KM_N 4
@@ -55,6 +55,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_FEATURE_NUM_CLUSTERS (4)
 #define RGX_FEATURE_SLC_SIZE_IN_BYTES (128*1024)
 #define RGX_FEATURE_PHYS_BUS_WIDTH (40)
+#define RGX_FEATURE_PERFBUS 
 #define RGX_FEATURE_SLC_CACHE_LINE_SIZE_BITS (512)
 #define RGX_FEATURE_VIRTUAL_ADDRESS_SPACE_BITS (40)
 #define RGX_FEATURE_TLA 
@@ -63,6 +64,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_FEATURE_META (MTP218)
 #define RGX_FEATURE_META_COREMEM_SIZE (0)
 #define RGX_FEATURE_COMPUTE 
+#define RGX_FEATURE_COMPUTE_OVERLAP 
 
 
 #endif /* _RGXCONFIG_1_V_4_6_H_ */

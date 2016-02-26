@@ -41,8 +41,6 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-//#warning FIXME:  add the MMU specialisation defines here (or in hwdefs, perhaps?)
-
 #ifndef __RGXHEAPCONFIG_H__
 #define __RGXHEAPCONFIG_H__
 
@@ -85,21 +83,56 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#define RGX_BIF_TILING_HEAP_3_BASE          (RGX_BIF_TILING_HEAP_2_BASE + RGX_BIF_TILING_HEAP_SIZE)
 	#define RGX_BIF_TILING_HEAP_4_BASE          (RGX_BIF_TILING_HEAP_3_BASE + RGX_BIF_TILING_HEAP_SIZE)
 
+#if defined(FIX_HW_BRN_52402)
+	/* HWBRN52402 workaround requires PDS memory to be below 16GB. Start at 8GB. Size of 4GB. */
+	#define RGX_PDSCODEDATA_HEAP_BASE			IMG_UINT64_C(0x0200000000)
+    #define RGX_PDSCODEDATA_HEAP_SIZE			IMG_UINT64_C(0x0100000000)
+#else
 	/* Start at 600GiB. Size of 4 GiB */
 	#define RGX_PDSCODEDATA_HEAP_BASE			IMG_UINT64_C(0x9600000000)
     #define RGX_PDSCODEDATA_HEAP_SIZE			IMG_UINT64_C(0x0100000000)
+#endif
+
+/* start at 604GiB, size of 1 MiB */
+	#define RGX_VISTEST_HEAP_BASE			IMG_UINT64_C(0x9700000000)
+    #define RGX_VISTEST_HEAP_SIZE			IMG_UINT64_C(0x0000100000)
  
+#if defined(FIX_HW_BRN_52402)
+	/* HWBRN52402 workaround requires PDS memory to be below 16GB. Start at 12GB. Size of 4GB. */
+	#define RGX_USCCODE_HEAP_BASE				IMG_UINT64_C(0x0300000000)
+    #define RGX_USCCODE_HEAP_SIZE				IMG_UINT64_C(0x0100000000)
+#else
 	/* Start at 800GiB. Size of 4 GiB */
 	#define RGX_USCCODE_HEAP_BASE				IMG_UINT64_C(0xC800000000)
     #define RGX_USCCODE_HEAP_SIZE				IMG_UINT64_C(0x0100000000)
+#endif
  
-	/* Start at 903GiB. Size of 4 GiB */
+	/* Start at 903GiB. Size of 4 GiB for META and 32MB for MIPS*/
+#if defined(SUPPORT_PVRSRV_GPUVIRT) && defined(PVRSRV_GPUVIRT_GUESTDRV)
+	#define RGX_FIRMWARE_HEAP_BASE				(0xE1C0000000 + (PVRSRV_GPUVIRT_OSID * PVRSRV_GPUVIRT_FWHEAP_SIZE))
+#else
 	#define RGX_FIRMWARE_HEAP_BASE				IMG_UINT64_C(0xE1C0000000)
-    #define RGX_FIRMWARE_HEAP_SIZE				IMG_UINT64_C(0x0100000000)
+#endif
 
+#if defined(SUPPORT_PVRSRV_GPUVIRT)
+	#define RGX_FIRMWARE_HEAP_SIZE				PVRSRV_GPUVIRT_FWHEAP_SIZE
+#else
+#if defined(RGX_FEATURE_META)
+	#define RGX_FIRMWARE_HEAP_SIZE				IMG_UINT64_C(0x0100000000)
+#else
+	#define RGX_FIRMWARE_HEAP_SIZE				IMG_UINT64_C(0x0002000000)
+#endif
+#endif
+
+#if defined(FIX_HW_BRN_52402) || defined(FIX_HW_BRN_55091)
+	/* HWBRN52402 & HWBRN55091 workarounds requires TQ memory to be below 16GB and 16GB aligned. Start at 0GB. Size of 8GB. */
+    #define RGX_TQ3DPARAMETERS_HEAP_BASE		IMG_UINT64_C(0x0000000000)
+    #define RGX_TQ3DPARAMETERS_HEAP_SIZE		IMG_UINT64_C(0x0200000000)
+#else
 	/* Start at 912GiB. Size of 16 GiB. 16GB aligned to match RGX_CR_ISP_PIXEL_BASE */
     #define RGX_TQ3DPARAMETERS_HEAP_BASE		IMG_UINT64_C(0xE400000000)
     #define RGX_TQ3DPARAMETERS_HEAP_SIZE		IMG_UINT64_C(0x0400000000)
+#endif
 
 	/* Size of 16 * 4 KB (think about large page systems .. */
 #if defined(FIX_HW_BRN_37200)

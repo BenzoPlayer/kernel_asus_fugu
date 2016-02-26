@@ -59,10 +59,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
-#if defined (SUPPORT_AUTH)
-#include "osauth.h"
-#endif
-
 #include <linux/slab.h>
 
 
@@ -78,21 +74,39 @@ PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_CACHEOPQUEUE *psCacheOpQueueOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-
+	PMR * psPMRInt = NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psCacheOpQueueOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(void **) &psPMRInt,
+											psCacheOpQueueIN->hPMR,
+											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
+					if(psCacheOpQueueOUT->eError != PVRSRV_OK)
+					{
+						goto CacheOpQueue_exit;
+					}
+				}
 
 
 	psCacheOpQueueOUT->eError =
 		CacheOpQueue(
+					psPMRInt,
+					psCacheOpQueueIN->uiOffset,
+					psCacheOpQueueIN->uiSize,
 					psCacheOpQueueIN->iuCacheOp);
 
 
 
 
+CacheOpQueue_exit:
 
 	return 0;
 }
@@ -103,19 +117,19 @@ PVRSRVBridgeCacheOpQueue(IMG_UINT32 ui32DispatchTableEntry,
  * Server bridge dispatch related glue 
  */
 
+static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID);
-PVRSRV_ERROR DeinitCACHEGENERICBridge(IMG_VOID);
+PVRSRV_ERROR InitCACHEGENERICBridge(void);
+PVRSRV_ERROR DeinitCACHEGENERICBridge(void);
 
 /*
  * Register all CACHEGENERIC functions with services
  */
-PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID)
+PVRSRV_ERROR InitCACHEGENERICBridge(void)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_CACHEGENERIC, PVRSRV_BRIDGE_CACHEGENERIC_CACHEOPQUEUE, PVRSRVBridgeCacheOpQueue,
-					IMG_NULL, IMG_NULL,
-					0, 0);
+					NULL, bUseLock);
 
 
 	return PVRSRV_OK;
@@ -124,7 +138,7 @@ PVRSRV_ERROR InitCACHEGENERICBridge(IMG_VOID)
 /*
  * Unregister all cachegeneric functions with services
  */
-PVRSRV_ERROR DeinitCACHEGENERICBridge(IMG_VOID)
+PVRSRV_ERROR DeinitCACHEGENERICBridge(void)
 {
 	return PVRSRV_OK;
 }

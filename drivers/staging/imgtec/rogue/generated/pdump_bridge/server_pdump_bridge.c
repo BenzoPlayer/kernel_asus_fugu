@@ -60,10 +60,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
-#if defined (SUPPORT_AUTH)
-#include "osauth.h"
-#endif
-
 #include <linux/slab.h>
 
 
@@ -79,9 +75,8 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_DEVMEMPDUMPBITMAP *psDevmemPDumpBitmapOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	IMG_HANDLE hDeviceNodeInt = IMG_NULL;
-	IMG_CHAR *uiFileNameInt = IMG_NULL;
-	DEVMEMINT_CTX * psDevmemCtxInt = IMG_NULL;
+	IMG_CHAR *uiFileNameInt = NULL;
+	DEVMEMINT_CTX * psDevmemCtxInt = NULL;
 
 
 
@@ -98,7 +93,7 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psDevmemPDumpBitmapIN->puiFileName, PVRSRV_PDUMP_MAX_FILENAME_SIZE * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psDevmemPDumpBitmapIN->puiFileName, PVRSRV_PDUMP_MAX_FILENAME_SIZE * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiFileNameInt, psDevmemPDumpBitmapIN->puiFileName,
 				PVRSRV_PDUMP_MAX_FILENAME_SIZE * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -113,21 +108,7 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psDevmemPDumpBitmapOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_VOID **) &hDeviceNodeInt,
-											psDevmemPDumpBitmapIN->hDeviceNode,
-											PVRSRV_HANDLE_TYPE_DEV_NODE);
-					if(psDevmemPDumpBitmapOUT->eError != PVRSRV_OK)
-					{
-						goto DevmemPDumpBitmap_exit;
-					}
-				}
-
-
-				{
-					/* Look up the address from the handle */
-					psDevmemPDumpBitmapOUT->eError =
-						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(IMG_VOID **) &psDevmemCtxInt,
+											(void **) &psDevmemCtxInt,
 											psDevmemPDumpBitmapIN->hDevmemCtx,
 											PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX);
 					if(psDevmemPDumpBitmapOUT->eError != PVRSRV_OK)
@@ -138,8 +119,7 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 
 
 	psDevmemPDumpBitmapOUT->eError =
-		DevmemIntPDumpBitmap(
-					hDeviceNodeInt,
+		DevmemIntPDumpBitmap(psConnection, OSGetDevData(psConnection),
 					uiFileNameInt,
 					psDevmemPDumpBitmapIN->ui32FileOffset,
 					psDevmemPDumpBitmapIN->ui32Width,
@@ -168,7 +148,7 @@ PVRSRVBridgePVRSRVPDumpComment(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPCOMMENT *psPVRSRVPDumpCommentOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	IMG_CHAR *uiCommentInt = IMG_NULL;
+	IMG_CHAR *uiCommentInt = NULL;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
@@ -186,7 +166,7 @@ PVRSRVBridgePVRSRVPDumpComment(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psPVRSRVPDumpCommentIN->puiComment, PVRSRV_PDUMP_MAX_COMMENT_SIZE * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psPVRSRVPDumpCommentIN->puiComment, PVRSRV_PDUMP_MAX_COMMENT_SIZE * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiCommentInt, psPVRSRVPDumpCommentIN->puiComment,
 				PVRSRV_PDUMP_MAX_COMMENT_SIZE * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -212,29 +192,61 @@ PVRSRVPDumpComment_exit:
 	return 0;
 }
 
+static IMG_INT
+PVRSRVBridgePVRSRVPDumpSetFrame(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_PVRSRVPDUMPSETFRAME *psPVRSRVPDumpSetFrameIN,
+					  PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSETFRAME *psPVRSRVPDumpSetFrameOUT,
+					 CONNECTION_DATA *psConnection)
+{
+
+
+
+
+
+#if defined(PDUMP)
+	PMRLock();
+#endif
+
+
+	psPVRSRVPDumpSetFrameOUT->eError =
+		PDumpSetFrameKM(psConnection, OSGetDevData(psConnection),
+					psPVRSRVPDumpSetFrameIN->ui32Frame);
+#if defined(PDUMP)
+	PMRUnlock();
+#endif
+
+
+
+
+
+	return 0;
+}
+
 
 
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
 
+static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitPDUMPBridge(IMG_VOID);
-PVRSRV_ERROR DeinitPDUMPBridge(IMG_VOID);
+PVRSRV_ERROR InitPDUMPBridge(void);
+PVRSRV_ERROR DeinitPDUMPBridge(void);
 
 /*
  * Register all PDUMP functions with services
  */
-PVRSRV_ERROR InitPDUMPBridge(IMG_VOID)
+PVRSRV_ERROR InitPDUMPBridge(void)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMP, PVRSRV_BRIDGE_PDUMP_DEVMEMPDUMPBITMAP, PVRSRVBridgeDevmemPDumpBitmap,
-					IMG_NULL, IMG_NULL,
-					0, 0);
+					NULL, bUseLock);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMP, PVRSRV_BRIDGE_PDUMP_PVRSRVPDUMPCOMMENT, PVRSRVBridgePVRSRVPDumpComment,
-					IMG_NULL, IMG_NULL,
-					0, 0);
+					NULL, bUseLock);
+
+	SetDispatchTableEntry(PVRSRV_BRIDGE_PDUMP, PVRSRV_BRIDGE_PDUMP_PVRSRVPDUMPSETFRAME, PVRSRVBridgePVRSRVPDumpSetFrame,
+					NULL, bUseLock);
 
 
 	return PVRSRV_OK;
@@ -243,7 +255,7 @@ PVRSRV_ERROR InitPDUMPBridge(IMG_VOID)
 /*
  * Unregister all pdump functions with services
  */
-PVRSRV_ERROR DeinitPDUMPBridge(IMG_VOID)
+PVRSRV_ERROR DeinitPDUMPBridge(void)
 {
 	return PVRSRV_OK;
 }

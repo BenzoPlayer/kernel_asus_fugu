@@ -57,7 +57,7 @@ typedef struct mutex *POS_LOCK;
 typedef atomic_t ATOMIC_T;
 
 #else /* defined(LINUX) && defined(__KERNEL__) */
-
+#include "img_types.h" /* needed for IMG_INT */
 typedef struct _OS_LOCK_ *POS_LOCK;
 #if defined(LINUX)
 	typedef struct _OS_ATOMIC {IMG_INT counter;} ATOMIC_T;

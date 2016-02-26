@@ -51,6 +51,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME 40
 
+/* this PID denotes the firmware */
+#define RGXMEM_SERVER_PID_FIRMWARE 0xFFFFFFFF
+
 typedef struct _RGXMEM_PROCESS_INFO_
 {
 	IMG_PID uiPID;
@@ -58,32 +61,34 @@ typedef struct _RGXMEM_PROCESS_INFO_
 	IMG_BOOL bUnregistered;
 } RGXMEM_PROCESS_INFO;
 
-/* FIXME: SyncPrim should be stored on the memory context */
-IMG_VOID RGXMMUSyncPrimAlloc(PVRSRV_DEVICE_NODE *psDeviceNode);
-IMG_VOID RGXMMUSyncPrimFree(IMG_VOID);
+void RGXMMUSyncPrimAlloc(PVRSRV_DEVICE_NODE *psDeviceNode);
+void RGXMMUSyncPrimFree(void);
 
-IMG_VOID RGXMMUCacheInvalidate(PVRSRV_DEVICE_NODE *psDeviceNode,
-							   IMG_HANDLE hDeviceData,
-							   MMU_LEVEL eMMULevel,
-							   IMG_BOOL bUnmap);
+void RGXMMUCacheInvalidate(PVRSRV_DEVICE_NODE *psDeviceNode,
+						   IMG_HANDLE hDeviceData,
+						   MMU_LEVEL eMMULevel,
+						   IMG_BOOL bUnmap);
 
 PVRSRV_ERROR RGXSLCCacheInvalidateRequest(PVRSRV_DEVICE_NODE	*psDeviceNode,
 									PMR *psPmr);
 
-PVRSRV_ERROR RGXPreKickCacheCommand(PVRSRV_RGXDEV_INFO 	*psDevInfo);
+PVRSRV_ERROR RGXPreKickCacheCommand(PVRSRV_RGXDEV_INFO *psDevInfo, RGXFWIF_DM eDM);
 
-IMG_VOID RGXUnregisterMemoryContext(IMG_HANDLE hPrivData);
+void RGXUnregisterMemoryContext(IMG_HANDLE hPrivData);
 PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 									  MMU_CONTEXT			*psMMUContext,
 									  IMG_HANDLE			*hPrivData);
 
 DEVMEM_MEMDESC *RGXGetFWMemDescFromMemoryContextHandle(IMG_HANDLE hPriv);
 
-IMG_VOID RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo,
-							  IMG_DEV_VIRTADDR *psDevVAddr,
-							  IMG_DEV_PHYADDR *psDevPAddr);
+void RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo,
+						  IMG_DEV_VIRTADDR *psDevVAddr,
+						  IMG_DEV_PHYADDR *psDevPAddr);
 
 IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR sPCAddress,
 								RGXMEM_PROCESS_INFO *psInfo);
+
+IMG_BOOL RGXPCPIDToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_PID uiPID,
+                                                                RGXMEM_PROCESS_INFO *psInfo);
 
 #endif /* __RGXMEM_H__ */

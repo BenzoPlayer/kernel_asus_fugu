@@ -53,7 +53,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PVRSRV_BRIDGE_DMABUF_CMD_FIRST			0
 #define PVRSRV_BRIDGE_DMABUF_PHYSMEMIMPORTDMABUF			PVRSRV_BRIDGE_DMABUF_CMD_FIRST+0
-#define PVRSRV_BRIDGE_DMABUF_CMD_LAST			(PVRSRV_BRIDGE_DMABUF_CMD_FIRST+0)
+#define PVRSRV_BRIDGE_DMABUF_PHYSMEMEXPORTDMABUF			PVRSRV_BRIDGE_DMABUF_CMD_FIRST+1
+#define PVRSRV_BRIDGE_DMABUF_CMD_LAST			(PVRSRV_BRIDGE_DMABUF_CMD_FIRST+1)
 
 
 /*******************************************
@@ -67,7 +68,6 @@ typedef struct PVRSRV_BRIDGE_IN_PHYSMEMIMPORTDMABUF_TAG
 	PVRSRV_MEMALLOCFLAGS_T uiFlags;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_PHYSMEMIMPORTDMABUF;
 
-
 /* Bridge out structure for PhysmemImportDmaBuf */
 typedef struct PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF_TAG
 {
@@ -76,5 +76,24 @@ typedef struct PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF_TAG
 	IMG_DEVMEM_ALIGN_T sAlign;
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF;
+
+
+/*******************************************
+            PhysmemExportDmaBuf          
+ *******************************************/
+
+/* Bridge in structure for PhysmemExportDmaBuf */
+typedef struct PVRSRV_BRIDGE_IN_PHYSMEMEXPORTDMABUF_TAG
+{
+	IMG_HANDLE hPMR;
+} __attribute__((packed)) PVRSRV_BRIDGE_IN_PHYSMEMEXPORTDMABUF;
+
+/* Bridge out structure for PhysmemExportDmaBuf */
+typedef struct PVRSRV_BRIDGE_OUT_PHYSMEMEXPORTDMABUF_TAG
+{
+	IMG_INT iFd;
+	PVRSRV_ERROR eError;
+} __attribute__((packed)) PVRSRV_BRIDGE_OUT_PHYSMEMEXPORTDMABUF;
+
 
 #endif /* COMMON_DMABUF_BRIDGE_H */

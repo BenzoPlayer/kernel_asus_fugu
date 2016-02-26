@@ -172,13 +172,13 @@ struct _RA_ARENA_
 							 RA_BASE_T *pBase,
 							 RA_LENGTH_T *pActualSize,
                              RA_PERISPAN_HANDLE *phPriv);
-	IMG_VOID (*pImportFree) (RA_PERARENA_HANDLE,
-                             RA_BASE_T,
-                             RA_PERISPAN_HANDLE hPriv);
+	void (*pImportFree) (RA_PERARENA_HANDLE,
+                         RA_BASE_T,
+                         RA_PERISPAN_HANDLE hPriv);
 
 	/* arbitrary handle provided by arena owner to be passed into the
 	 * import alloc and free hooks */
-	IMG_VOID *pImportHandle;
+	void *pImportHandle;
 
 	IMG_PSPLAY_TREE per_flags_buckets;
 	
@@ -194,6 +194,11 @@ struct _RA_ARENA_
 	/* LockClass of this arena. This is used within lockdep to decide if a
 	 * recursive call sequence with the same lock class is allowed or not. */
 	IMG_UINT32 ui32LockClass;
+
+	/* If TRUE, imports will not be split up. Allocations will always get their
+	 * own import
+	 */
+	IMG_BOOL bNoSplit;
 };
 
 /*************************************************************************/ /*!
@@ -233,8 +238,9 @@ _RequestAllocFail (RA_PERARENA_HANDLE _h,
        the bHasEltsMapping is used to quickly determine the smallest bucket containing elements.
        therefore it must have at least as many bits has the buckets array have buckets. The RA
        implementation actually uses one more bit. */
-    BLD_ASSERT((sizeof(((IMG_PSPLAY_TREE) 0)->buckets) / sizeof(((IMG_PSPLAY_TREE) 0)->buckets[0]))
-			   < 8 * sizeof(((IMG_PSPLAY_TREE) 0)->bHasEltsMapping), ra_c);
+    static_assert((sizeof(((IMG_PSPLAY_TREE) 0)->buckets) / sizeof(((IMG_PSPLAY_TREE) 0)->buckets[0]))
+				  < 8 * sizeof(((IMG_PSPLAY_TREE) 0)->bHasEltsMapping),
+				  "Too many buckets for bHasEltsMapping bitmap");
 #endif 
 
 
@@ -253,7 +259,8 @@ _RequestAllocFail (RA_PERARENA_HANDLE _h,
 
    if it changes for something bigger than unsigned long long, 
    then revert the pvr_log2 to the classic implementation */
-BLD_ASSERT(sizeof(RA_LENGTH_T) == sizeof(unsigned long long), ra_c);
+static_assert(sizeof(RA_LENGTH_T) == sizeof(unsigned long long),
+			  "RA log routines not tuned for sizeof(RA_LENGTH_T)");
 
 static inline IMG_UINT32 pvr_log2(RA_LENGTH_T n)
 {
@@ -295,12 +302,12 @@ _IsInSegmentList (RA_ARENA *pArena,
 {
 	BT*  pBTScan;
 
-	PVR_ASSERT (pArena != IMG_NULL);
-	PVR_ASSERT (pBT != IMG_NULL);
+	PVR_ASSERT (pArena != NULL);
+	PVR_ASSERT (pBT != NULL);
 
 	/* Walk the segment list until we see the BT pointer... */
 	pBTScan = pArena->pHeadSegment;
-	while (pBTScan != IMG_NULL  &&  pBTScan != pBT)
+	while (pBTScan != NULL  &&  pBTScan != pBT)
 	{
 		pBTScan = pBTScan->pNextSegment;
 	}
@@ -324,8 +331,8 @@ _IsInFreeList (RA_ARENA *pArena,
 	BT*  pBTScan;
 	IMG_UINT32  uIndex;
 
-	PVR_ASSERT (pArena != IMG_NULL);
-	PVR_ASSERT (pBT != IMG_NULL);
+	PVR_ASSERT (pArena != NULL);
+	PVR_ASSERT (pBT != NULL);
 
 	/* Look for the free list that holds BTs of this size... */
 	uIndex  = pvr_log2 (pBT->uSize);
@@ -339,7 +346,7 @@ _IsInFreeList (RA_ARENA *pArena,
 	else
 	{
 		pBTScan = pArena->per_flags_buckets->buckets[uIndex];
-		while (pBTScan != IMG_NULL  &&  pBTScan != pBT)
+		while (pBTScan != NULL  &&  pBTScan != pBT)
 		{
 			pBTScan = pBTScan->next_free;
 		}
@@ -429,12 +436,12 @@ static INLINE PVRSRV_ERROR
 _SegmentListInsertAfter (BT *pInsertionPoint,
 						 BT *pBT)
 {
-	PVR_ASSERT (pBT != IMG_NULL);
-	PVR_ASSERT (pInsertionPoint != IMG_NULL);
+	PVR_ASSERT (pBT != NULL);
+	PVR_ASSERT (pInsertionPoint != NULL);
 
 	pBT->pNextSegment = pInsertionPoint->pNextSegment;
 	pBT->pPrevSegment = pInsertionPoint;
-	if (pInsertionPoint->pNextSegment != IMG_NULL)
+	if (pInsertionPoint->pNextSegment != NULL)
 	{
 		pInsertionPoint->pNextSegment->pPrevSegment = pBT;
 	}
@@ -475,17 +482,17 @@ _SegmentListInsert (RA_ARENA *pArena, BT *pBT)
 @Input          pArena    The arena.
 @Input          pBT       The boundary tag to remove.
 */ /**************************************************************************/
-static IMG_VOID
+static void
 _SegmentListRemove (RA_ARENA *pArena, BT *pBT)
 {
 	PVR_ASSERT (_IsInSegmentList(pArena, pBT));
 	
-	if (pBT->pPrevSegment == IMG_NULL)
+	if (pBT->pPrevSegment == NULL)
 		pArena->pHeadSegment = pBT->pNextSegment;
 	else
 		pBT->pPrevSegment->pNextSegment = pBT->pNextSegment;
 
-	if (pBT->pNextSegment != IMG_NULL)
+	if (pBT->pNextSegment != NULL)
 		pBT->pNextSegment->pPrevSegment = pBT->pPrevSegment;
 }
 
@@ -507,9 +514,9 @@ _BuildBT (RA_BASE_T base,
 	BT *pBT;
 
 	pBT = OSAllocMem(sizeof(BT));
-    if (pBT == IMG_NULL)
+    if (pBT == NULL)
 	{
-		return IMG_NULL;
+		return NULL;
 	}
 
 	OSCachedMemSet(pBT, 0, sizeof(BT));
@@ -543,9 +550,9 @@ _SegmentSplit (BT *pBT, RA_LENGTH_T uSize)
 	BT *pNeighbour;
 
 	pNeighbour = _BuildBT(pBT->base + uSize, pBT->uSize - uSize, pBT->uFlags);
-    if (pNeighbour == IMG_NULL)
+    if (pNeighbour == NULL)
     {
-        return IMG_NULL;
+        return NULL;
     }
 
 	_SegmentListInsertAfter(pBT, pNeighbour);
@@ -567,7 +574,7 @@ _SegmentSplit (BT *pBT, RA_LENGTH_T uSize)
 @Input          pArena    The arena.
 @Input          pBT       The boundary tag.
 */ /**************************************************************************/
-static IMG_VOID
+static void
 _FreeListInsert (RA_ARENA *pArena, BT *pBT)
 {
 	IMG_UINT32 uIndex;
@@ -604,7 +611,7 @@ _FreeListInsert (RA_ARENA *pArena, BT *pBT)
 @Input          pArena    The arena.
 @Input          pBT       The boundary tag.
 */ /**************************************************************************/
-static IMG_VOID
+static void
 _FreeListRemove (RA_ARENA *pArena, BT *pBT)
 {
 	IMG_UINT32 uIndex;
@@ -654,7 +661,7 @@ _FreeListRemove (RA_ARENA *pArena, BT *pBT)
 @Input          uSize     The extent of the resource segment.
 @Input          uFlags    The flags of the new resources.
 @Return         New bucket pointer
-                IMG_NULL on failure
+                NULL on failure
 */ /**************************************************************************/
 static BT *
 _InsertResource (RA_ARENA *pArena,
@@ -664,11 +671,11 @@ _InsertResource (RA_ARENA *pArena,
                  )
 {
 	BT *pBT;
-	PVR_ASSERT (pArena!=IMG_NULL);
+	PVR_ASSERT (pArena!=NULL);
 
 	pBT = _BuildBT (base, uSize, uFlags);
 
-	if (pBT != IMG_NULL)
+	if (pBT != NULL)
 	{
 		IMG_PSPLAY_TREE tmp = PVRSRVInsert(pBT->uFlags, pArena->per_flags_buckets);
 		if (tmp == NULL)
@@ -691,7 +698,7 @@ _InsertResource (RA_ARENA *pArena,
 @Input          base      The base of the resource segment.
 @Input          uSize     The extent of the resource segment.
 @Return         The boundary tag representing the free resource segment,
-                or IMG_NULL on failure.
+                or NULL on failure.
 */ /**************************************************************************/
 static INLINE BT *
 _InsertResourceSpan (RA_ARENA *pArena,
@@ -720,8 +727,8 @@ _InsertResourceSpan (RA_ARENA *pArena,
 static INLINE IMG_BOOL
 _RemoveResourceSpan (RA_ARENA *pArena, BT *pBT)
 {
-	PVR_ASSERT (pArena!=IMG_NULL);
-	PVR_ASSERT (pBT!=IMG_NULL);
+	PVR_ASSERT (pArena!=NULL);
+	PVR_ASSERT (pBT!=NULL);
 
 	if (pBT->free_import &&
 		pBT->is_leftmost &&
@@ -746,13 +753,13 @@ _RemoveResourceSpan (RA_ARENA *pArena, BT *pBT)
 @Input          pArena     The arena.
 @Input          pBT        The boundary tag to free.
 */ /**************************************************************************/
-static IMG_VOID
+static void
 _FreeBT (RA_ARENA *pArena, BT *pBT)
 {
 	BT *pNeighbour;
 
-	PVR_ASSERT (pArena!=IMG_NULL);
-	PVR_ASSERT (pBT!=IMG_NULL);
+	PVR_ASSERT (pArena!=NULL);
+	PVR_ASSERT (pBT!=NULL);
 	PVR_ASSERT (!_IsInFreeList(pArena, pBT));
 
 	/* try and coalesce with left neighbour */
@@ -867,7 +874,7 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 	struct _BT_ * pBT = NULL;
 	RA_BASE_T aligned_base;
 
-	PVR_ASSERT (pArena!=IMG_NULL);
+	PVR_ASSERT (pArena!=NULL);
 	PVR_ASSERT (base != NULL);
 
 	pArena->per_flags_buckets = PVRSRVSplay(uFlags, pArena->per_flags_buckets);
@@ -915,6 +922,11 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 
 	_FreeListRemove (pArena, pBT);
 
+	if(pArena->bNoSplit)
+	{
+		goto nosplit;
+	}
+
 	/* with uAlignment we might need to discard the front of this segment */
 	if (aligned_base > pBT->base)
 	{
@@ -949,16 +961,16 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 	
 		_FreeListInsert (pArena, pNeighbour);
 	}
-
+nosplit:
 	pBT->type = btt_live;
 	
-	if (!HASH_Insert_Extended (pArena->pSegmentHash, &pBT->base, (IMG_UINTPTR_T)pBT))
+	if (!HASH_Insert_Extended (pArena->pSegmentHash, &pBT->base, (uintptr_t)pBT))
 	{
 		_FreeBT (pArena, pBT);
 		return IMG_FALSE;
 	}
 	
-	if (phPriv != IMG_NULL)
+	if (phPriv != NULL)
 		*phPriv = pBT->hPriv;
 	
 	*base = pBT->base;
@@ -979,7 +991,8 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 @Input          imp_alloc     A resource allocation callback or 0.
 @Input          imp_free      A resource de-allocation callback or 0.
 @Input          pImportHandle Handle passed to alloc and free or 0.
-@Return         arena handle, or IMG_NULL.
+@Input          bNoSplit      Disable splitting up imports.
+@Return         arena handle, or NULL.
 */ /**************************************************************************/
 IMG_INTERNAL RA_ARENA *
 RA_Create (IMG_CHAR *name,
@@ -992,10 +1005,11 @@ RA_Create (IMG_CHAR *name,
                                  RA_BASE_T *pBase,
                                  RA_LENGTH_T *pActualSize,
                                  RA_PERISPAN_HANDLE *phPriv),
-		   IMG_VOID (*imp_free) (RA_PERARENA_HANDLE,
-                                 RA_BASE_T,
-                                 RA_PERISPAN_HANDLE),
-		   RA_PERARENA_HANDLE arena_handle)
+		   void (*imp_free) (RA_PERARENA_HANDLE,
+                             RA_BASE_T,
+                             RA_PERISPAN_HANDLE),
+		   RA_PERARENA_HANDLE arena_handle,
+		   IMG_BOOL bNoSplit)
 {
 	RA_ARENA *pArena;
 	PVRSRV_ERROR eError;
@@ -1009,7 +1023,7 @@ RA_Create (IMG_CHAR *name,
 	PVR_DPF ((PVR_DBG_MESSAGE, "RA_Create: name='%s'", name));
 
 	pArena = OSAllocMem(sizeof (*pArena));
-    if (pArena == IMG_NULL)
+    if (pArena == NULL)
 	{
 		goto arena_fail;
 	}
@@ -1022,19 +1036,20 @@ RA_Create (IMG_CHAR *name,
 
 	pArena->pSegmentHash = HASH_Create_Extended(MINIMUM_HASH_SIZE, sizeof(RA_BASE_T), HASH_Func_Default, HASH_Key_Comp_Default);
 
-	if (pArena->pSegmentHash==IMG_NULL)
+	if (pArena->pSegmentHash==NULL)
 	{
 		goto hash_fail;
 	}
 
 	pArena->name = name;
-	pArena->pImportAlloc = (imp_alloc!=IMG_NULL) ? imp_alloc : &_RequestAllocFail;
+	pArena->pImportAlloc = (imp_alloc!=NULL) ? imp_alloc : &_RequestAllocFail;
 	pArena->pImportFree = imp_free;
 	pArena->pImportHandle = arena_handle;
-	pArena->pHeadSegment = IMG_NULL;
+	pArena->pHeadSegment = NULL;
 	pArena->uQuantum = (IMG_UINT64) (1 << uLog2Quantum);
 	pArena->per_flags_buckets = NULL;
 	pArena->ui32LockClass = ui32LockClass;
+	pArena->bNoSplit = bNoSplit;
 
 	PVR_ASSERT(is_arena_valid(pArena));
 	return pArena;
@@ -1045,7 +1060,7 @@ lock_fail:
 	OSFreeMem(pArena);
 	/*not nulling pointer, out of scope*/
 arena_fail:
-	return IMG_NULL;
+	return NULL;
 }
 
 /*************************************************************************/ /*!
@@ -1054,14 +1069,14 @@ arena_fail:
                 the arena must be freed before deleting the arena.
 @Input          pArena        The arena to delete.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_VOID
+IMG_INTERNAL void
 RA_Delete (RA_ARENA *pArena)
 {
 	IMG_UINT32 uIndex;
 
-	PVR_ASSERT(pArena != IMG_NULL);
+	PVR_ASSERT(pArena != NULL);
 
-	if (pArena == IMG_NULL)
+	if (pArena == NULL)
 	{
 		PVR_DPF ((PVR_DBG_ERROR,"RA_Delete: invalid parameter - pArena"));
 		return;
@@ -1072,7 +1087,7 @@ RA_Delete (RA_ARENA *pArena)
 	PVR_DPF ((PVR_DBG_MESSAGE,
 			  "RA_Delete: name='%s'", pArena->name));
 
-	while (pArena->pHeadSegment != IMG_NULL)
+	while (pArena->pHeadSegment != NULL)
 	{
 		BT *pBT = pArena->pHeadSegment;
 
@@ -1097,7 +1112,7 @@ RA_Delete (RA_ARENA *pArena)
 	{
 		for (uIndex=0; uIndex<FREE_TABLE_LIMIT; uIndex++)
 		{
-			PVR_ASSERT(pArena->per_flags_buckets->buckets[uIndex] == IMG_NULL);
+			PVR_ASSERT(pArena->per_flags_buckets->buckets[uIndex] == NULL);
 		}
 
 		pArena->per_flags_buckets = PVRSRVDelete(pArena->per_flags_buckets->ui32Flags, pArena->per_flags_buckets);
@@ -1129,10 +1144,10 @@ RA_Add (RA_ARENA *pArena,
 		RA_PERISPAN_HANDLE hPriv)
 {
 	struct _BT_* bt;
-	PVR_ASSERT (pArena != IMG_NULL);
+	PVR_ASSERT (pArena != NULL);
 	PVR_ASSERT (uSize != 0);
 
-	if (pArena == IMG_NULL)
+	if (pArena == NULL)
 	{
 		PVR_DPF ((PVR_DBG_ERROR,"RA_Add: invalid parameter - pArena"));
 		return IMG_FALSE;
@@ -1185,10 +1200,10 @@ RA_Alloc (RA_ARENA *pArena,
 	IMG_BOOL bResult;
 	RA_LENGTH_T uSize = uRequestSize;
 
-	PVR_ASSERT (pArena!=IMG_NULL);
+	PVR_ASSERT (pArena!=NULL);
 	PVR_ASSERT (uSize > 0);
 
-	if (pArena == IMG_NULL)
+	if (pArena == NULL)
 	{
 		PVR_DPF ((PVR_DBG_ERROR,"RA_Alloc: invalid parameter - pArena"));
 		return IMG_FALSE;
@@ -1197,7 +1212,7 @@ RA_Alloc (RA_ARENA *pArena,
 	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
 	PVR_ASSERT(is_arena_valid(pArena));
 
-	if (pActualSize != IMG_NULL)
+	if (pActualSize != NULL)
 	{
 		*pActualSize = uSize;
 	}
@@ -1242,7 +1257,7 @@ RA_Alloc (RA_ARENA *pArena,
 			pBT = _InsertResourceSpan (pArena, import_base, uImportSize, uFlags);
 			/* successfully import more resource, create a span to
 			   represent it and retry the allocation attempt */
-			if (pBT == IMG_NULL)
+			if (pBT == NULL)
 			{
 				/* insufficient resources to insert the newly acquired span,
 				   so free it back again */
@@ -1311,14 +1326,14 @@ RA_Alloc (RA_ARENA *pArena,
 @Input          pArena     The arena the segment was originally allocated from.
 @Input          base       The base of the resource span to free.
 */ /**************************************************************************/
-IMG_INTERNAL IMG_VOID
+IMG_INTERNAL void
 RA_Free (RA_ARENA *pArena, RA_BASE_T base)
 {
 	BT *pBT;
 
-	PVR_ASSERT (pArena != IMG_NULL);
+	PVR_ASSERT (pArena != NULL);
 
-	if (pArena == IMG_NULL)
+	if (pArena == NULL)
 	{
 		PVR_DPF ((PVR_DBG_ERROR,"RA_Free: invalid parameter - pArena"));
 		return;
@@ -1331,7 +1346,7 @@ RA_Free (RA_ARENA *pArena, RA_BASE_T base)
 			  (unsigned long long)base));
 
 	pBT = (BT *) HASH_Remove_Extended (pArena->pSegmentHash, &base);
-	PVR_ASSERT (pBT != IMG_NULL);
+	PVR_ASSERT (pBT != NULL);
 
 	if (pBT)
 	{

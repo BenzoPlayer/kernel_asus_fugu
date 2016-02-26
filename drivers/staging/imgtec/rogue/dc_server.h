@@ -105,7 +105,7 @@ PVRSRV_ERROR DCSystemBufferRelease(DC_BUFFER *psBuffer);
 PVRSRV_ERROR DCDisplayContextCreate(DC_DEVICE *psDevice,
 									DC_DISPLAY_CONTEXT **ppsDisplayContext);
 
-PVRSRV_ERROR DCDisplayContextFlush(IMG_VOID);
+PVRSRV_ERROR DCDisplayContextFlush(void);
 
 PVRSRV_ERROR DCDisplayContextConfigureCheck(DC_DISPLAY_CONTEXT *psDisplayContext,
 											IMG_UINT32 ui32PipeCount,
@@ -150,7 +150,7 @@ PVRSRV_ERROR DCBufferPin(DC_BUFFER *psBuffer, DC_PIN_HANDLE *phPin);
 
 PVRSRV_ERROR DCBufferUnpin(DC_PIN_HANDLE hPin);
 
-PVRSRV_ERROR DCInit(IMG_VOID);
-PVRSRV_ERROR DCDeInit(IMG_VOID);
+PVRSRV_ERROR DCInit(void);
+PVRSRV_ERROR DCDeInit(void);
 
 #endif /*_DC_SERVER_H_  */

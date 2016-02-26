@@ -59,9 +59,9 @@ PTL_STREAM_DESC
 TLMakeStreamDesc(PTL_SNODE f1, IMG_UINT32 f2, IMG_HANDLE f3)
 {
 	PTL_STREAM_DESC ps = OSAllocZMem(sizeof(TL_STREAM_DESC));
-	if (ps == IMG_NULL) 
+	if (ps == NULL)
 	{
-		return IMG_NULL;
+		return NULL;
 	}
 	ps->psNode = f1;
 	ps->ui32Flags = f2;
@@ -73,9 +73,9 @@ PTL_SNODE
 TLMakeSNode(IMG_HANDLE f2, TL_STREAM *f3, TL_STREAM_DESC *f4)
 {
 	PTL_SNODE ps = OSAllocZMem(sizeof(TL_SNODE));
-	if (ps == IMG_NULL)
+	if (ps == NULL)
 	{
-		return IMG_NULL;
+		return NULL;
 	}
 	ps->hDataEventObj = f2;
 	ps->psStream = f3;
@@ -89,7 +89,7 @@ TLMakeSNode(IMG_HANDLE f2, TL_STREAM *f3, TL_STREAM_DESC *f4)
  */
 static TL_GLOBAL_DATA  sTLGlobalData = { 0 };
 
-TL_GLOBAL_DATA *TLGGD(IMG_VOID)	// TLGetGlobalData()
+TL_GLOBAL_DATA *TLGGD(void)	// TLGetGlobalData()
 {
 	return &sTLGlobalData;
 }
@@ -108,7 +108,7 @@ TLInit(PVRSRV_DEVICE_NODE *psDevNode)
 	PVR_ASSERT(sTLGlobalData.psRgxDevNode==0);
 
 	/* Store the RGX device node for later use in devmem buffer allocations */
-	sTLGlobalData.psRgxDevNode = (IMG_VOID*)psDevNode;
+	sTLGlobalData.psRgxDevNode = (void*)psDevNode;
 
 	/* Allocate a lock for TL global data, to be used while updating the TL data.
 	 * This is for making TL global data muti-thread safe */
@@ -136,7 +136,7 @@ e0:
 	PVR_DPF_RETURN_RC (eError);
 }
 
-static IMG_VOID RemoveAndFreeStreamNode(PTL_SNODE psRemove)
+static void RemoveAndFreeStreamNode(PTL_SNODE psRemove)
 {
 	TL_GLOBAL_DATA*  psGD = TLGGD();
 	PTL_SNODE* 		 last;
@@ -182,8 +182,8 @@ static IMG_VOID RemoveAndFreeStreamNode(PTL_SNODE psRemove)
 	PVR_DPF_RETURN;
 }
 
-IMG_VOID
-TLDeInit(IMG_VOID)
+void
+TLDeInit(void)
 {
 	PVR_DPF_ENTERED;
 
@@ -223,7 +223,7 @@ TLDeInit(IMG_VOID)
 }
 
 PVRSRV_DEVICE_NODE*
-TLGetGlobalRgxDevice(IMG_VOID)
+TLGetGlobalRgxDevice(void)
 {
 	PVRSRV_DEVICE_NODE *p = (PVRSRV_DEVICE_NODE*)(TLGGD()->psRgxDevNode);
 	if (!p)
@@ -235,7 +235,7 @@ TLGetGlobalRgxDevice(IMG_VOID)
 	return p;
 }
 
-IMG_VOID TLAddStreamNode(PTL_SNODE psAdd)
+void TLAddStreamNode(PTL_SNODE psAdd)
 {
 	PVR_DPF_ENTERED;
 
@@ -263,7 +263,7 @@ PTL_SNODE TLFindStreamNodeByName(IMG_PCHAR pszName)
 		}
 	}
 
-	PVR_DPF_RETURN_VAL(IMG_NULL);
+	PVR_DPF_RETURN_VAL(NULL);
 }
 
 PTL_SNODE TLFindStreamNodeByDesc(PTL_STREAM_DESC psRDesc)
@@ -282,7 +282,7 @@ PTL_SNODE TLFindStreamNodeByDesc(PTL_STREAM_DESC psRDesc)
 			PVR_DPF_RETURN_VAL(psn);
 		}
 	}
-	PVR_DPF_RETURN_VAL(IMG_NULL);
+	PVR_DPF_RETURN_VAL(NULL);
 }
 
 IMG_BOOL TLTryRemoveStreamAndFreeStreamNode(PTL_SNODE psRemove)
@@ -292,13 +292,13 @@ IMG_BOOL TLTryRemoveStreamAndFreeStreamNode(PTL_SNODE psRemove)
 	PVR_ASSERT(psRemove);
 
 	/* If there is a client connected to this stream, defer stream's deletion */
-	if (psRemove->psRDesc != IMG_NULL)
+	if (psRemove->psRDesc != NULL)
 	{
 		PVR_DPF_RETURN_VAL (IMG_FALSE);
 	}
 
 	/* Remove stream from TL_GLOBAL_DATA's list and free stream node */	
-	psRemove->psStream = IMG_NULL;
+	psRemove->psStream = NULL;
 	RemoveAndFreeStreamNode(psRemove);
 
 	PVR_DPF_RETURN_VAL (IMG_TRUE);
@@ -311,7 +311,7 @@ IMG_BOOL TLRemoveDescAndTryFreeStreamNode(PTL_SNODE psRemove)
 	PVR_ASSERT(psRemove);
 
 	/* Remove stream descriptor (i.e. stream reader context) */
-	psRemove->psRDesc = IMG_NULL;
+	psRemove->psRDesc = NULL;
 
 	/* Do not Free Stream Node if there is a write reference (a producer context) to the stream */
 	if (0 != psRemove->uiWRefCount)
@@ -321,7 +321,7 @@ IMG_BOOL TLRemoveDescAndTryFreeStreamNode(PTL_SNODE psRemove)
 
 	/* Make stream pointer NULL to prevent it from being destroyed in RemoveAndFreeStreamNode
 	 * Cleanup of stream should be done by the calling context */
-	psRemove->psStream = IMG_NULL;
+	psRemove->psStream = NULL;
 	RemoveAndFreeStreamNode(psRemove);
 	
 	PVR_DPF_RETURN_VAL (IMG_TRUE);

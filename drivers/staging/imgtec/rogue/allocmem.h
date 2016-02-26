@@ -50,21 +50,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C" {
 #endif
 
-IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size);
+#if !defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS) || !defined(DEBUG) || !defined(PVRSRV_ENABLE_PROCESS_STATS) || !defined(PVRSRV_ENABLE_MEMORY_STATS)
+void *OSAllocMem(IMG_UINT32 ui32Size);
+void *OSAllocZMem(IMG_UINT32 ui32Size);
+#else
+void *_OSAllocMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine);
+void *_OSAllocZMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine);
+#define OSAllocMem(_size) \
+    _OSAllocMem ((_size), (__FILE__), (__LINE__));
+#define OSAllocZMem(_size) \
+    _OSAllocZMem ((_size), (__FILE__), (__LINE__));
+#endif
 
-IMG_PVOID OSAllocMemstatMem(IMG_UINT32 ui32Size);
+void *OSAllocMemNoStats(IMG_UINT32 ui32Size);
 
-IMG_PVOID OSAllocZMem(IMG_UINT32 ui32Size);
+void *OSAllocZMemNoStats(IMG_UINT32 ui32Size);
 
-IMG_PVOID OSAllocMemstatZMem(IMG_UINT32 ui32Size);
+void OSFreeMem(void *pvCpuVAddr);
 
-IMG_VOID OSFreeMem(IMG_PVOID pvCpuVAddr);
-
-IMG_VOID OSFreeMemstatMem(IMG_PVOID pvCpuVAddr);
+void OSFreeMemNoStats(void *pvCpuVAddr);
 
 #define OSFREEMEM(_ptr) do \
 	{ OSFreeMem((_ptr)); \
-		(_ptr) = (IMG_VOID*)0; \
+		(_ptr) = (void*)0; \
 		MSC_SUPPRESS_4127\
 	} while (0)
 

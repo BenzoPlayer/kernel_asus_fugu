@@ -53,60 +53,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PVR_SYNC_IOC_MAGIC 'W'
 
-#define PVR_SYNC_IOC_CREATE_FENCE \
- _IOWR(PVR_SYNC_IOC_MAGIC, 0, struct pvr_sync_create_fence_ioctl_data)
-
-#define PVR_SYNC_IOC_ENABLE_FENCING \
- _IOW(PVR_SYNC_IOC_MAGIC,  1, struct pvr_sync_enable_fencing_ioctl_data)
-
-#define PVR_SYNC_IOC_ALLOC_FENCE \
- _IOWR(PVR_SYNC_IOC_MAGIC, 3, struct pvr_sync_alloc_fence_ioctl_data)
+#define PVR_SYNC_IOC_RENAME \
+ _IOW(PVR_SYNC_IOC_MAGIC,  4, struct pvr_sync_rename_ioctl_data)
 
 #define PVR_SYNC_IOC_FORCE_SW_ONLY \
  _IO(PVR_SYNC_IOC_MAGIC,   5)
 
 #define PVRSYNC_MODNAME "pvr_sync"
 
-struct pvr_sync_alloc_fence_ioctl_data
-{
-	/* Output */
-	int				iFenceFd;
-	int				bTimelineIdle;
-}
-__attribute__((packed, aligned(8)));
-
-struct pvr_sync_create_fence_ioctl_data
-{
-	/* Input */
-	int				iAllocFenceFd;
-	char				szName[32];
-
-	/* Output */
-	int				iFenceFd;
-}
-__attribute__((packed, aligned(8)));
-
-struct pvr_sync_enable_fencing_ioctl_data
-{
-	/* Input */
-	int				bFencingEnabled;
-}
-__attribute__((packed, aligned(8)));
-
 struct pvr_sync_pt_info {
 	/* Output */
-	__u8				ui8Foreign;
-	union
-	{
-		struct {
-			__u32		id;
-			__u32		ui32FWAddr;
-			__u32		ui32CurrOp;
-			__u32		ui32NextOp;
-			__u32		ui32TlTaken;
-		} s;
-		char			szForeignVal[16];
-	};
+	__u32 id;
+	__u32 ui32FWAddr;
+	__u32 ui32CurrOp;
+	__u32 ui32NextOp;
+	__u32 ui32TlTaken;
+} __attribute__((packed, aligned(8)));
+
+struct pvr_sync_rename_ioctl_data
+{
+	/* Input */
+	char szName[32];
 } __attribute__((packed, aligned(8)));
 
 #endif /* _PVR_FD_SYNC_KERNEL_H_ */

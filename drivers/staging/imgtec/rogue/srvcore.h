@@ -67,25 +67,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 PVRSRV_ERROR
 CopyFromUserWrapper(CONNECTION_DATA *psConnection,
 					IMG_UINT32 ui32DispatchTableEntry,
-					IMG_VOID *pvDest,
-					IMG_VOID *pvSrc,
+					void *pvDest,
+					void *pvSrc,
 					IMG_UINT32 ui32Size);
 PVRSRV_ERROR
 CopyToUserWrapper(CONNECTION_DATA *psConnection, 
 				  IMG_UINT32 ui32DispatchTableEntry,
-				  IMG_VOID *pvDest,
-				  IMG_VOID *pvSrc,
+				  void *pvDest,
+				  void *pvSrc,
 				  IMG_UINT32 ui32Size);
 
 IMG_INT
 DummyBW(IMG_UINT32 ui32DispatchTableEntry,
-		IMG_VOID *psBridgeIn,
-		IMG_VOID *psBridgeOut,
+		void *psBridgeIn,
+		void *psBridgeOut,
 		CONNECTION_DATA *psConnection);
 
 typedef IMG_INT (*BridgeWrapperFunction)(IMG_UINT32 ui32DispatchTableEntry,
-									 IMG_VOID *psBridgeIn,
-									 IMG_VOID *psBridgeOut,
+									 void *psBridgeIn,
+									 void *psBridgeOut,
 									 CONNECTION_DATA *psConnection);
 
 typedef struct _PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY
@@ -94,9 +94,7 @@ typedef struct _PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY
 										arguments before calling into srvkm proper */
 	POS_LOCK	hBridgeLock;	/*!< The bridge lock which needs to be acquired 
 						before calling the above wrapper */
-	IMG_PVOID	pvBridgeBuffer;	/*!< The buffer that will be used for bridgeIn and bridgeOut structs during this bridge call */
-	IMG_UINT32	ui32BridgeInBufferSize;	/*!< Available bridge input buffer size */
-	IMG_UINT32	ui32BridgeOutBufferSize;	/*!< Available bridge output buffer size */
+	IMG_BOOL    bUseLock;                 /*!< Specify whether to use a bridge lock at all */
 #if defined(DEBUG_BRIDGE_KM)
 	const IMG_CHAR *pszIOCName; /*!< Name of the ioctl: e.g. "PVRSRV_BRIDGE_CONNECT_SERVICES" */
 	const IMG_CHAR *pszFunctionName; /*!< Name of the wrapper function: e.g. "PVRSRVConnectBW" */
@@ -119,7 +117,9 @@ typedef struct _PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY
 
 extern PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY g_BridgeDispatchTable[BRIDGE_DISPATCH_TABLE_ENTRY_COUNT];
 
-IMG_VOID
+void BridgeDispatchTableStartOffsetsInit(void);
+
+void
 _SetDispatchTableEntry(IMG_UINT32 ui32BridgeGroup,
 					   IMG_UINT32 ui32Index,
 					   const IMG_CHAR *pszIOCName,
@@ -127,18 +127,14 @@ _SetDispatchTableEntry(IMG_UINT32 ui32BridgeGroup,
 					   const IMG_CHAR *pszFunctionName,
 					   POS_LOCK hBridgeLock,
 					   const IMG_CHAR* pszBridgeLockName,
-					   IMG_BYTE* pbyBridgeBuffer,
-					   IMG_UINT32 ui32BridgeInBufferSize,
-					   IMG_UINT32 ui32BridgeOutBufferSize );
+					   IMG_BOOL bUseLock );
 
 
 /* PRQA S 0884,3410 2*/ /* macro relies on the lack of brackets */
 #define SetDispatchTableEntry(ui32BridgeGroup, ui32Index, pfFunction,\
-					hBridgeLock, pbyBridgeBuffer,\
-					ui32BridgeInBufferSize, ui32BridgeOutBufferSize) \
+					hBridgeLock, bUseLock) \
 	_SetDispatchTableEntry(PVRSRV_GET_BRIDGE_ID(ui32BridgeGroup), ui32Index, #ui32Index, (BridgeWrapperFunction)pfFunction, #pfFunction,\
-							(POS_LOCK)hBridgeLock, #hBridgeLock,\
-							pbyBridgeBuffer, ui32BridgeInBufferSize, ui32BridgeOutBufferSize )
+							(POS_LOCK)hBridgeLock, #hBridgeLock, bUseLock )
 
 #define DISPATCH_TABLE_GAP_THRESHOLD 5
 
@@ -157,6 +153,8 @@ typedef struct _PVRSRV_BRIDGE_GLOBAL_STATS
 extern PVRSRV_BRIDGE_GLOBAL_STATS g_BridgeGlobalStats;
 #endif
 
+PVRSRV_ERROR BridgeBufferPoolCreate(void);
+void BridgeBufferPoolDestroy(void);
 
 IMG_INT BridgedDispatchKM(CONNECTION_DATA * psConnection,
 					  PVRSRV_BRIDGE_PACKAGE   * psBridgePackageKM);
@@ -164,6 +162,7 @@ IMG_INT BridgedDispatchKM(CONNECTION_DATA * psConnection,
 
 PVRSRV_ERROR
 PVRSRVConnectKM(CONNECTION_DATA *psConnection,
+                PVRSRV_DEVICE_NODE * psDeviceNode,
 				IMG_UINT32 ui32Flags,
 				IMG_UINT32 ui32ClientBuildOptions,
 				IMG_UINT32 ui32ClientDDKVersion,
@@ -172,26 +171,29 @@ PVRSRVConnectKM(CONNECTION_DATA *psConnection,
 				IMG_UINT32 *ui32Log2PageSize);
 
 PVRSRV_ERROR
-PVRSRVDisconnectKM(IMG_VOID);
+PVRSRVDisconnectKM(void);
 
 PVRSRV_ERROR
 PVRSRVInitSrvDisconnectKM(CONNECTION_DATA *psConnection,
-							IMG_BOOL bInitSuccesful,
-							IMG_UINT32 ui32ClientBuildOptions);
+                          PVRSRV_DEVICE_NODE *psDeviceNode,
+                          IMG_BOOL bInitSuccesful,
+                          IMG_UINT32 ui32ClientBuildOptions);
 
 PVRSRV_ERROR
 PVRSRVDumpDebugInfoKM(IMG_UINT32 ui32VerbLevel);
 
 PVRSRV_ERROR
-PVRSRVGetDevClockSpeedKM(PVRSRV_DEVICE_NODE *psDeviceNode,
-							IMG_PUINT32  pui32RGXClockSpeed);
+PVRSRVGetDevClockSpeedKM(CONNECTION_DATA * psConnection,
+                         PVRSRV_DEVICE_NODE *psDeviceNode,
+                         IMG_PUINT32  pui32RGXClockSpeed);
 
 PVRSRV_ERROR
-PVRSRVHWOpTimeoutKM(IMG_VOID);
+PVRSRVHWOpTimeoutKM(void);
 
 /* performs a SOFT_RESET on the given device node */
 PVRSRV_ERROR
-PVRSRVSoftResetKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+PVRSRVSoftResetKM(CONNECTION_DATA * psConnection,
+                  PVRSRV_DEVICE_NODE *psDeviceNode,
                   IMG_UINT64 ui64ResetValue1,
                   IMG_UINT64 ui64ResetValue2);
 

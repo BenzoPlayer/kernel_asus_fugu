@@ -48,10 +48,61 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "pvrsrv_error.h"
 #include "pvrsrv_memallocflags.h"
+#include "connection_server.h"
 
 /* services/server/include/ */
 #include "pmr.h"
 #include "pmr_impl.h"
+
+/*************************************************************************/ /*!
+@Function       DevPhysMemAlloc
+
+@Description    Allocate memory from device specific heaps directly.
+
+@Input          	psDevNode            	device node to operate on
+@Input 				ui32MemSize				Size of the memory to be allocated
+@Input 				u8Value					Value to be initialised to.
+@Input 				bInitPage				Flag to control initialisation
+@Input         		pszDevSpace             PDUMP memory space in which the
+											allocation is to be done
+@Input 				pszSymbolicAddress		Symboic name of the allocation
+@Input 				phHandlePtr				PDUMP handle to the allocation
+@Output      	    psMemHandle             Handle to the allocated memory
+@Output    		    psDevPhysAddr           Device Physical address of allocated
+											page
+
+@Return         PVRSRV_OK if the alloction is successfull
+*/
+/*****************************************************************************/
+extern PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE *psDevNode,
+		IMG_UINT32 ui32MemSize,
+		const IMG_UINT8 u8Value,
+		IMG_BOOL bInitPage,
+#if defined(PDUMP)
+		const IMG_CHAR *pszDevSpace,
+		const IMG_CHAR *pszSymbolicAddress,
+		IMG_HANDLE *phHandlePtr,
+#endif
+		IMG_HANDLE hMemHandle,
+		IMG_DEV_PHYADDR *psDevPhysAddr);
+
+/*************************************************************************/ /*!
+@Function       DevPhysMemFree
+
+@Description    Free memory to device specific heaps directly.
+
+@Input          	psDevNode            	device node to operate on
+@Input 				hPDUMPMemHandle			Pdump handle to allocated memory
+@Input 				hMemHandle				Devmem handle to allocated memory
+
+@Return
+*/
+/*****************************************************************************/
+extern void DevPhysMemFree(PVRSRV_DEVICE_NODE *psDevNode,
+#if defined(PDUMP)
+		IMG_HANDLE	hPDUMPMemHandle,
+#endif
+		IMG_HANDLE	hMemHandle);
 
 /*
  * PhysmemNewRamBackedPMR
@@ -89,14 +140,43 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 extern PVRSRV_ERROR
-PhysmemNewRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
+PhysmemNewRamBackedPMR(CONNECTION_DATA * psConnection,
+                       PVRSRV_DEVICE_NODE *psDevNode,
                        IMG_DEVMEM_SIZE_T uiSize,
                        IMG_DEVMEM_SIZE_T uiChunkSize,
                        IMG_UINT32 ui32NumPhysChunks,
                        IMG_UINT32 ui32NumVirtChunks,
-                       IMG_BOOL *pabMappingTable,
+                       IMG_UINT32 *pui32MappingTable,
                        IMG_UINT32 uiLog2PageSize,
                        PVRSRV_MEMALLOCFLAGS_T uiFlags,
                        PMR **ppsPMROut);
+
+
+/*
+ * PhysmemNewRamBackedLockedPMR
+ *
+ * Same as function above but is additionally locking down the PMR.
+ *
+ * Get the physical memory and lock down the PMR directly, we do not want to
+ * defer the actual allocation to mapping time.
+ *
+ * In general the concept of on-demand allocations is not useful for allocations
+ * where we give the users the freedom to map and unmap memory at will. The user
+ * is not expecting his memory contents to suddenly vanish just because he unmapped
+ * the buffer.
+ * Even if he would know and be ok with it, we do not want to check for every page
+ * we unmap whether we have to unlock the underlying PMR.
+*/
+extern PVRSRV_ERROR
+PhysmemNewRamBackedLockedPMR(CONNECTION_DATA * psConnection,
+                             PVRSRV_DEVICE_NODE *psDevNode,
+                             IMG_DEVMEM_SIZE_T uiSize,
+                             PMR_SIZE_T uiChunkSize,
+                             IMG_UINT32 ui32NumPhysChunks,
+                             IMG_UINT32 ui32NumVirtChunks,
+                             IMG_UINT32 *pui32MappingTable,
+                             IMG_UINT32 uiLog2PageSize,
+                             PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                             PMR **ppsPMRPtr);
 
 #endif /* _SRVSRV_PHYSMEM_H_ */

@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if	!defined(INLINE)
 	#define	INLINE					__inline
 #endif
-#if defined(UNDER_WDDM) && defined(_X86_)
+#if (defined(UNDER_WDDM) || defined(WINDOWS_WDF)) && defined(_X86_)
 	#define	FORCE_INLINE			__forceinline
 #else
 	#define	FORCE_INLINE			static __inline
@@ -68,17 +68,43 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #endif
 
+/* True if the GCC version is at least the given version. False for older
+ * versions of GCC, or other compilers.
+ */
+#define GCC_VERSION_AT_LEAST(major, minor)						\
+	(defined(__GNUC__) && (										\
+		__GNUC__ > (major) ||									\
+		(__GNUC__ == (major) && __GNUC_MINOR__ >= (minor))))
 
 /* Use this in any file, or use attributes under GCC - see below */
 #ifndef PVR_UNREFERENCED_PARAMETER
 #define	PVR_UNREFERENCED_PARAMETER(param) ((void)(param))
 #endif
 
-/*! Macro used to check structure size and alignment at compile time. */
-#define BLD_ASSERT(expr, file) _impl_ASSERT_LINE(expr,__LINE__,file)
-#define _impl_JOIN(a,b) a##b
-#define _impl_ASSERT_LINE(expr, line, file) \
-	typedef char _impl_JOIN(build_assertion_failed_##file##_,line)[2*!!(expr)-1];
+/* static_assert(condition, "message to print if it fails");
+ *
+ * Assert something at compile time. If the assertion fails, try to print
+ * the message, otherwise do nothing. static_assert is available if:
+ *
+ * - It's already defined as a macro (e.g. by <assert.h> in C11)
+ * - We're using MSVC which exposes static_assert unconditionally
+ * - We're using a C++ compiler that supports C++11
+ * - We're using GCC 4.6 and up in C mode (in which case it's available as
+ *   _Static_assert)
+ *
+ * In all other cases, fall back to an equivalent that makes an invalid
+ * declaration.
+ */
+#if !defined(static_assert) && !defined(_MSC_VER) && \
+		(!defined(__cplusplus) || __cplusplus < 201103L)
+	/* static_assert isn't already available */
+	#if GCC_VERSION_AT_LEAST(4, 6) && !defined(__cplusplus)
+		#define static_assert _Static_assert
+	#else
+		#define static_assert(expr, message) \
+			extern int _static_assert_failed[2*!!(expr) - 1] __attribute__((unused))
+	#endif
+#endif
 
 /*! Macro to calculate the n-byte aligned value from that supplied rounding up.
  * n must be a power of two.
@@ -100,21 +126,64 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define unref__
 #endif
 
+#if __GNUC__ >= 3
+# define IMG_LIKELY(x) __builtin_expect (!!(x), 1)
+# define IMG_UNLIKELY(x) __builtin_expect (!!(x), 0)
+#else
+# define IMG_LIKELY(x) (x)
+# define IMG_UNLIKELY(x) (x)
+#endif
+
 #if defined(_WIN32)
+
+#if defined(WINDOWS_WDF)
+
+	/*
+	 * For WINDOWS_WDF drivers we don't want these defines to overwrite calling conventions propagated through the build system.
+	 * This 'empty' choice helps to resolve all the calling conv issues.
+	 *
+	 */
+	#define IMG_CALLCONV
+	#define C_CALLCONV
+
+	#define IMG_INTERNAL
+	#define IMG_RESTRICT __restrict
+
+	/*
+	 * The proper way of dll linking under MS compilers is made of two things:
+	 * - decorate implementation with __declspec(dllexport)
+	 *   this decoration helps compiler with making the so called 'export library'
+	 * - decorate forward-declaration (in a source dependent on a dll) with __declspec(dllimport),
+	 *   this decoration helps compiler with making faster and smaller code in terms of calling dll-imported functions
+	 *
+	 * Usually these decorations are performed by having a single macro define that expands to a proper __declspec()
+	 * depending on the translation unit, dllexport inside the dll source and dllimport outside the dll source.
+	 * Having IMG_EXPORT and IMG_IMPORT resolving to the same __declspec() makes no sense, but at least works.
+	 */
+	#define IMG_IMPORT __declspec(dllexport)
+	#define IMG_EXPORT __declspec(dllexport)
+
+#else
+
 	#define IMG_CALLCONV __stdcall
 	#define IMG_INTERNAL
 	#define	IMG_EXPORT	__declspec(dllexport)
 	#define IMG_RESTRICT __restrict
 	#define C_CALLCONV	__cdecl
 
-	/* IMG_IMPORT is defined as IMG_EXPORT so that headers and implementations match.
+	/*
+	 * IMG_IMPORT is defined as IMG_EXPORT so that headers and implementations match.
 	 * Some compilers require the header to be declared IMPORT, while the implementation is declared EXPORT 
 	 */
 	#define	IMG_IMPORT	IMG_EXPORT
 
+#endif
+
 #if defined(UNDER_WDDM)
 	#ifndef	_INC_STDLIB
-			#if defined (UNDER_MSBUILD)
+		#if defined(__mips)
+			/* do nothing */
+		#elif defined(UNDER_MSBUILD)
 			_CRTIMP __declspec(noreturn) void __cdecl abort(void);
 		#else
 			_CRTIMP void __cdecl abort(void);

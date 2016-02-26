@@ -43,7 +43,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __PHYSMEM_OSMEM_LINUX_H__
 #define __PHYSMEM_OSMEM_LINUX_H__
 
-void LinuxInitPagePool(void);
-void LinuxDeinitPagePool(void);
+void LinuxInitPhysmem(void);
+void LinuxDeinitPhysmem(void);
 
 #endif /* __PHYSMEM_OSMEM_LINUX_H__ */
+ 

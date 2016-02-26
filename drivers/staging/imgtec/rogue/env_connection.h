@@ -48,12 +48,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "handle.h"
 #include "pvr_debug.h"
+#include "device.h"
 
 #if defined(SUPPORT_ION)
 #include PVR_ANDROID_ION_HEADER
 #include "ion_sys.h"
 #include "allocmem.h"
 #endif
+
+typedef struct _ENV_CONNECTION_PRIVATE_DATA_
+{
+	struct file *psFile;
+	PVRSRV_DEVICE_NODE *psDevNode;
+} ENV_CONNECTION_PRIVATE_DATA;
 
 #if defined(SUPPORT_ION)
 #define ION_CLIENT_NAME_SIZE	50
@@ -70,20 +77,21 @@ typedef struct _ENV_ION_CONNECTION_DATA_
 typedef struct _ENV_CONNECTION_DATA_
 {
 	struct file *psFile;
+	PVRSRV_DEVICE_NODE *psDevNode;
 
 #if defined(SUPPORT_ION)
 	ENV_ION_CONNECTION_DATA *psIonData;
 #endif
 #if defined(SUPPORT_DRM_EXT)
-	IMG_VOID *pPriv;
+	void *pPriv;
 #endif
 } ENV_CONNECTION_DATA;
 
 #if defined(SUPPORT_ION)
 static inline struct ion_client *EnvDataIonClientAcquire(ENV_CONNECTION_DATA *psEnvData)
 {
-	PVR_ASSERT(psEnvData->psIonData != IMG_NULL);
-	PVR_ASSERT(psEnvData->psIonData->psIonClient != IMG_NULL);
+	PVR_ASSERT(psEnvData->psIonData != NULL);
+	PVR_ASSERT(psEnvData->psIonData->psIonClient != NULL);
 	PVR_ASSERT(psEnvData->psIonData->ui32IonClientRefCount > 0);
 	psEnvData->psIonData->ui32IonClientRefCount++;
 	return psEnvData->psIonData->psIonClient;
@@ -91,15 +99,15 @@ static inline struct ion_client *EnvDataIonClientAcquire(ENV_CONNECTION_DATA *ps
 
 static inline void EnvDataIonClientRelease(ENV_ION_CONNECTION_DATA *psIonData)
 {
-	PVR_ASSERT(psIonData != IMG_NULL);
-	PVR_ASSERT(psIonData->psIonClient != IMG_NULL);
+	PVR_ASSERT(psIonData != NULL);
+	PVR_ASSERT(psIonData->psIonClient != NULL);
 	PVR_ASSERT(psIonData->ui32IonClientRefCount > 0);
 	if (--psIonData->ui32IonClientRefCount == 0)
 	{
 		ion_client_destroy(psIonData->psIonClient);
 		IonDevRelease(psIonData->psIonDev);
 		OSFreeMem(psIonData);
-		psIonData = IMG_NULL;
+		psIonData = NULL;
 	}
 }
 #endif /* defined(SUPPORT_ION) */

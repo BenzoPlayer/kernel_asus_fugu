@@ -55,7 +55,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRSRV_BRIDGE_PDUMP_CMD_FIRST			0
 #define PVRSRV_BRIDGE_PDUMP_DEVMEMPDUMPBITMAP			PVRSRV_BRIDGE_PDUMP_CMD_FIRST+0
 #define PVRSRV_BRIDGE_PDUMP_PVRSRVPDUMPCOMMENT			PVRSRV_BRIDGE_PDUMP_CMD_FIRST+1
-#define PVRSRV_BRIDGE_PDUMP_CMD_LAST			(PVRSRV_BRIDGE_PDUMP_CMD_FIRST+1)
+#define PVRSRV_BRIDGE_PDUMP_PVRSRVPDUMPSETFRAME			PVRSRV_BRIDGE_PDUMP_CMD_FIRST+2
+#define PVRSRV_BRIDGE_PDUMP_CMD_LAST			(PVRSRV_BRIDGE_PDUMP_CMD_FIRST+2)
 
 
 /*******************************************
@@ -65,7 +66,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for DevmemPDumpBitmap */
 typedef struct PVRSRV_BRIDGE_IN_DEVMEMPDUMPBITMAP_TAG
 {
-	IMG_HANDLE hDeviceNode;
 	IMG_CHAR * puiFileName;
 	IMG_UINT32 ui32FileOffset;
 	IMG_UINT32 ui32Width;
@@ -79,12 +79,12 @@ typedef struct PVRSRV_BRIDGE_IN_DEVMEMPDUMPBITMAP_TAG
 	IMG_UINT32 ui32PDumpFlags;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_DEVMEMPDUMPBITMAP;
 
-
 /* Bridge out structure for DevmemPDumpBitmap */
 typedef struct PVRSRV_BRIDGE_OUT_DEVMEMPDUMPBITMAP_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_DEVMEMPDUMPBITMAP;
+
 
 /*******************************************
             PVRSRVPDumpComment          
@@ -97,11 +97,28 @@ typedef struct PVRSRV_BRIDGE_IN_PVRSRVPDUMPCOMMENT_TAG
 	IMG_UINT32 ui32Flags;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_PVRSRVPDUMPCOMMENT;
 
-
 /* Bridge out structure for PVRSRVPDumpComment */
 typedef struct PVRSRV_BRIDGE_OUT_PVRSRVPDUMPCOMMENT_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_PVRSRVPDUMPCOMMENT;
+
+
+/*******************************************
+            PVRSRVPDumpSetFrame          
+ *******************************************/
+
+/* Bridge in structure for PVRSRVPDumpSetFrame */
+typedef struct PVRSRV_BRIDGE_IN_PVRSRVPDUMPSETFRAME_TAG
+{
+	IMG_UINT32 ui32Frame;
+} __attribute__((packed)) PVRSRV_BRIDGE_IN_PVRSRVPDUMPSETFRAME;
+
+/* Bridge out structure for PVRSRVPDumpSetFrame */
+typedef struct PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSETFRAME_TAG
+{
+	PVRSRV_ERROR eError;
+} __attribute__((packed)) PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSETFRAME;
+
 
 #endif /* COMMON_PDUMP_BRIDGE_H */

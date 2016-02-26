@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_LOG(X)			PVRSRVReleasePrintf X;
 #endif
 
-IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVReleasePrintf(const IMG_CHAR *pszFormat, ...) IMG_FORMAT_PRINTF(1, 2);
+IMG_IMPORT void IMG_CALLCONV PVRSRVReleasePrintf(const IMG_CHAR *pszFormat, ...) IMG_FORMAT_PRINTF(1, 2);
 
 /*!
 ******************************************************************************
@@ -88,7 +88,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVInit(void *);
  @Return   PVRSRV_ERROR	:
 
 ******************************************************************************/
-IMG_VOID IMG_CALLCONV PVRSRVDeInit(IMG_VOID *);
+void IMG_CALLCONV PVRSRVDeInit(void *);
 
 
 /*!
@@ -103,14 +103,14 @@ IMG_VOID IMG_CALLCONV PVRSRVDeInit(IMG_VOID *);
 
  @Input		bInLISR
 
- @Return	IMG_VOID
+ @Return	void
 
 ******************************************************************************/
-IMG_IMPORT IMG_VOID PVRSRVScheduleDevicesKM(IMG_BOOL bInLISR);
+IMG_IMPORT void PVRSRVScheduleDevicesKM(IMG_BOOL bInLISR);
 
-IMG_VOID IMG_CALLCONV PVRSRVSetDCState(IMG_UINT32 ui32State);
+void IMG_CALLCONV PVRSRVSetDCState(IMG_UINT32 ui32State);
 
-PVRSRV_ERROR IMG_CALLCONV PVRSRVSaveRestoreLiveSegments(IMG_HANDLE hArena, IMG_PBYTE pbyBuffer, IMG_SIZE_T *puiBufSize, IMG_BOOL bSave);
+PVRSRV_ERROR IMG_CALLCONV PVRSRVSaveRestoreLiveSegments(IMG_HANDLE hArena, IMG_PBYTE pbyBuffer, size_t *puiBufSize, IMG_BOOL bSave);
 
 /*!
 ******************************************************************************
@@ -121,10 +121,10 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVSaveRestoreLiveSegments(IMG_HANDLE hArena, IMG_P
 
  @Input		ui32CallerID
 
- @Return	IMG_VOID
+ @Return	void
 
 ******************************************************************************/
-IMG_VOID PVRSRVScheduleDeviceCallbacks(IMG_UINT32 ui32CallerID);
+void PVRSRVScheduleDeviceCallbacks(IMG_UINT32 ui32CallerID);
 
 
 
@@ -180,9 +180,6 @@ LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 IMG_IMPORT
 const IMG_CHAR *PVRSRVGetErrorStringKM(PVRSRV_ERROR eError);
 
-/*
-	FIXME: This should be defined elsewhere when server sync are implemented
-*/
 typedef struct _SERVER_SYNC_PRIM_
 {
 	/* Placeholder until structure is properly implemented */

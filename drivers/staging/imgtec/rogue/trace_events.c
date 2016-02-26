@@ -42,10 +42,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/sched.h>
 
 #include "img_types.h"
-#include "rgx_fwif_km.h"
-
-#define CREATE_TRACE_POINTS
 #include "trace_events.h"
+#if !defined(SUPPORT_GPUTRACE_EVENTS)
+#define CREATE_TRACE_POINTS
+#endif
+#include "rogue_trace_events.h"
 
 /* This is a helper that calls trace_rogue_fence_update for each fence in an
  * array.
@@ -77,3 +78,82 @@ void trace_rogue_fence_checks(const char *cmd, const char *dm, IMG_UINT32 ui32FW
 							  pauiAddresses[i].ui32Addr, paui32Values[i]);
 	}
 }
+
+#if defined(SUPPORT_GPUTRACE_EVENTS)
+
+void trace_rogue_ufo_updates(IMG_UINT64 ui64OSTimestamp,
+							 IMG_UINT32 ui32FWCtx,
+							 IMG_UINT32 ui32JobId,
+							 IMG_UINT32 ui32UFOCount,
+							 const RGX_HWPERF_UFO_DATA_ELEMENT *puData)
+{
+	IMG_UINT i;
+	for (i = 0; i < ui32UFOCount; i++)
+	{
+		trace_rogue_ufo_update(ui64OSTimestamp, ui32FWCtx,
+				ui32JobId,
+				puData->sUpdate.ui32FWAddr,
+				puData->sUpdate.ui32OldValue,
+				puData->sUpdate.ui32NewValue);
+		puData = (RGX_HWPERF_UFO_DATA_ELEMENT *) (((IMG_BYTE *) puData)
+				+ sizeof(puData->sUpdate));
+	}
+}
+
+void trace_rogue_ufo_checks_success(IMG_UINT64 ui64OSTimestamp,
+									IMG_UINT32 ui32FWCtx,
+									IMG_UINT32 ui32JobId,
+									IMG_BOOL bPrEvent,
+									IMG_UINT32 ui32UFOCount,
+									const RGX_HWPERF_UFO_DATA_ELEMENT *puData)
+{
+	IMG_UINT i;
+	for (i = 0; i < ui32UFOCount; i++)
+	{
+		if (bPrEvent)
+		{
+			trace_rogue_ufo_pr_check_success(ui64OSTimestamp, ui32FWCtx, ui32JobId,
+					puData->sCheckSuccess.ui32FWAddr,
+					puData->sCheckSuccess.ui32Value);
+		}
+		else
+		{
+			trace_rogue_ufo_check_success(ui64OSTimestamp, ui32FWCtx, ui32JobId,
+					puData->sCheckSuccess.ui32FWAddr,
+					puData->sCheckSuccess.ui32Value);
+		}
+		puData = (RGX_HWPERF_UFO_DATA_ELEMENT *) (((IMG_BYTE *) puData)
+				+ sizeof(puData->sCheckSuccess));
+	}
+}
+
+void trace_rogue_ufo_checks_fail(IMG_UINT64 ui64OSTimestamp,
+								 IMG_UINT32 ui32FWCtx,
+								 IMG_UINT32 ui32JobId,
+								 IMG_BOOL bPrEvent,
+								 IMG_UINT32 ui32UFOCount,
+								 const RGX_HWPERF_UFO_DATA_ELEMENT *puData)
+{
+	IMG_UINT i;
+	for (i = 0; i < ui32UFOCount; i++)
+	{
+		if (bPrEvent)
+		{
+			trace_rogue_ufo_pr_check_fail(ui64OSTimestamp, ui32FWCtx, ui32JobId,
+					puData->sCheckFail.ui32FWAddr,
+					puData->sCheckFail.ui32Value,
+					puData->sCheckFail.ui32Required);
+		}
+		else
+		{
+			trace_rogue_ufo_check_fail(ui64OSTimestamp, ui32FWCtx, ui32JobId,
+					puData->sCheckFail.ui32FWAddr,
+					puData->sCheckFail.ui32Value,
+					puData->sCheckFail.ui32Required);
+		}
+		puData = (RGX_HWPERF_UFO_DATA_ELEMENT *) (((IMG_BYTE *) puData)
+				+ sizeof(puData->sCheckFail));
+	}
+}
+
+#endif /* defined(SUPPORT_GPUTRACE_EVENTS) */

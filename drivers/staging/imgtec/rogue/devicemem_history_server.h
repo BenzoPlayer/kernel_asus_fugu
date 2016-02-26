@@ -47,18 +47,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_defs.h"
 #include "mm_common.h"
 #include "pvrsrv_error.h"
+#include "rgxmem.h"
 
 extern PVRSRV_ERROR
-DevicememHistoryInitKM(IMG_VOID);
+DevicememHistoryInitKM(void);
 
-extern IMG_VOID
-DevicememHistoryDeInitKM(IMG_VOID);
-
-extern PVRSRV_ERROR
-DevicememHistoryMapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+extern void
+DevicememHistoryDeInitKM(void);
 
 extern PVRSRV_ERROR
-DevicememHistoryUnmapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+DevicememHistoryMapKM(IMG_DEV_VIRTADDR sDevVAddr, size_t uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+
+extern PVRSRV_ERROR
+DevicememHistoryUnmapKM(IMG_DEV_VIRTADDR sDevVAddr, size_t uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+
+/* used when the PID does not matter */
+#define DEVICEMEM_HISTORY_PID_ANY 0xFFFFFFFE
 
 typedef struct _DEVICEMEM_HISTORY_QUERY_IN_
 {
@@ -76,10 +80,11 @@ typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_RESULT_
 {
 	IMG_CHAR szString[DEVICEMEM_HISTORY_TEXT_BUFSZ];
 	IMG_DEV_VIRTADDR sBaseDevVAddr;
-	IMG_SIZE_T uiSize;
+	size_t uiSize;
 	IMG_BOOL bAllocated;
 	IMG_UINT64 ui64When;
 	IMG_UINT64 ui64Age;
+	RGXMEM_PROCESS_INFO sProcessInfo;
 } DEVICEMEM_HISTORY_QUERY_OUT_RESULT;
 
 typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_

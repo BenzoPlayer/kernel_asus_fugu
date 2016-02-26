@@ -73,6 +73,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * RGX Defines
  *****************************************************************************/
 
+#if defined(RGX_FEATURE_META)
 /* META cores (required for the RGX_FEATURE_META) */
 #define MTP218   (1)
 #define MTP219   (2)
@@ -83,16 +84,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_META_COREMEM_32K      (32*1024)
 #define RGX_META_COREMEM_48K      (48*1024)
 #define RGX_META_COREMEM_64K      (64*1024)
+#define RGX_META_COREMEM_256K     (256*1024)
 
+#if !defined(SUPPORT_TRUSTED_DEVICE)
 #define RGX_META_COREMEM_SIZE     (RGX_FEATURE_META_COREMEM_SIZE*1024)
+#else
+#define RGX_META_COREMEM_SIZE     (0)
+#endif
 
-#if (RGX_FEATURE_META_COREMEM_SIZE != 0)
+#if (RGX_FEATURE_META_COREMEM_SIZE != 0) && !defined(SUPPORT_TRUSTED_DEVICE)
 #define RGX_META_COREMEM          (1)
 #define RGX_META_COREMEM_CODE     (1)
 #if !defined(FIX_HW_BRN_50767)
 #define RGX_META_COREMEM_DATA     (1)
 #endif
 #endif
+
+#endif  /*RGX_FEATURE_META*/
 
 /* ISP requires valid state on all three pipes regardless of the number of
  * active pipes/tiles in flight.
@@ -107,6 +115,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* useful extra defines for clock ctrl*/
 #define RGX_CR_CLK_CTRL_ALL_ON   (IMG_UINT64_C(0x5555555555555555)&RGX_CR_CLK_CTRL_MASKFULL)
 #define RGX_CR_CLK_CTRL_ALL_AUTO (IMG_UINT64_C(0xaaaaaaaaaaaaaaaa)&RGX_CR_CLK_CTRL_MASKFULL)
+
+#define RGX_MAX_DUST		MAX(1, RGX_FEATURE_NUM_CLUSTERS/2)
 
 #define RGX_CR_SOFT_RESET_DUST_n_CORE_EN	(RGX_CR_SOFT_RESET_DUST_A_CORE_EN | \
 											 RGX_CR_SOFT_RESET_DUST_B_CORE_EN | \
@@ -138,7 +148,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define RGX_S7_SOFT_RESET2 (RGX_CR_SOFT_RESET2_BLACKPEARL_EN | \
                             RGX_CR_SOFT_RESET2_PIXEL_EN | \
-							RGX_CR_SOFT_RESET2_COMPUTE_EN | \
+							RGX_CR_SOFT_RESET2_CDM_EN | \
 							RGX_CR_SOFT_RESET2_VERTEX_EN)
 #endif
 
@@ -148,6 +158,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define RGX_BIF_PM_VIRTUAL_PAGE_ALIGNSHIFT		(14)
 #define RGX_BIF_PM_VIRTUAL_PAGE_SIZE			(1 << RGX_BIF_PM_VIRTUAL_PAGE_ALIGNSHIFT)
+
+/* To get the number of required Dusts, divide the number of clusters by 2 and round up */
+#define RGX_REQ_NUM_DUSTS(CLUSTERS)    ((CLUSTERS + 1) / 2)
+
+/* To get the number of required Bernado/Phantom, divide the number of clusters by 4 and round up */
+#define RGX_REQ_NUM_PHANTOMS(CLUSTERS) ((CLUSTERS + 3) / 4)
+#define RGX_REQ_NUM_BERNADOS(CLUSTERS) ((CLUSTERS + 3) / 4)
+#define RGX_REQ_NUM_BLACKPEARLS(CLUSTERS) ((CLUSTERS + 3) / 4)
+
+#if defined(RGX_FEATURE_CLUSTER_GROUPING)
+#define RGX_NUM_PHANTOMS (RGX_REQ_NUM_PHANTOMS(RGX_FEATURE_NUM_CLUSTERS))
+#else
+#define RGX_NUM_PHANTOMS (1)
+#endif
+
+/* Temporary until RGX_FEATURE_CDM_CONTROL_STREAM_FORMAT is defined for all cores. */
+#if !defined(RGX_FEATURE_CDM_CONTROL_STREAM_FORMAT)
+#define RGX_FEATURE_CDM_CONTROL_STREAM_FORMAT (1)
+#endif
 
 /******************************************************************************
  * WA HWBRNs
@@ -169,7 +198,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DPX_MAX_FBA_FILTER_WIDTH 24
 
 #if !defined(RGX_FEATURE_SLC_SIZE_IN_BYTES)
+#if defined(RGX_FEATURE_SLC_SIZE_IN_KILOBYTES)
 #define RGX_FEATURE_SLC_SIZE_IN_BYTES (RGX_FEATURE_SLC_SIZE_IN_KILOBYTES * 1024)
+#else
+#define RGX_FEATURE_SLC_SIZE_IN_BYTES (0)
+#endif
 #endif
 
 #endif /* _RGXDEFS_KM_H_ */

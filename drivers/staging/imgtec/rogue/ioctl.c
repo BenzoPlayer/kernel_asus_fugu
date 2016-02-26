@@ -79,13 +79,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  RETURNS	:
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivGetServiceTable(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivGetServiceTable(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
-	IMG_PVOID *	ppvOut;
+	void **ppvOut;
 
 	PVR_UNREFERENCED_PARAMETER(pvInBuffer);
 	PVR_UNREFERENCED_PARAMETER(bCompat);
-	ppvOut = (IMG_PVOID *) pvOutBuffer;
+	ppvOut = (void **) pvOutBuffer;
 
 	*ppvOut = DBGDrivGetServiceTable();
 
@@ -102,7 +102,7 @@ static IMG_UINT32 DBGDIOCDrivGetServiceTable(IMG_VOID * pvInBuffer, IMG_VOID * p
 
  RETURNS	:
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivCreateStream(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivCreateStream(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	PDBG_IN_CREATESTREAM psIn;
 	PDBG_OUT_CREATESTREAM psOut;
@@ -125,7 +125,7 @@ static IMG_UINT32 DBGDIOCDrivCreateStream(IMG_VOID * pvInBuffer, IMG_VOID * pvOu
 
  RETURNS	:
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivGetStream(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivGetStream(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	PDBG_IN_FINDSTREAM psParams;
 	IMG_SID *	phStream;
@@ -147,7 +147,7 @@ static IMG_UINT32 DBGDIOCDrivGetStream(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBu
 
  RETURNS	:
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivRead(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivRead(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	IMG_UINT32 *	pui32BytesCopied;
 	PDBG_IN_READ	psInParams;
@@ -160,7 +160,7 @@ static IMG_UINT32 DBGDIOCDrivRead(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer,
 
 	psStream = SID2PStream(psInParams->hStream);
 
-	if (psStream != (PDBG_STREAM)IMG_NULL)
+	if (psStream != (PDBG_STREAM)NULL)
 	{
 		*pui32BytesCopied = ExtDBGDrivRead(psStream,
 									   psInParams->ui32BufID,
@@ -185,7 +185,7 @@ static IMG_UINT32 DBGDIOCDrivRead(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer,
 
  RETURNS	: success
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivSetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivSetMarker(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	PDBG_IN_SETMARKER	psParams;
 	PDBG_STREAM			psStream;
@@ -195,7 +195,7 @@ static IMG_UINT32 DBGDIOCDrivSetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBu
 	PVR_UNREFERENCED_PARAMETER(bCompat);
 
 	psStream = SID2PStream(psParams->hStream);
-	if (psStream != (PDBG_STREAM)IMG_NULL)
+	if (psStream != (PDBG_STREAM)NULL)
 	{
 		ExtDBGDrivSetMarker(psStream, psParams->ui32Marker);
 		return(IMG_TRUE);
@@ -216,7 +216,7 @@ static IMG_UINT32 DBGDIOCDrivSetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBu
 
  RETURNS	: success
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivGetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivGetMarker(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	PDBG_STREAM  psStream;
 	IMG_UINT32  *pui32Current;
@@ -226,7 +226,7 @@ static IMG_UINT32 DBGDIOCDrivGetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBu
 	pui32Current = (IMG_UINT32 *) pvOutBuffer;
 
 	psStream = SID2PStream(*(IMG_SID *)pvInBuffer);
-	if (psStream != (PDBG_STREAM)IMG_NULL)
+	if (psStream != (PDBG_STREAM)NULL)
 	{
 		*pui32Current = ExtDBGDrivGetMarker(psStream);
 		return(IMG_TRUE);
@@ -249,7 +249,7 @@ static IMG_UINT32 DBGDIOCDrivGetMarker(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBu
 
  RETURNS	:
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivWaitForEvent(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivWaitForEvent(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	DBG_EVENT eEvent = (DBG_EVENT)(*(IMG_UINT32 *)pvInBuffer);
 
@@ -271,7 +271,7 @@ static IMG_UINT32 DBGDIOCDrivWaitForEvent(IMG_VOID * pvInBuffer, IMG_VOID * pvOu
 
  RETURNS	: success
 *****************************************************************************/
-static IMG_UINT32 DBGDIOCDrivGetFrame(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuffer, IMG_BOOL bCompat)
+static IMG_UINT32 DBGDIOCDrivGetFrame(void * pvInBuffer, void * pvOutBuffer, IMG_BOOL bCompat)
 {
 	IMG_UINT32  *pui32Current;
 
@@ -289,7 +289,7 @@ static IMG_UINT32 DBGDIOCDrivGetFrame(IMG_VOID * pvInBuffer, IMG_VOID * pvOutBuf
 	ioctl interface jump table.
 	Accessed from the UM debug driver client
 */
-IMG_UINT32 (*g_DBGDrivProc[DEBUG_SERVICE_MAX_API])(IMG_VOID *, IMG_VOID *, IMG_BOOL) =
+IMG_UINT32 (*g_DBGDrivProc[DEBUG_SERVICE_MAX_API])(void *, void *, IMG_BOOL) =
 {
 	DBGDIOCDrivGetServiceTable, /* WDDM only for KMD to retrieve address from DBGDRV, Not used by umdbgdrvlnx */
 	DBGDIOCDrivGetStream,

@@ -49,8 +49,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <pmr.h>
 #include <pvrsrv_error.h>
 
-PVRSRV_ERROR RIInitKM(IMG_VOID);
-IMG_VOID RIDeInitKM(IMG_VOID);
+PVRSRV_ERROR RIInitKM(void);
+void RIDeInitKM(void);
 
 PVRSRV_ERROR RIWritePMREntryKM(PMR *hPMR,
 					   	   	   IMG_UINT32 ui32TextASize,
@@ -62,21 +62,35 @@ PVRSRV_ERROR RIWriteMEMDESCEntryKM(PMR *hPMR,
 					   	   	   	   const IMG_CHAR ai8TextB[RI_MAX_TEXT_LEN+1],
 					   	   	   	   IMG_UINT64 uiOffset,
 					   	   	   	   IMG_UINT64 uiSize,
+					   	   	   	   IMG_UINT64 uiBackedSize,
 					   	   	   	   IMG_BOOL bIsImport,
 					   	   	   	   IMG_BOOL bIsExportable,
 					   	   	   	   RI_HANDLE *phRIHandle);
 
+PVRSRV_ERROR RIWriteProcListEntryKM(IMG_UINT32 ui32TextBSize,
+                                    const IMG_CHAR *psz8TextB,
+                                    IMG_UINT64 ui64Size,
+                                    IMG_UINT64 uiBackedSize,
+                                    IMG_UINT64 ui64DevVAddr,
+                                    RI_HANDLE *phRIHandle);
+
 PVRSRV_ERROR RIUpdateMEMDESCAddrKM(RI_HANDLE hRIHandle,
 								   IMG_DEV_VIRTADDR sVAddr);
+
+PVRSRV_ERROR RIUpdateMEMDESCPinningKM(RI_HANDLE hRIHandle,
+								   IMG_BOOL bIsPinned);
+
+PVRSRV_ERROR RIUpdateMEMDESCBackingKM(RI_HANDLE hRIHandle,
+                                      IMG_INT32 iNumModified);
 
 PVRSRV_ERROR RIDeletePMREntryKM(RI_HANDLE hRIHandle);
 PVRSRV_ERROR RIDeleteMEMDESCEntryKM(RI_HANDLE hRIHandle);
 
-PVRSRV_ERROR RIDeleteListKM(IMG_VOID);
+PVRSRV_ERROR RIDeleteListKM(void);
 
 PVRSRV_ERROR RIDumpListKM(PMR *hPMR);
 
-PVRSRV_ERROR RIDumpAllKM(IMG_VOID);
+PVRSRV_ERROR RIDumpAllKM(void);
 
 PVRSRV_ERROR RIDumpProcessKM(IMG_PID pid);
 

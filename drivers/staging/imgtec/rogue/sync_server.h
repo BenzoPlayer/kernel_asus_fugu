@@ -58,13 +58,36 @@ typedef struct _SERVER_SYNC_EXPORT_ SERVER_SYNC_EXPORT;
 typedef struct _SYNC_CONNECTION_DATA_ SYNC_CONNECTION_DATA;
 typedef struct SYNC_RECORD* SYNC_RECORD_HANDLE;
 
+typedef struct _SYNC_ADDR_LIST_
+{
+	IMG_UINT32 ui32NumSyncs;
+	PRGXFWIF_UFO_ADDR *pasFWAddrs;
+} SYNC_ADDR_LIST;
+
+PVRSRV_ERROR
+SyncPrimitiveBlockToFWAddr(SYNC_PRIMITIVE_BLOCK *psSyncPrimBlock,
+						IMG_UINT32 ui32Offset,
+						PRGXFWIF_UFO_ADDR *psAddrOut);
+
+void
+SyncAddrListInit(SYNC_ADDR_LIST *psList);
+
+void
+SyncAddrListDeinit(SYNC_ADDR_LIST *psList);
+
+PVRSRV_ERROR
+SyncAddrListPopulate(SYNC_ADDR_LIST *psList,
+						IMG_UINT32 ui32NumSyncs,
+						SYNC_PRIMITIVE_BLOCK **apsSyncPrimBlock,
+						IMG_UINT32 *paui32SyncOffset);
+
 PVRSRV_ERROR
 PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
-								PVRSRV_DEVICE_NODE *psDevNode,
+                                PVRSRV_DEVICE_NODE * psDevNode,
 								SYNC_PRIMITIVE_BLOCK **ppsSyncBlk,
 								IMG_UINT32 *puiSyncPrimVAddr,
 								IMG_UINT32 *puiSyncPrimBlockSize,
-								DEVMEM_EXPORTCOOKIE **psExportCookie);
+								PMR        **ppsSyncPMR);
 
 PVRSRV_ERROR
 PVRSRVExportSyncPrimitiveBlockKM(SYNC_PRIMITIVE_BLOCK *psSyncBlk,
@@ -100,6 +123,7 @@ PVRSRVSyncPrimServerImportKM(SERVER_SYNC_EXPORT *psExport,
 #if defined(SUPPORT_SECURE_EXPORT)
 PVRSRV_ERROR
 PVRSRVSyncPrimServerSecureExportKM(CONNECTION_DATA *psConnection,
+                                   PVRSRV_DEVICE_NODE * psDevNode,
 								   SERVER_SYNC_PRIMITIVE *psSync,
 								   IMG_SECURE_TYPE *phSecure,
 								   SERVER_SYNC_EXPORT **ppsExport,
@@ -115,7 +139,7 @@ PVRSRVSyncPrimServerSecureImportKM(IMG_SECURE_TYPE hSecure,
 #endif
 
 IMG_UINT32 PVRSRVServerSyncRequesterRegisterKM(IMG_UINT32 *pui32SyncRequesterID);
-IMG_VOID PVRSRVServerSyncRequesterUnregisterKM(IMG_UINT32 ui32SyncRequesterID);
+void PVRSRVServerSyncRequesterUnregisterKM(IMG_UINT32 ui32SyncRequesterID);
 
 PVRSRV_ERROR
 PVRSRVSyncRecordAddKM(
@@ -131,7 +155,8 @@ PVRSRVSyncRecordRemoveByHandleKM(
 			SYNC_RECORD_HANDLE hRecord);
 
 PVRSRV_ERROR
-PVRSRVServerSyncAllocKM(PVRSRV_DEVICE_NODE *psDevNode,
+PVRSRVServerSyncAllocKM(CONNECTION_DATA * psConnection,
+                        PVRSRV_DEVICE_NODE *psDevNode,
 						SERVER_SYNC_PRIMITIVE **ppsSync,
 						IMG_UINT32 *pui32SyncPrimVAddr,
 						IMG_UINT32 ui32ClassNameSize,
@@ -165,7 +190,7 @@ IMG_BOOL
 ServerSyncFenceIsMet(SERVER_SYNC_PRIMITIVE *psSync,
 					 IMG_UINT32 ui32FenceValue);
 
-IMG_VOID
+void
 ServerSyncCompleteOp(SERVER_SYNC_PRIMITIVE *psSync,
 					 IMG_BOOL bDoUpdate,
 					 IMG_UINT32 ui32UpdateValue);
@@ -208,14 +233,18 @@ IMG_UINT32 ServerSyncGetValue(SERVER_SYNC_PRIMITIVE *psSync);
 
 IMG_UINT32 ServerSyncGetNextValue(SERVER_SYNC_PRIMITIVE *psSync);
 
-IMG_VOID ServerSyncDumpPending(IMG_VOID);
+#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
+void SyncRecordLookup(IMG_UINT32 ui32FwAddr, IMG_CHAR * pszSyncInfo, size_t len);
+#endif
+
+void ServerSyncDumpPending(void);
 
 PVRSRV_ERROR SyncRegisterConnection(SYNC_CONNECTION_DATA **ppsSyncConnectionData);
-IMG_VOID SyncUnregisterConnection(SYNC_CONNECTION_DATA *ppsSyncConnectionData);
-IMG_VOID SyncConnectionPDumpSyncBlocks(SYNC_CONNECTION_DATA *ppsSyncConnectionData);
+void SyncUnregisterConnection(SYNC_CONNECTION_DATA *ppsSyncConnectionData);
+void SyncConnectionPDumpSyncBlocks(SYNC_CONNECTION_DATA *ppsSyncConnectionData);
 
-PVRSRV_ERROR ServerSyncInit(IMG_VOID);
-IMG_VOID ServerSyncDeinit(IMG_VOID);
+PVRSRV_ERROR ServerSyncInit(void);
+void ServerSyncDeinit(void);
 
 #if defined(PDUMP)
 PVRSRV_ERROR

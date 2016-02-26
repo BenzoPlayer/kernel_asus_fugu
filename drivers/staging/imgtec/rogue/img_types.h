@@ -69,12 +69,12 @@ extern "C" {
 	#include <stddef.h>			/* NULL */
 	#include <inttypes.h>		/* intX_t/uintX_t, format specifiers */
 	#include <limits.h>			/* INT_MIN, etc */
+#elif defined(__mips)
+	#include <stddef.h>			/* NULL */
+	#include <inttypes.h>		/* intX_t/uintX_t, format specifiers */
 #else
 	#error C99 support not set up for this build
 #endif
-
-/* number of bits in the units returned by sizeof */
-#define IMG_CHAR_BIT CHAR_BIT
 
 typedef unsigned int	IMG_UINT,	*IMG_PUINT;
 typedef int				IMG_INT,	*IMG_PINT;
@@ -83,7 +83,6 @@ typedef uint8_t			IMG_UINT8,	*IMG_PUINT8;
 typedef uint8_t			IMG_BYTE,	*IMG_PBYTE;
 typedef int8_t			IMG_INT8,	*IMG_PINT8;
 typedef char			IMG_CHAR,	*IMG_PCHAR;
-typedef IMG_CHAR const				*IMG_PCCHAR;
 
 typedef uint16_t		IMG_UINT16,	*IMG_PUINT16;
 typedef int16_t			IMG_INT16,	*IMG_PINT16;
@@ -94,17 +93,19 @@ typedef uint64_t		IMG_UINT64,	*IMG_PUINT64;
 typedef int64_t			IMG_INT64,	*IMG_PINT64;
 #define IMG_INT64_C(c)	INT64_C(c)
 #define IMG_UINT64_C(c)	UINT64_C(c)
-#define IMG_UINT64_FMTSPECX PRIX64
 #define IMG_UINT64_FMTSPEC PRIu64
+#define IMG_UINT64_FMTSPECX PRIX64
+#define IMG_UINT64_FMTSPECx PRIx64
+#define IMG_UINT64_FMTSPECo PRIo64
+#define IMG_INT64_FMTSPECd PRId64
 
 #define IMG_UINT16_MAX	UINT16_MAX
 #define IMG_UINT32_MAX	UINT32_MAX
 #define IMG_UINT64_MAX	UINT64_MAX
 
-typedef IMG_UINT16 const* IMG_PCUINT16;
-typedef IMG_INT16 const* IMG_PCINT16;
-typedef IMG_UINT32 const* IMG_PCUINT32;
-typedef IMG_INT32 const* IMG_PCINT32;
+#define IMG_INT16_MAX	INT16_MAX
+#define IMG_INT32_MAX	INT32_MAX
+#define IMG_INT64_MAX	INT64_MAX
 
 /* Linux kernel mode does not use floating point */
 typedef float			IMG_FLOAT,	*IMG_PFLOAT;
@@ -124,8 +125,8 @@ typedef	enum tag_img_bool
 	IMG_TRUE		= 1,
 	IMG_FORCE_ALIGN = 0x7FFFFFFF
 } IMG_BOOL, *IMG_PBOOL;
-typedef IMG_BOOL const* IMG_PCBOOL;
 
+#if !defined(LINUX)
 typedef void            IMG_VOID, *IMG_PVOID;
 typedef IMG_VOID const* IMG_PCVOID;
 
@@ -133,6 +134,15 @@ typedef uintptr_t		IMG_UINTPTR_T;
 typedef size_t			IMG_SIZE_T;
 
 #define IMG_SIZE_T_MAX	SIZE_MAX
+#define IMG_NULL		NULL
+
+typedef IMG_CHAR const* IMG_PCCHAR;
+typedef IMG_UINT16 const* IMG_PCUINT16;
+typedef IMG_INT16 const* IMG_PCINT16;
+typedef IMG_UINT32 const* IMG_PCUINT32;
+typedef IMG_INT32 const* IMG_PCINT32;
+typedef IMG_BOOL const* IMG_PCBOOL;
+#endif
 
 #if defined(_MSC_VER)
 #define IMG_SIZE_FMTSPEC  "%Iu"
@@ -142,10 +152,6 @@ typedef size_t			IMG_SIZE_T;
 #define IMG_SIZE_FMTSPECX "%zx"
 #endif
 
-typedef IMG_PVOID       IMG_HANDLE;
-
-#define IMG_NULL        NULL
-
 #if defined(LINUX) && defined(__KERNEL__)
 /* prints the function name when used with printk */
 #define IMG_PFN_FMTSPEC "%pf"
@@ -153,11 +159,16 @@ typedef IMG_PVOID       IMG_HANDLE;
 #define IMG_PFN_FMTSPEC "%p"
 #endif
 
+typedef void           *IMG_HANDLE;
+
 /* services/stream ID */
 typedef IMG_UINT64      IMG_SID;
 
 /* Process IDs */
 typedef IMG_UINT32      IMG_PID;
+
+/* OS connection type */
+typedef int             IMG_OS_CONNECTION;
 
 
 /*
@@ -181,28 +192,28 @@ typedef IMG_UINT32      IMG_PID;
  * |    CPU     |    |    DEV     |      |    DEV     |        |    DEV     |
  * +------------+    +------------+      +------------+        +------------+
  *       |                 |                   |                     |
- *       | PVOID           |IMG_DEV_VIRTADDR   |IMG_DEV_VIRTADDR     |
+ *       | void *          |IMG_DEV_VIRTADDR   |IMG_DEV_VIRTADDR     |
  *       |                 \-------------------/                     |
  *       |                          |                                |
- * +------------+             +------------+                         |     
+ * +------------+             +------------+                         |
  * |    MMU     |             |    MMU     |                         |
- * +------------+             +------------+                         | 
- *       |                          |                                | 
+ * +------------+             +------------+                         |
+ *       |                          |                                |
  *       |                          |                                |
  *       |                          |                                |
  *   +--------+                +---------+                      +--------+
  *   | Offset |                | (Offset)|                      | Offset |
- *   +--------+                +---------+                      +--------+    
- *       |                          |                IMG_DEV_PHYADDR | 
+ *   +--------+                +---------+                      +--------+
+ *       |                          |                IMG_DEV_PHYADDR |
  *       |                          |                                |
  *       |                          | IMG_DEV_PHYADDR                |
- * +---------------------------------------------------------------------+ 
+ * +---------------------------------------------------------------------+
  * |                         System Address bus                          |
  * +---------------------------------------------------------------------+
  *
  */
 
-typedef IMG_PVOID IMG_CPU_VIRTADDR;
+typedef void *IMG_CPU_VIRTADDR;
 
 /* device virtual address */
 typedef struct _IMG_DEV_VIRTADDR
@@ -225,9 +236,9 @@ typedef IMG_UINT32 IMG_DEVMEM_LOG2ALIGN_T;
 /* cpu physical address */
 typedef struct _IMG_CPU_PHYADDR
 {
-#if defined(UNDER_WDDM)
-	IMG_UINTPTR_T uiAddr;
-#define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(IMG_UINTPTR_T)(var)
+#if defined(UNDER_WDDM) || defined(WINDOWS_WDF)
+	uintptr_t uiAddr;
+#define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(uintptr_t)(var)
 #else
 	IMG_UINT64 uiAddr;
 #define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(IMG_UINT64)(var)
@@ -243,8 +254,8 @@ typedef struct _IMG_DEV_PHYADDR
 /* system physical address */
 typedef struct _IMG_SYS_PHYADDR
 {
-#if defined(UNDER_WDDM)
-	IMG_UINTPTR_T uiAddr;
+#if defined(UNDER_WDDM) || defined(WINDOWS_WDF)
+	uintptr_t uiAddr;
 #else
 	IMG_UINT64 uiAddr;
 #endif
@@ -266,7 +277,7 @@ typedef struct _IMG_RECT_
 	IMG_INT32	y0;
 	IMG_INT32	x1;
 	IMG_INT32	y1;
-}IMG_RECT;
+}IMG_RECT, *PIMG_RECT;
 
 typedef struct _IMG_RECT_16_
 {
@@ -274,7 +285,28 @@ typedef struct _IMG_RECT_16_
 	IMG_INT16	y0;
 	IMG_INT16	x1;
 	IMG_INT16	y1;
-}IMG_RECT_16;
+}IMG_RECT_16, *PIMG_RECT_16;
+
+typedef struct _IMG_RECT_32_
+{
+	IMG_FLOAT	x0;
+	IMG_FLOAT	y0;
+	IMG_FLOAT	x1;
+	IMG_FLOAT	y1;
+} IMG_RECT_F32, *PIMG_RECT_F32;
+
+/*
+ * box structure
+ */
+typedef struct _IMG_BOX_
+{
+	IMG_INT32	x0;
+	IMG_INT32	y0;
+	IMG_INT32	z0;
+	IMG_INT32	x1;
+	IMG_INT32	y1;
+	IMG_INT32	z1;
+} IMG_BOX, *PIMG_BOX;
 
 #if defined (__cplusplus)
 }

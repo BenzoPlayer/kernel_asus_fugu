@@ -47,16 +47,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgxpdump.h"
 
 /*
- * PVRSRVPDumpSignatureBufferKM
+ * There are two different set of functions one for META and one for MIPS
+ * because the Pdump player does not implement the support for
+ * the MIPS MMU yet. So for MIPS builds we cannot use DevmemPDumpSaveToFileVirtual,
+ * we have to use DevmemPDumpSaveToFile instead.
  */
-PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
-										  IMG_UINT32			ui32PDumpFlags)
-{	
+#if defined(RGX_FEATURE_META)
+static PVRSRV_ERROR _MetaDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
+                                               PVRSRV_DEVICE_NODE *psDeviceNode,
+                                               IMG_UINT32 ui32PDumpFlags)
+{
 	PVRSRV_RGXDEV_INFO	*psDevInfo = psDeviceNode->pvDevice;
 
+	PVR_UNREFERENCED_PARAMETER(psConnection);
 	/* TA signatures */
 	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
-	 
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWSigTAChecksMemDesc,
 								 0,
 								 psDevInfo->ui32SigTAChecksSize,
@@ -82,7 +87,6 @@ PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 								 "out.rtsig",
 								 0,
 								 ui32PDumpFlags);
-								 
 	/* SH signatures */
 	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump SHG signatures and checksums Buffer");
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWSigSHChecksMemDesc,
@@ -95,24 +99,54 @@ PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 
 	return PVRSRV_OK;
 }
-
-IMG_EXPORT
-PVRSRV_ERROR PVRSRVPDumpTraceBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+static PVRSRV_ERROR _MetaDumpTraceBufferKM(CONNECTION_DATA * psConnection,
+									  PVRSRV_DEVICE_NODE	*psDeviceNode,
 									  IMG_UINT32			ui32PDumpFlags)
-{	
+{
 	PVRSRV_RGXDEV_INFO	*psDevInfo = psDeviceNode->pvDevice;
+	IMG_UINT32 		ui32ThreadNum, ui32Size, ui32OutFileOffset;
 
+	PVR_UNREFERENCED_PARAMETER(psConnection);
 	/* Dump trace buffers */
 	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump trace buffers");
-	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWIfTraceBufCtlMemDesc,
-								offsetof(RGXFWIF_TRACEBUF, sTraceBuf),
-								RGXFW_THREAD_NUM * 
-								   ( 1 * sizeof(IMG_UINT32) 
-								    +RGXFW_TRACE_BUFFER_SIZE * sizeof(IMG_UINT32) 
-								    +RGXFW_TRACE_BUFFER_ASSERT_SIZE * sizeof(IMG_CHAR)),
+	for(ui32ThreadNum = 0, ui32OutFileOffset = 0; ui32ThreadNum < RGXFW_THREAD_NUM; ui32ThreadNum++)
+	{
+		/* ui32TracePointer tracepointer */
+		ui32Size = sizeof(IMG_UINT32);
+		DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWIfTraceBufCtlMemDesc,
+								offsetof(RGXFWIF_TRACEBUF, sTraceBuf[ui32ThreadNum]),
+								ui32Size,
 								"out.trace",
-								0,
+								ui32OutFileOffset,
 								ui32PDumpFlags);
+		ui32OutFileOffset += ui32Size;
+
+		/* trace buffer */
+		ui32Size = RGXFW_TRACE_BUFFER_SIZE * sizeof(IMG_UINT32);
+		PVR_ASSERT(psDevInfo->psRGXFWIfTraceBufferMemDesc[ui32ThreadNum]);
+		DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWIfTraceBufferMemDesc[ui32ThreadNum],
+								0, /* 0 offset in the trace buffer mem desc */
+								ui32Size,
+								"out.trace",
+								ui32OutFileOffset,
+								ui32PDumpFlags);
+		ui32OutFileOffset += ui32Size;
+		
+		/* assert info buffer */
+		ui32Size = RGXFW_TRACE_BUFFER_ASSERT_SIZE * sizeof(IMG_CHAR)
+				+ RGXFW_TRACE_BUFFER_ASSERT_SIZE * sizeof(IMG_CHAR)
+				+ sizeof(IMG_UINT32);
+		DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWIfTraceBufCtlMemDesc,
+								offsetof(RGXFWIF_TRACEBUF, sTraceBuf[ui32ThreadNum]) + offsetof(RGXFWIF_TRACEBUF_SPACE, sAssertBuf),
+								ui32Size,
+								"out.trace",
+								ui32OutFileOffset,
+								ui32PDumpFlags);
+		ui32OutFileOffset += ui32Size;
+	}
+	
+	/* FW HWPerf buffer is always allocated when PDUMP is defined, irrespective of HWPerf events being enabled/disabled */
+	PVR_ASSERT(psDevInfo->psRGXFWIfHWPerfBufMemDesc);
 
 	/* Dump hwperf buffer */
 	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump HWPerf Buffer");
@@ -122,6 +156,151 @@ PVRSRV_ERROR PVRSRVPDumpTraceBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 								 "out.hwperf",
 								 0,
 								 ui32PDumpFlags);
+	return PVRSRV_OK;
+
+}
+
+#else /* RGX_FEATURE_META */
+static PVRSRV_ERROR _MipsDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
+                                               PVRSRV_DEVICE_NODE *psDeviceNode,
+                                               IMG_UINT32 ui32PDumpFlags)
+{
+	PVRSRV_RGXDEV_INFO	*psDevInfo = psDeviceNode->pvDevice;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	/* TA signatures */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
+
+	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSigTAChecksMemDesc,
+								 0,
+								 psDevInfo->ui32SigTAChecksSize,
+								 "out.tasig",
+								 0);
+
+	/* 3D signatures */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump 3D signatures and checksums Buffer");
+	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSig3DChecksMemDesc,
+								 0,
+								 psDevInfo->ui32Sig3DChecksSize,
+								 "out.3dsig",
+								 0);
+
+#if defined(RGX_FEATURE_RAY_TRACING)
+	/* RT signatures */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump RTU signatures and checksums Buffer");
+	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSigRTChecksMemDesc,
+								 0,
+								 psDevInfo->ui32SigRTChecksSize,
+								 "out.rtsig",
+								 0);
+
+	/* SH signatures */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump SHG signatures and checksums Buffer");
+	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSigSHChecksMemDesc,
+								 0,
+								 psDevInfo->ui32SigSHChecksSize,
+								 "out.shsig",
+								 0);
+#endif
+
+	return PVRSRV_OK;
+
+}
+
+static PVRSRV_ERROR _MipsDumpTraceBufferKM(CONNECTION_DATA *psConnection,
+                                           PVRSRV_DEVICE_NODE *psDeviceNode,
+                                           IMG_UINT32 ui32PDumpFlags)
+{
+	PVRSRV_RGXDEV_INFO	*psDevInfo = psDeviceNode->pvDevice;
+	IMG_UINT32 		ui32ThreadNum, ui32Size, ui32OutFileOffset;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	/* Dump trace buffers */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump trace buffers");
+	for(ui32ThreadNum = 0, ui32OutFileOffset = 0; ui32ThreadNum < RGXFW_THREAD_NUM; ui32ThreadNum++)
+	{
+		/* ui32TracePointer tracepointer */
+		ui32Size = sizeof(IMG_UINT32);
+		DevmemPDumpSaveToFile(psDevInfo->psRGXFWIfTraceBufCtlMemDesc,
+								offsetof(RGXFWIF_TRACEBUF, sTraceBuf[ui32ThreadNum]),
+								ui32Size,
+								"out.trace",
+								ui32OutFileOffset);
+		ui32OutFileOffset += ui32Size;
+
+		/* trace buffer */
+		ui32Size = RGXFW_TRACE_BUFFER_SIZE * sizeof(IMG_UINT32);
+		PVR_ASSERT(psDevInfo->psRGXFWIfTraceBufferMemDesc[ui32ThreadNum]);
+		DevmemPDumpSaveToFile(psDevInfo->psRGXFWIfTraceBufferMemDesc[ui32ThreadNum],
+								0, /* 0 offset in the trace buffer mem desc */
+								ui32Size,
+								"out.trace",
+								ui32OutFileOffset);
+		ui32OutFileOffset += ui32Size;
+		
+		/* assert info buffer */
+		ui32Size = RGXFW_TRACE_BUFFER_ASSERT_SIZE * sizeof(IMG_CHAR)
+				+ RGXFW_TRACE_BUFFER_ASSERT_SIZE * sizeof(IMG_CHAR)
+				+ sizeof(IMG_UINT32);
+		DevmemPDumpSaveToFile(psDevInfo->psRGXFWIfTraceBufCtlMemDesc,
+								offsetof(RGXFWIF_TRACEBUF, sTraceBuf[ui32ThreadNum]) + offsetof(RGXFWIF_TRACEBUF_SPACE, sAssertBuf),
+								ui32Size,
+								"out.trace",
+								ui32OutFileOffset);
+		ui32OutFileOffset += ui32Size;
+	}
+
+	/* Dump hwperf buffer */
+	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump HWPerf Buffer");
+	DevmemPDumpSaveToFile(psDevInfo->psRGXFWIfHWPerfBufMemDesc,
+								 0,
+								 psDevInfo->ui32RGXFWIfHWPerfBufSize,
+								 "out.hwperf",
+								 0);
+	return PVRSRV_OK;
+
+}
+#endif /* RGX_FEATURE_META */
+
+
+/*
+ * PVRSRVPDumpSignatureBufferKM
+ */
+PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
+                                          PVRSRV_DEVICE_NODE	*psDeviceNode,
+                                          IMG_UINT32			ui32PDumpFlags)
+{	
+	if (psDeviceNode->sDevId.eDeviceType == PVRSRV_DEVICE_TYPE_RGX)
+	{
+#if defined(RGX_FEATURE_META)
+		return _MetaDumpSignatureBufferKM(psConnection,
+        	                                  psDeviceNode,
+                	                          ui32PDumpFlags);
+#else
+		return _MipsDumpSignatureBufferKM(psConnection,
+                        	                  psDeviceNode,
+                                	          ui32PDumpFlags);
+#endif
+	}
+	return PVRSRV_OK;
+}
+
+
+IMG_EXPORT
+PVRSRV_ERROR PVRSRVPDumpTraceBufferKM(CONNECTION_DATA *psConnection,
+                                      PVRSRV_DEVICE_NODE *psDeviceNode,
+                                      IMG_UINT32 ui32PDumpFlags)
+{	
+	if (psDeviceNode->sDevId.eDeviceType == PVRSRV_DEVICE_TYPE_RGX)
+	{	
+#if defined(RGX_FEATURE_META)
+		return _MetaDumpTraceBufferKM(psConnection, psDeviceNode, ui32PDumpFlags);
+#else
+		return _MipsDumpTraceBufferKM(psConnection, psDeviceNode, ui32PDumpFlags);
+#endif
+	}
 	return PVRSRV_OK;
 }
 

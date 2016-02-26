@@ -39,7 +39,7 @@ ccflags-y += \
 drm_intel_mid-y += \
  bufferclass_video.o \
  bufferclass_video_linux.o \
- ion_support_generic.o \
+ ion_support_intel.o \
  pci_support.o \
  pvr_drm_ext.o \
  sysconfig.o \
