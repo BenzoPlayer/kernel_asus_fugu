@@ -44,8 +44,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if !defined (__RGX_FWIF_H__)
 #define __RGX_FWIF_H__
 
-#include "rgx_firmware_processor.h"
+#include "rgx_meta.h"
 #include "rgx_fwif_shared.h"
+
 #include "pvr_tlcommon.h"
 
 /*************************************************************************/ /*!
@@ -120,19 +121,18 @@ typedef struct {
 
 
 /*! Logging function */
-typedef void (*PFN_RGXFW_LOG) (const IMG_CHAR* pszFmt, ...);
+typedef IMG_VOID (*PFN_RGXFW_LOG) (const IMG_CHAR* pszFmt, ...);
 
 
 /*!
  ******************************************************************************
  * HWPERF
  *****************************************************************************/
-/* Size of the Firmware L1 HWPERF buffer in bytes (2MB). Accessed by the
+/* Size of the Firmware L1 HWPERF buffer in bytes (256KB). Accessed by the
  * Firmware and host driver. */
 #define RGXFW_HWPERF_L1_SIZE_MIN		(0x004000)
-#define RGXFW_HWPERF_L1_SIZE_DEFAULT    (0x200000)
+#define RGXFW_HWPERF_L1_SIZE_DEFAULT    (0x040000)
 #define RGXFW_HWPERF_L1_SIZE_MAX        (0xC00000)
-
 /* This padding value must always be greater than or equal to
  * RGX_HWPERF_V2_MAX_PACKET_SIZE for all valid BVNCs. This is asserted in
  * rgxsrvinit.c. This macro is defined with a constant to avoid a KM
@@ -165,14 +165,7 @@ typedef struct _RGXFWIF_ASSERTBUF_
 typedef struct _RGXFWIF_TRACEBUF_SPACE_
 {
 	IMG_UINT32			ui32TracePointer;
-
-#if defined (RGX_FIRMWARE)
-	IMG_UINT32 *pui32RGXFWIfTraceBuffer;		/* To be used by firmware for writing into trace buffer */
-#else
-	RGXFWIF_DEV_VIRTADDR pui32RGXFWIfTraceBuffer;
-#endif
-	IMG_PUINT32             pui32TraceBuffer;	/* To be used by host when reading from trace buffer */
-
+	IMG_UINT32			aui32TraceBuffer[RGXFW_TRACE_BUFFER_SIZE];
 	RGXFWIF_ASSERTBUF	sAssertBuf;
 } UNCACHED_ALIGN RGXFWIF_TRACEBUF_SPACE;
 
@@ -212,7 +205,7 @@ typedef IMG_UINT32 RGXFWIF_HWR_RECOVERYFLAGS;
 typedef struct _RGXFWIF_TRACEBUF_
 {
     IMG_UINT32				ui32LogType;
-	volatile RGXFWIF_POW_STATE		ePowState;
+	RGXFWIF_POW_STATE		ePowState;
 	RGXFWIF_TRACEBUF_SPACE	sTraceBuf[RGXFW_THREAD_NUM];
 
 	IMG_UINT16				aui16HwrDmLockedUpCount[RGXFWIF_DM_MAX];
@@ -220,6 +213,7 @@ typedef struct _RGXFWIF_TRACEBUF_
 	IMG_UINT16				aui16HwrDmRecoveredCount[RGXFWIF_DM_MAX];
 	IMG_UINT16				aui16HwrDmFalseDetectCount[RGXFWIF_DM_MAX];
 	IMG_UINT32				ui32HwrCounter;
+	RGXFWIF_DEV_VIRTADDR	apsHwrDmFWCommonContext[RGXFWIF_DM_MAX];
 
 	IMG_UINT32				aui32CrPollAddr[RGXFW_THREAD_NUM];
 	IMG_UINT32				aui32CrPollMask[RGXFW_THREAD_NUM];
@@ -232,22 +226,17 @@ typedef struct _RGXFWIF_TRACEBUF_
 	volatile IMG_UINT32		ui32HWPerfWrapCount;
 	IMG_UINT32				ui32HWPerfSize;      /* Constant after setup, needed in FW */
 	IMG_UINT32				ui32HWPerfDropCount; /* The number of times the FW drops a packet due to buffer full */
-
+	
 	/* These next three items are only valid at runtime when the FW is built
-	 * with RGX_HWPERF_UTILIZATION & RGX_HWPERF_DROP_TRACKING defined
-	 * in rgxfw_hwperf.c */
-	IMG_UINT32				ui32HWPerfUt;         /* Buffer utilisation, high watermark of bytes in use */
+	 * with RGX_HWPERF_UTILIZATION defined in rgxfw_hwperf.c */
+	IMG_UINT32				ui32HWPerfUt;        /* Buffer utilisation, high watermark of bytes in use */
 	IMG_UINT32				ui32FirstDropOrdinal;/* The ordinal of the first packet the FW dropped */
 	IMG_UINT32              ui32LastDropOrdinal; /* The ordinal of the last packet the FW dropped */
 
-	volatile IMG_UINT32			ui32InterruptCount;
+	IMG_UINT32				ui32InterruptCount;
 	IMG_UINT32				ui32KCCBCmdsExecuted;
 	IMG_UINT64 RGXFW_ALIGN			ui64StartIdleTime;
 	IMG_UINT32				ui32PowMonEnergy;	/* Non-volatile power monitor energy count */
-
-#define RGXFWIF_MAX_PCX 16
-	IMG_UINT32				ui32T1PCX[RGXFWIF_MAX_PCX];
-	IMG_UINT32				ui32T1PCXWOff;
 } UNCACHED_ALIGN RGXFWIF_TRACEBUF;
 
 
@@ -296,8 +285,7 @@ typedef struct _RGXFWIF_TRACEBUF_
 #define RGXFWIF_TIME_CORR_CURR_INDEX(seqcount)  ((seqcount) % RGXFWIF_TIME_CORR_ARRAY_SIZE)
 
 /* Make sure the timer correlation array size is a power of 2 */
-static_assert((RGXFWIF_TIME_CORR_ARRAY_SIZE & (RGXFWIF_TIME_CORR_ARRAY_SIZE - 1)) == 0,
-			  "RGXFWIF_TIME_CORR_ARRAY_SIZE must be a power of two");
+BLD_ASSERT(((RGXFWIF_TIME_CORR_ARRAY_SIZE & (RGXFWIF_TIME_CORR_ARRAY_SIZE - 1)) == 0), rgx_fwif_h)
 
 typedef struct _RGXFWIF_GPU_UTIL_FWCB_
 {
@@ -353,7 +341,6 @@ typedef struct _RGX_BIFINFO_
 typedef struct _RGX_MMUINFO_
 {
 	IMG_UINT64	RGXFW_ALIGN		ui64MMUStatus;
-	IMG_UINT64	RGXFW_ALIGN		ui64PCAddress; /*!< phys address of the page catalogue */
 } RGX_MMUINFO;
 
 typedef struct _RGX_POLLINFO_
@@ -367,21 +354,22 @@ typedef struct _RGX_HWRINFO_
 {
 	union
 	{
-		RGX_BIFINFO  sBIFInfo;
-		RGX_MMUINFO  sMMUInfo;
-		RGX_POLLINFO sPollInfo;
+		RGX_BIFINFO		sBIFInfo;
+		RGX_MMUINFO		sMMUInfo;
+		RGX_POLLINFO	sPollInfo;
 	} uHWRData;
 
-	IMG_UINT64 RGXFW_ALIGN ui64CRTimer;
-	IMG_UINT64 RGXFW_ALIGN ui64OSTimer;
-	IMG_UINT32             ui32FrameNum;
-	IMG_UINT32             ui32PID;
-	IMG_UINT32             ui32ActiveHWRTData;
-	IMG_UINT32             ui32HWRNumber;
-	IMG_UINT32             ui32EventStatus;
-	IMG_UINT32             ui32HWRRecoveryFlags;
-	RGX_HWRTYPE            eHWRType;
-	RGXFWIF_DM             eDM;
+	IMG_UINT64	RGXFW_ALIGN		ui64CRTimer;
+	IMG_UINT32					ui32FrameNum;
+	IMG_UINT32					ui32PID;
+	IMG_UINT32					ui32ActiveHWRTData;
+	IMG_UINT32					ui32HWRNumber;
+	IMG_UINT32					ui32EventStatus;
+	IMG_UINT32					ui32HWRRecoveryFlags;
+	RGX_HWRTYPE 				eHWRType;
+	RGXFWIF_TIME_CORR			sTimeCorr;
+
+	RGXFWIF_DM					eDM;
 } UNCACHED_ALIGN RGX_HWRINFO;
 
 #define RGXFWIF_HWINFO_MAX_FIRST 8							/* Number of first HWR logs recorded (never overwritten by newer logs) */
@@ -398,11 +386,6 @@ typedef struct _RGXFWIF_HWRINFOBUF_
 	IMG_UINT32	ui32DDReqCount;
 } UNCACHED_ALIGN RGXFWIF_HWRINFOBUF;
 
-
-#define RGXFWIF_CTXSWITCH_PROFILE_FAST_EN		(1)
-#define RGXFWIF_CTXSWITCH_PROFILE_MEDIUM_EN		(2)
-#define RGXFWIF_CTXSWITCH_PROFILE_SLOW_EN		(3)
-#define RGXFWIF_CTXSWITCH_PROFILE_NODELAY_EN	(4)
 
 /*!
  ******************************************************************************
@@ -433,20 +416,7 @@ typedef struct _RGXFWIF_HWRINFOBUF_
 #define RGXFWIF_INICFG_CUSTOM_PERF_TIMER_EN	(0x1 << 19)
 #define RGXFWIF_INICFG_CDM_KILL_MODE_RAND_EN	(0x1 << 20)
 #define RGXFWIF_INICFG_DISABLE_DM_OVERLAP	(0x1 << 21)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_FAST		(RGXFWIF_CTXSWITCH_PROFILE_FAST_EN << 22)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_MEDIUM		(RGXFWIF_CTXSWITCH_PROFILE_MEDIUM_EN << 22)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_SLOW		(RGXFWIF_CTXSWITCH_PROFILE_SLOW_EN << 22)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_NODELAY	(RGXFWIF_CTXSWITCH_PROFILE_NODELAY_EN << 22)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_MASK		(0x7 << 22)
-#define RGXFWIF_INICFG_CTXSWITCH_PROFILE_SHIFT		(22)
-#define RGXFWIF_INICFG_METAT1_SHIFT         (25)
-#define RGXFWIF_INICFG_METAT1_MAIN          (RGX_META_T1_MAIN  << RGXFWIF_INICFG_METAT1_SHIFT)
-#define RGXFWIF_INICFG_METAT1_DUMMY         (RGX_META_T1_DUMMY << RGXFWIF_INICFG_METAT1_SHIFT)
-#define RGXFWIF_INICFG_METAT1_ENABLED       (RGXFWIF_INICFG_METAT1_MAIN | RGXFWIF_INICFG_METAT1_DUMMY)
-#define RGXFWIF_INICFG_METAT1_MASK          (RGXFWIF_INICFG_METAT1_ENABLED >> RGXFWIF_INICFG_METAT1_SHIFT)
-#define RGXFWIF_INICFG_NEXT					(0x0 << 27) /* to be used for the next inicfg */
-#define RGXFWIF_INICFG_ALL					(0x07FFFFDFU)
-
+#define RGXFWIF_INICFG_ALL					(0x003FFFDFU)
 #define RGXFWIF_SRVCFG_DISABLE_PDP_EN 		(0x1 << 31)
 #define RGXFWIF_SRVCFG_ALL					(0x80000000U)
 #define RGXFWIF_FILTCFG_TRUNCATE_HALF		(0x1 << 3)
@@ -475,12 +445,6 @@ typedef enum
 	RGX_RD_POWER_ISLAND_DEFAULT = 2
 } RGX_RD_POWER_ISLAND_CONF;
 
-typedef enum
-{
-	RGX_META_T1_OFF   = 0x0,
-	RGX_META_T1_MAIN  = 0x1,
-	RGX_META_T1_DUMMY = 0x2
-} RGX_META_T1_CONF;
 
 /*!
  ******************************************************************************

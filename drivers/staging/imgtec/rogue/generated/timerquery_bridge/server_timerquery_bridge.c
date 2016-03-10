@@ -59,6 +59,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
@@ -74,20 +78,37 @@ PVRSRVBridgeRGXBeginTimerQuery(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXBEGINTIMERQUERY *psRGXBeginTimerQueryOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
 
 
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXBeginTimerQueryOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXBeginTimerQueryIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXBeginTimerQueryOUT->eError != PVRSRV_OK)
+					{
+						goto RGXBeginTimerQuery_exit;
+					}
+				}
 
 
 	psRGXBeginTimerQueryOUT->eError =
-		PVRSRVRGXBeginTimerQueryKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVRGXBeginTimerQueryKM(
+					hDevNodeInt,
 					psRGXBeginTimerQueryIN->ui32QueryId);
 
 
 
 
+RGXBeginTimerQuery_exit:
 
 	return 0;
 }
@@ -98,21 +119,36 @@ PVRSRVBridgeRGXEndTimerQuery(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXENDTIMERQUERY *psRGXEndTimerQueryOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psRGXEndTimerQueryIN);
-
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXEndTimerQueryOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXEndTimerQueryIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXEndTimerQueryOUT->eError != PVRSRV_OK)
+					{
+						goto RGXEndTimerQuery_exit;
+					}
+				}
 
 
 	psRGXEndTimerQueryOUT->eError =
-		PVRSRVRGXEndTimerQueryKM(psConnection, OSGetDevData(psConnection)
-					);
+		PVRSRVRGXEndTimerQueryKM(
+					hDevNodeInt);
 
 
 
 
+RGXEndTimerQuery_exit:
 
 	return 0;
 }
@@ -123,15 +159,31 @@ PVRSRVBridgeRGXQueryTimer(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXQUERYTIMER *psRGXQueryTimerOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
 
 
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXQueryTimerOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXQueryTimerIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXQueryTimerOUT->eError != PVRSRV_OK)
+					{
+						goto RGXQueryTimer_exit;
+					}
+				}
 
 
 	psRGXQueryTimerOUT->eError =
-		PVRSRVRGXQueryTimerKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVRGXQueryTimerKM(
+					hDevNodeInt,
 					psRGXQueryTimerIN->ui32QueryId,
 					&psRGXQueryTimerOUT->ui64StartTime,
 					&psRGXQueryTimerOUT->ui64EndTime);
@@ -139,6 +191,7 @@ PVRSRVBridgeRGXQueryTimer(IMG_UINT32 ui32DispatchTableEntry,
 
 
 
+RGXQueryTimer_exit:
 
 	return 0;
 }
@@ -149,21 +202,37 @@ PVRSRVBridgeRGXCurrentTime(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXCURRENTTIME *psRGXCurrentTimeOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psRGXCurrentTimeIN);
-
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXCurrentTimeOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXCurrentTimeIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXCurrentTimeOUT->eError != PVRSRV_OK)
+					{
+						goto RGXCurrentTime_exit;
+					}
+				}
 
 
 	psRGXCurrentTimeOUT->eError =
-		PVRSRVRGXCurrentTime(psConnection, OSGetDevData(psConnection),
+		PVRSRVRGXCurrentTime(
+					hDevNodeInt,
 					&psRGXCurrentTimeOUT->ui64Time);
 
 
 
 
+RGXCurrentTime_exit:
 
 	return 0;
 }
@@ -174,28 +243,31 @@ PVRSRVBridgeRGXCurrentTime(IMG_UINT32 ui32DispatchTableEntry,
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitTIMERQUERYBridge(void);
-PVRSRV_ERROR DeinitTIMERQUERYBridge(void);
+PVRSRV_ERROR InitTIMERQUERYBridge(IMG_VOID);
+PVRSRV_ERROR DeinitTIMERQUERYBridge(IMG_VOID);
 
 /*
  * Register all TIMERQUERY functions with services
  */
-PVRSRV_ERROR InitTIMERQUERYBridge(void)
+PVRSRV_ERROR InitTIMERQUERYBridge(IMG_VOID)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_TIMERQUERY, PVRSRV_BRIDGE_TIMERQUERY_RGXBEGINTIMERQUERY, PVRSRVBridgeRGXBeginTimerQuery,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_TIMERQUERY, PVRSRV_BRIDGE_TIMERQUERY_RGXENDTIMERQUERY, PVRSRVBridgeRGXEndTimerQuery,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_TIMERQUERY, PVRSRV_BRIDGE_TIMERQUERY_RGXQUERYTIMER, PVRSRVBridgeRGXQueryTimer,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_TIMERQUERY, PVRSRV_BRIDGE_TIMERQUERY_RGXCURRENTTIME, PVRSRVBridgeRGXCurrentTime,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -204,7 +276,7 @@ PVRSRV_ERROR InitTIMERQUERYBridge(void)
 /*
  * Unregister all timerquery functions with services
  */
-PVRSRV_ERROR DeinitTIMERQUERYBridge(void)
+PVRSRV_ERROR DeinitTIMERQUERYBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

@@ -53,7 +53,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_external.h"
 #include "device.h"
 #include "osfunc.h"
-#include "rgxlayer_km_impl.h"
 
 typedef struct _RGX_SERVER_COMMON_CONTEXT_ RGX_SERVER_COMMON_CONTEXT;
 
@@ -70,7 +69,7 @@ typedef struct {
 #define RGXKM_DEVICE_STATE_ZERO_FREELIST			(0x1 << 0)		/*!< Zeroing the physical pages of reconstructed free lists */
 #define RGXKM_DEVICE_STATE_FTRACE_EN				(0x1 << 1)		/*!< Used to enable device FTrace thread to consume HWPerf data */
 #define RGXKM_DEVICE_STATE_DISABLE_DW_LOGGING_EN 	(0x1 << 2)		/*!< Used to disable the Devices Watchdog logging */
-#define RGXKM_DEVICE_STATE_DUST_REQUEST_INJECT_EN		(0x1 << 3)		/*!< Used for validation to inject dust requests every TA/3D kick */
+
 
 /*!
  ******************************************************************************
@@ -112,24 +111,24 @@ typedef struct _RGXFWIF_GPU_UTIL_STATS_
 	IMG_UINT64 ui64GpuStatBlocked;    /* GPU blocked statistic */
 	IMG_UINT64 ui64GpuStatIdle;       /* GPU idle statistic */
 	IMG_UINT64 ui64GpuStatCumulative; /* Sum of active/blocked/idle stats */
+
+#if defined(GPU_UTIL_SLC_STALL_COUNTERS)
+	IMG_UINT32 ui32SLCStallsRatio;    /* SLC Read/Write stalls ratio expressed in 0,01% units */
+#endif
+#if defined(PVR_POWER_ACTOR) && defined (PVR_DVFS)
+	IMG_UINT32 ui32GpuEnergy;         /* GPU dynamic energy */
+#endif
 } RGXFWIF_GPU_UTIL_STATS;
 
 
 typedef struct _RGX_REG_CONFIG_
 {
-	IMG_BOOL               bEnabled;
-	RGXFWIF_REG_CFG_TYPE   eRegCfgTypeToPush;
-	IMG_UINT32             ui32NumRegRecords;
+	IMG_BOOL			bEnabled;
+	RGXFWIF_PWR_EVT		ePowerIslandToPush;
+	IMG_UINT32      	ui32NumRegRecords;
 } RGX_REG_CONFIG;
 
 typedef struct _PVRSRV_STUB_PBDESC_ PVRSRV_STUB_PBDESC;
-
-typedef struct
-{
-	IMG_UINT32			ui32DustCount1;
-	IMG_UINT32			ui32DustCount2;
-	IMG_BOOL			bToggle;
-} RGX_DUST_STATE;
 
 /* there is a corresponding define in rgxapi.h */
 #define RGX_MAX_TIMER_QUERIES 16
@@ -154,8 +153,9 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_BOOL				bPDPEnabled;
 
 	/* Kernel mode linear address of device registers */
-	void					*pvRegsBaseKM;
+	IMG_PVOID				pvRegsBaseKM;
 
+	/* FIXME: The alloc for this should go through OSAllocMem in future */
 	IMG_HANDLE				hRegMapping;
 
 	/* System physical address of device registers*/
@@ -169,39 +169,70 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	DEVMEM_CONTEXT			*psKernelDevmemCtx;
 	DEVMEM_HEAP				*psFirmwareHeap;
 	MMU_CONTEXT				*psKernelMMUCtx;
+	IMG_UINT32				ui32KernelCatBaseIdReg;
+	IMG_UINT32				ui32KernelCatBaseId;
+	IMG_UINT32				ui32KernelCatBaseReg;
+	IMG_UINT32				ui32KernelCatBaseWordSize;
+	IMG_UINT32				ui32KernelCatBaseAlignShift;
+	IMG_UINT32				ui32KernelCatBaseShift;
+	IMG_UINT64				ui64KernelCatBaseMask;
 
-	void					*pvDeviceMemoryHeap;
+	IMG_VOID				*pvDeviceMemoryHeap;
+	
+	/* Kernel CCBs */
+	DEVMEM_MEMDESC			*apsKernelCCBCtlMemDesc[RGXFWIF_DM_MAX];	/*!< memdesc for kernel CCB control */
+	RGXFWIF_CCB_CTL			*apsKernelCCBCtl[RGXFWIF_DM_MAX];			/*!< kernel CCB control kernel mapping */
+	DEVMEM_MEMDESC			*apsKernelCCBMemDesc[RGXFWIF_DM_MAX];		/*!< memdesc for kernel CCB */
+	IMG_UINT8				*apsKernelCCB[RGXFWIF_DM_MAX];				/*!< kernel CCB kernel mapping */
 
-	/* Kernel CCB */
-	DEVMEM_MEMDESC			*psKernelCCBCtlMemDesc;    /*!< memdesc for Kernel CCB control */
-	RGXFWIF_CCB_CTL			*psKernelCCBCtl;           /*!< kernel mapping for Kernel CCB control */
-	DEVMEM_MEMDESC			*psKernelCCBMemDesc;       /*!< memdesc for Kernel CCB */
-	IMG_UINT8				*psKernelCCB;              /*!< kernel mapping for Kernel CCB */
-
-	/* Firmware CCB */
-	DEVMEM_MEMDESC			*psFirmwareCCBCtlMemDesc;   /*!< memdesc for Firmware CCB control */
-	RGXFWIF_CCB_CTL			*psFirmwareCCBCtl;          /*!< kernel mapping for Firmware CCB control */
-	DEVMEM_MEMDESC			*psFirmwareCCBMemDesc;      /*!< memdesc for Firmware CCB */
-	IMG_UINT8				*psFirmwareCCB;             /*!< kernel mapping for Firmware CCB */
+	/* Firmware CCBs */
+	DEVMEM_MEMDESC			*apsFirmwareCCBCtlMemDesc[RGXFWIF_DM_MAX];	/*!< memdesc for Firmware CCB control */
+	RGXFWIF_CCB_CTL			*apsFirmwareCCBCtl[RGXFWIF_DM_MAX];			/*!< kernel CCB control Firmware mapping */
+	DEVMEM_MEMDESC			*apsFirmwareCCBMemDesc[RGXFWIF_DM_MAX];		/*!< memdesc for Firmware CCB */
+	IMG_UINT8				*apsFirmwareCCB[RGXFWIF_DM_MAX];				/*!< kernel CCB Firmware mapping */
 
 	/*
 		if we don't preallocate the pagetables we must 
 		insert newly allocated page tables dynamically 
 	*/
-	void					*pvMMUContextList;
+	IMG_VOID				*pvMMUContextList;
 
 	IMG_UINT32				ui32ClkGateStatusReg;
 	IMG_UINT32				ui32ClkGateStatusMask;
 	RGX_SCRIPTS				*psScripts;
 
 	DEVMEM_MEMDESC			*psRGXFWCodeMemDesc;
-	IMG_DEV_VIRTADDR		sFWCodeDevVAddrBase;
+	DEVMEM_EXPORTCOOKIE		sRGXFWCodeExportCookie;
+
 	DEVMEM_MEMDESC			*psRGXFWDataMemDesc;
-	IMG_DEV_VIRTADDR		sFWDataDevVAddrBase;
+	DEVMEM_EXPORTCOOKIE		sRGXFWDataExportCookie;
 
 	DEVMEM_MEMDESC			*psRGXFWCorememMemDesc;
-	IMG_DEV_VIRTADDR		sFWCorememCodeDevVAddrBase;
-	RGXFWIF_DEV_VIRTADDR	sFWCorememCodeFWAddr;
+	DEVMEM_EXPORTCOOKIE		sRGXFWCorememExportCookie;
+
+	DEVMEM_MEMDESC			*psRGXFWIfTraceBufCtlMemDesc;
+	RGXFWIF_TRACEBUF		*psRGXFWIfTraceBuf;
+
+	DEVMEM_MEMDESC			*psRGXFWIfHWRInfoBufCtlMemDesc;
+	RGXFWIF_HWRINFOBUF		*psRGXFWIfHWRInfoBuf;
+
+	DEVMEM_MEMDESC			*psRGXFWIfGpuUtilFWCbCtlMemDesc;
+	RGXFWIF_GPU_UTIL_FWCB	*psRGXFWIfGpuUtilFWCb;
+
+	DEVMEM_MEMDESC			*psRGXFWIfHWPerfBufMemDesc;
+	IMG_BYTE				*psRGXFWIfHWPerfBuf;
+	IMG_UINT32				ui32RGXFWIfHWPerfBufSize; /* in bytes */
+
+	DEVMEM_MEMDESC			*psRGXFWIfCorememDataStoreMemDesc;
+
+	DEVMEM_MEMDESC			*psRGXFWIfRegCfgMemDesc;
+
+	DEVMEM_MEMDESC			*psRGXFWIfHWPerfCountersMemDesc;
+	DEVMEM_EXPORTCOOKIE     sRGXFWHWPerfCountersExportCookie;
+	DEVMEM_MEMDESC			*psRGXFWIfInitMemDesc;
+
+	DEVMEM_MEMDESC			*psRGXFWIfRuntimeCfgMemDesc;
+	RGXFWIF_RUNTIME_CFG		*psRGXFWIfRuntimeCfg;
 
 #if defined(RGXFW_ALIGNCHECKS)
 	DEVMEM_MEMDESC			*psRGXFWAlignChecksMemDesc;
@@ -221,92 +252,9 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	IMG_UINT32				ui32SigSHChecksSize;
 #endif
 
-	DEVMEM_MEMDESC			*psRGXFWIfTraceBufCtlMemDesc;			/*!< memdesc of trace buffer control structure */
-	DEVMEM_MEMDESC			*psRGXFWIfTraceBufferMemDesc[RGXFW_THREAD_NUM];	/*!< memdesc of actual FW trace (log) buffer(s) */
-	RGXFWIF_TRACEBUF		*psRGXFWIfTraceBuf;	/* structure containing trace control data and actual trace buffer */
-
-#if defined(PVRSRV_GPUVIRT_GUESTDRV)
-	/* 
-		Guest drivers do not support these functionality:
-			- H/W perf & reset
-			- GPU dvfs, trace & utilization
-			- F/W initialization & management
-	 */
-	DEVMEM_MEMDESC			*psRGXFWIfInitMemDesc;
-	RGXFWIF_DEV_VIRTADDR	sFWInitFWAddr;
-#else
-	DEVMEM_MEMDESC			*psRGXFWIfHWRInfoBufCtlMemDesc;
-	RGXFWIF_HWRINFOBUF		*psRGXFWIfHWRInfoBuf;
-
-	DEVMEM_MEMDESC			*psRGXFWIfGpuUtilFWCbCtlMemDesc;
-	RGXFWIF_GPU_UTIL_FWCB	*psRGXFWIfGpuUtilFWCb;
-
-	DEVMEM_MEMDESC			*psRGXFWIfHWPerfBufMemDesc;
-	IMG_BYTE				*psRGXFWIfHWPerfBuf;
-	IMG_UINT32				ui32RGXFWIfHWPerfBufSize; /* in bytes */
-
-	DEVMEM_MEMDESC			*psRGXFWIfCorememDataStoreMemDesc;
-
-	DEVMEM_MEMDESC			*psRGXFWIfRegCfgMemDesc;
-
-	DEVMEM_MEMDESC			*psRGXFWIfHWPerfCountersMemDesc;
-	DEVMEM_MEMDESC			*psRGXFWIfInitMemDesc;
-	RGXFWIF_DEV_VIRTADDR	sFWInitFWAddr;
-
-	DEVMEM_MEMDESC			*psRGXFWIfRuntimeCfgMemDesc;
-	RGXFWIF_RUNTIME_CFG		*psRGXFWIfRuntimeCfg;
-
-#if defined(SUPPORT_PVRSRV_GPUVIRT)
-	/* Additional guest firmware memory context info */
-	DEVMEM_HEAP				*psGuestFirmwareHeap[RGXFW_NUM_OS-1];
-	DEVMEM_MEMDESC			*psGuestFirmwareMemDesc[RGXFW_NUM_OS-1];
-#endif
-
-	DEVMEM_MEMDESC			*psMETAT1StackMemDesc;
-
-#if defined (PDUMP)
-	IMG_BOOL				bDumpedKCCBCtlAlready;
-#endif
-
-	/*! Handles to the lock and stream objects used to transport
-	 * HWPerf data to user side clients. See RGXHWPerfInitOnDemandResources()
-	 * and RGXHWPerfDeinit().
-	 * Set during initialisation if the application hint turns bit 7
-	 * 'Enable HWPerf' on in the ConfigFlags sent to the FW. FW stores this
-	 * bit in the RGXFW_CTL.ui32StateFlags member. They may also get
-	 * set by the API RGXCtrlHWPerf(). Thus these members may be 0 if HWPerf is
-	 * not enabled as these members are created on demand and destroyed at
-	 * driver unload.
-	 */
-	POS_LOCK 				hLockHWPerfModule;
-	IMG_HANDLE				hHWPerfStream;
-	IMG_UINT64				ui64HWPerfFilter; /*! Event filter for HWPerf stream (settable by AppHint) */
-	IMG_BOOL				bHWPerfHostEnabled; /*! HWPerfHost enable flag (settable by AppHint */
-	IMG_UINT32				ui32HWPerfHostFilter; /*! Event filter for HWPerfHost stream (settable by AppHint) */
-	POS_LOCK 				hLockHWPerfHostStream; /*! Lock guarding access to HWPerfHost stream */
-	IMG_HANDLE				hHWPerfHostStream; /*! Host side only HWPerf stream */
-	IMG_UINT32				ui32HWPerfHostNextOrdinal; /*! Ordinal number for HWPerfHost */
-#if defined(SUPPORT_GPUTRACE_EVENTS)
-	IMG_HANDLE				hGPUTraceCmdCompleteHandle;
-	IMG_BOOL				bFTraceGPUEventsEnabled;
-	IMG_HANDLE				hGPUTraceTLStream;
-	IMG_UINT64				ui64LastSampledTimeCorrOSTimeStamp;
-	IMG_UINT32				ui32FTraceLastOrdinal;
-#endif
-	
-	/* Poll data for detecting firmware fatal errors */
-	IMG_UINT32				aui32CrLastPollAddr[RGXFW_THREAD_NUM];
-	IMG_UINT32				ui32KCCBCmdsExecutedLastTime;
-	IMG_BOOL				bKCCBCmdsWaitingLastTime;
-	IMG_UINT32				ui32GEOTimeoutsLastTime;
-
-	/* Client stall detection */
-	IMG_BOOL				bStalledClient;
-#endif /* defined(PVRSRV_GPUVIRT_GUESTDRV) */
-
-	void					*pvLISRData;
-	void					*pvMISRData;
-	void					*pvAPMISRData;
+	IMG_VOID				*pvLISRData;
+	IMG_VOID				*pvMISRData;
+	IMG_VOID				*pvAPMISRData;
 	
 	DEVMEM_MEMDESC			*psRGXFaultAddressMemDesc;
 
@@ -316,6 +264,30 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 #if defined(RGX_FEATURE_SLC_VIVT)
 	DEVMEM_MEMDESC			*psSLC3FenceMemDesc;
+#endif
+
+#if defined (PDUMP)
+	IMG_BOOL				abDumpedKCCBCtlAlready[RGXFWIF_DM_MAX];
+	
+#endif	
+
+	/*! Handles to the lock and stream objects used to transport
+	 * HWPerf data to user side clients. See RGXHWPerfInit() RGXHWPerfDeinit().
+	 * Set during initialisation if the application hint turns bit 7
+	 * 'Enable HWPerf' on in the ConfigFlags sent to the FW. FW stores this
+	 * bit in the RGXFW_CTL.ui32StateFlags member. They may also get
+	 * set by the API RGXCtrlHWPerf(). Thus these members may be 0 if HWPerf is
+	 * not enabled as these members are created on demand and destroyed at
+	 * driver unload.
+	 */
+	POS_LOCK 				hLockHWPerfStream;
+	IMG_HANDLE				hHWPerfStream;
+#if defined(SUPPORT_GPUTRACE_EVENTS)
+	IMG_HANDLE				hGPUTraceCmdCompleteHandle;
+	IMG_BOOL				bFTraceGPUEventsEnabled;
+	IMG_HANDLE				hGPUTraceTLConnection;
+	IMG_HANDLE				hGPUTraceTLStream;
+	IMG_UINT64				ui64LastSampledTimeCorrOSTimeStamp;
 #endif
 
 	/* If we do 10 deferred memory allocations per second, then the ID would warp around after 13 years */
@@ -338,26 +310,32 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	
 	IMG_HANDLE				hProcessQueuesMISR;
 
-	IMG_UINT32 				ui32DeviceFlags;		/*!< Flags to track general device state  */
+	IMG_UINT32 				ui32DeviceFlags;	/*!< Flags to track general device state  */
+
+	/* Poll data for detecting firmware fatal errors */
+	IMG_UINT32  aui32CrLastPollAddr[RGXFW_THREAD_NUM];
+	IMG_UINT32  ui32KCCBCmdsExecutedLastTime;
+	IMG_BOOL    bKCCBCmdsWaitingLastTime;
+	IMG_UINT32  ui32GEOTimeoutsLastTime;
+
+	/* Client stall detection */
+	IMG_BOOL	bStalledClient;
 
 	/* Timer Queries */
-	IMG_UINT32				ui32ActiveQueryId;		/*!< id of the active line */
-	IMG_BOOL				bSaveStart;				/*!< save the start time of the next kick on the device*/
-	IMG_BOOL				bSaveEnd;				/*!< save the end time of the next kick on the device*/
+	IMG_UINT32        ui32ActiveQueryId;       /*!< id of the active line */
+	IMG_BOOL          bSaveStart;              /*!< save the start time of the next kick on the device*/
+	IMG_BOOL          bSaveEnd;                /*!< save the end time of the next kick on the device*/
 
-	DEVMEM_MEMDESC			*psStartTimeMemDesc;    /*!< memdesc for Start Times */
-	IMG_UINT64				*pui64StartTimeById;    /*!< CPU mapping of the above */
+	DEVMEM_MEMDESC    * psStartTimeMemDesc;    /*!< memdesc for Start Times */
+	RGXFWIF_TIMESTAMP * pasStartTimeById;      /*!< CPU mapping of the above */
 
-	DEVMEM_MEMDESC			*psEndTimeMemDesc;      /*!< memdesc for End Timer */
-	IMG_UINT64				*pui64EndTimeById;      /*!< CPU mapping of the above */
+	DEVMEM_MEMDESC    * psEndTimeMemDesc;      /*!< memdesc for End Timer */
+	RGXFWIF_TIMESTAMP * pasEndTimeById;        /*!< CPU mapping of the above */
 
-	IMG_UINT32				aui32ScheduledOnId[RGX_MAX_TIMER_QUERIES];	/*!< kicks Scheduled on QueryId */
-	DEVMEM_MEMDESC			*psCompletedMemDesc;	/*!< kicks Completed on QueryId */
-	IMG_UINT32				*pui32CompletedById;	/*!< CPU mapping of the above */
+	IMG_UINT32        aui32ScheduledOnId[RGX_MAX_TIMER_QUERIES];      /*!< kicks Scheduled on QueryId */
+	DEVMEM_MEMDESC    * psCompletedMemDesc;    /*!< kicks Completed on QueryId */
+	IMG_UINT32        * pui32CompletedById;    /*!< CPU mapping of the above */
 
-#if defined(PVRSRV_GPUVIRT_GUESTDRV)
-	/* Guest drivers currently do not support GPU DVFS/Utilization  */
-#else
 	/* GPU DVFS Table */
 	RGX_GPU_DVFS_TABLE  *psGpuDVFSTable;
 
@@ -374,48 +352,37 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 	PVRSRV_ERROR (*pfnGetGpuUtilStats) (PVRSRV_DEVICE_NODE *psDeviceNode,
 	                                    IMG_HANDLE hGpuUtilUser,
 	                                    RGXFWIF_GPU_UTIL_STATS *psReturnStats);
-#endif
 
-	POS_LOCK    			hGPUUtilLock;
+	PVRSRV_ERROR (*pfnRegisterGpuUtilStats) (IMG_HANDLE *phGpuUtilUser);
+	PVRSRV_ERROR (*pfnUnregisterGpuUtilStats) (IMG_HANDLE hGpuUtilUser);
+
+	POS_LOCK    hGPUUtilLock;
 
 	/* Register configuration */
-	RGX_REG_CONFIG			sRegCongfig;
+	RGX_REG_CONFIG		sRegCongfig;
 
-	IMG_BOOL				bRGXPowered;
+	IMG_BOOL				bIgnoreFurtherIRQs;
 	DLLIST_NODE				sMemoryContextList;
 
-	POSWR_LOCK				hRenderCtxListLock;
-	POSWR_LOCK				hComputeCtxListLock;
-	POSWR_LOCK				hTransferCtxListLock;
-	POSWR_LOCK				hRaytraceCtxListLock;
-	POSWR_LOCK				hMemoryCtxListLock;
-	POSWR_LOCK				hKickSyncCtxListLock;
-
-	/* Linked list of deferred KCCB commands due to a full KCCB */
-	DLLIST_NODE 			sKCCBDeferredCommandsListHead;
+	POSWR_LOCK		hRenderCtxListLock;
+	POSWR_LOCK		hComputeCtxListLock;
+	POSWR_LOCK		hTransferCtxListLock;
+	POSWR_LOCK		hRaytraceCtxListLock;
+	POSWR_LOCK		hMemoryCtxListLock;
 
 	/* Linked lists of contexts on this device */
-	DLLIST_NODE 			sRenderCtxtListHead;
-	DLLIST_NODE 			sComputeCtxtListHead;
-	DLLIST_NODE 			sTransferCtxtListHead;
-	DLLIST_NODE 			sRaytraceCtxtListHead;
-	DLLIST_NODE 			sKickSyncCtxtListHead;	
+	DLLIST_NODE 		sRenderCtxtListHead;
+	DLLIST_NODE 		sComputeCtxtListHead;
+	DLLIST_NODE 		sTransferCtxtListHead;
+	DLLIST_NODE 		sRaytraceCtxtListHead;
 
-	DLLIST_NODE 			sCommonCtxtListHead;
-	IMG_UINT32				ui32CommonCtxtCurrentID;	/*!< ID assigned to the next common context */
+	DLLIST_NODE 		sCommonCtxtListHead;
+	IMG_UINT32			ui32CommonCtxtCurrentID;			/*!< ID assigned to the next common context */
 
 #if defined(SUPPORT_PAGE_FAULT_DEBUG)
 	POS_LOCK 				hDebugFaultInfoLock;		/*!< Lock to protect the debug fault info list */
 	POS_LOCK 				hMMUCtxUnregLock;	/*!< Lock to protect list of unregistered MMU contexts */
 #endif
-
-#if defined(RGX_FEATURE_MIPS)
-	POS_LOCK				hNMILock; /*!< Lock to protect NMI operations */
-#endif
-
-	RGX_DUST_STATE			sDustReqState;
-
-	RGX_POWER_LAYER_PARAMS	sPowerParams;
 } PVRSRV_RGXDEV_INFO;
 
 

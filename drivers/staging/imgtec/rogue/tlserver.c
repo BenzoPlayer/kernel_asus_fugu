@@ -62,10 +62,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Transport Layer Client API Kernel-Mode bridge implementation
  */
 PVRSRV_ERROR
+TLServerConnectKM(CONNECTION_DATA *psConnection)
+{
+	PVR_DPF_ENTERED;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	PVR_DPF_RETURN_OK;
+}
+
+PVRSRV_ERROR
+TLServerDisconnectKM(CONNECTION_DATA *psConnection)
+{
+	PVR_DPF_ENTERED;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	PVR_DPF_RETURN_OK;
+}
+
+PVRSRV_ERROR
 TLServerOpenStreamKM(IMG_PCHAR  	 	   pszName,
 			   	     IMG_UINT32 		   ui32Mode,
 			   	     PTL_STREAM_DESC* 	   ppsSD,
-			   	     PMR** 				   ppsTLPMR)
+			   	     DEVMEM_EXPORTCOOKIE** ppsBufCookie)
 {
 	PVRSRV_ERROR 	eError = PVRSRV_OK;
 	PVRSRV_ERROR 	eErrorEO = PVRSRV_OK;
@@ -134,8 +154,7 @@ TLServerOpenStreamKM(IMG_PCHAR  	 	   pszName,
 	// Only one client/descriptor per stream supported
 	if (psNode->psRDesc != NULL)
 	{
-		PVR_DPF((PVR_DBG_ERROR, "Can not open \"%s\" stream, stream already"
-		        " opened", pszName));
+		PVR_DPF((PVR_DBG_ERROR, "Can not open stream, stream already opened"));
 		eError = PVRSRV_ERROR_ALREADY_OPEN;
 		goto e0;
 	}
@@ -158,16 +177,15 @@ TLServerOpenStreamKM(IMG_PCHAR  	 	   pszName,
 		goto e1;
 	}
 
-	// Copy the import handle back to the user mode API to enable access to
-	// the stream buffer from user-mode process.
-	eError = DevmemLocalGetImportHandle(TLStreamGetBufferPointer(psNode->psStream), (void**) ppsTLPMR);
-	PVR_LOGG_IF_ERROR(eError, "DevmemLocalGetImportHandle", e2);
-
 	psGD->uiClientCnt++;
 	psNode->psRDesc = psNewSD;
 
 	/* Global data updated. Now release global lock */
 	OSLockRelease (psGD->hTLGDLock);
+
+	// Copy the export cookie back to the user mode API to enable access to
+	// the stream buffer from user-mode process.
+	*ppsBufCookie = TLStreamGetBufferCookie(psNode->psStream);
 
 	*ppsSD = psNewSD;
 
@@ -176,18 +194,10 @@ TLServerOpenStreamKM(IMG_PCHAR  	 	   pszName,
 			 psNode->hDataEventObj, 
 			 psNode->psRDesc->hDataEvent));
 
-	if (psNode->psStream->pfOnReaderOpenCallback != NULL)
-	{
-		psNode->psStream->pfOnReaderOpenCallback(
-		        psNode->psStream->pvOnReaderOpenUserData);
-	}
-
 	PVR_DPF_RETURN_OK;
 
-e2:
-	OSFREEMEM(psNewSD);
 e1:
-	OSEventObjectClose(hEvent);
+	OSEventObjectClose (hEvent);
 e0:
 	OSLockRelease (psGD->hTLGDLock);
 	PVR_DPF_RETURN_RC (eError);
@@ -243,7 +253,7 @@ TLServerCloseStreamKM(PTL_STREAM_DESC psSD)
 	if (bDestroyStream)
 	{
 		TLStreamDestroy (psStream);
-		psStream = NULL;
+		psStream = IMG_NULL;
 	}
 	
 	/* Clean up the descriptor structure */

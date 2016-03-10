@@ -53,7 +53,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DBGDRIV_MONOBASE	0x000B0000
 
 
-extern void *	g_pvAPIMutex;
+extern IMG_VOID *	g_pvAPIMutex;
 
 /*****************************************************************************
  Internal debug driver core functions
@@ -71,18 +71,18 @@ IMG_UINT32 IMG_CALLCONV DBGDrivRead(PDBG_STREAM psStream, IMG_UINT32 ui32BufID,
 IMG_UINT32 IMG_CALLCONV DBGDrivGetMarker(PDBG_STREAM psStream);
 
 /* Used in ioctl.c in DBGDIOCDrivGetServiceTable() which is called in WDDM PDump files */
-void * IMG_CALLCONV DBGDrivGetServiceTable(void);
+IMG_PVOID IMG_CALLCONV DBGDrivGetServiceTable(IMG_VOID);
 
 /* Used in WDDM version of debug driver win7/main.c */
-void DestroyAllStreams(void);
+IMG_VOID DestroyAllStreams(IMG_VOID);
 
 /*****************************************************************************
  Function prototypes
 *****************************************************************************/
 IMG_UINT32 AtoI(IMG_CHAR *szIn);
 
-void HostMemSet(void *pvDest,IMG_UINT8 ui8Value,IMG_UINT32 ui32Size);
-void HostMemCopy(void *pvDest,void *pvSrc,IMG_UINT32 ui32Size);
+IMG_VOID HostMemSet(IMG_VOID *pvDest,IMG_UINT8 ui8Value,IMG_UINT32 ui32Size);
+IMG_VOID HostMemCopy(IMG_VOID *pvDest,IMG_VOID *pvSrc,IMG_UINT32 ui32Size);
 
 /*****************************************************************************
  Secure handle Function prototypes
@@ -96,16 +96,16 @@ IMG_BOOL RemoveSIDEntry(PDBG_STREAM psStream);
  Declarations for IOCTL Service table and KM table entry points
 *****************************************************************************/
 IMG_BOOL   IMG_CALLCONV ExtDBGDrivCreateStream(IMG_CHAR *pszName, IMG_UINT32 ui32Flags, IMG_UINT32 ui32Size, IMG_HANDLE* phInit, IMG_HANDLE* phMain, IMG_HANDLE* phDeinit);
-void   IMG_CALLCONV ExtDBGDrivDestroyStream(IMG_HANDLE hInit, IMG_HANDLE hMain, IMG_HANDLE hDeinit);
-void * IMG_CALLCONV ExtDBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream);
+IMG_VOID   IMG_CALLCONV ExtDBGDrivDestroyStream(IMG_HANDLE hInit, IMG_HANDLE hMain, IMG_HANDLE hDeinit);
+IMG_VOID * IMG_CALLCONV ExtDBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream);
 IMG_UINT32 IMG_CALLCONV ExtDBGDrivRead(PDBG_STREAM psStream, IMG_UINT32 ui32BufID, IMG_UINT32 ui32OutBuffSize,IMG_UINT8 *pui8OutBuf);
 IMG_UINT32 IMG_CALLCONV ExtDBGDrivWrite2(PDBG_STREAM psStream,IMG_UINT8 *pui8InBuf,IMG_UINT32 ui32InBuffSize);
-void   IMG_CALLCONV ExtDBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
+IMG_VOID   IMG_CALLCONV ExtDBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
 IMG_UINT32 IMG_CALLCONV ExtDBGDrivGetMarker(PDBG_STREAM psStream);
-void   IMG_CALLCONV ExtDBGDrivWaitForEvent(DBG_EVENT eEvent);
+IMG_VOID   IMG_CALLCONV ExtDBGDrivWaitForEvent(DBG_EVENT eEvent);
 IMG_UINT32 IMG_CALLCONV ExtDBGDrivGetCtrlState(PDBG_STREAM psStream, IMG_UINT32 ui32StateID);
 IMG_UINT32 IMG_CALLCONV ExtDBGDrivGetFrame(void);
-void   IMG_CALLCONV ExtDBGDrivSetFrame(IMG_UINT32 ui32Frame);
+IMG_VOID   IMG_CALLCONV ExtDBGDrivSetFrame(IMG_UINT32 ui32Frame);
 
 #endif
 

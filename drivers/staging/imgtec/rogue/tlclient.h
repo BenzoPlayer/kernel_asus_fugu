@@ -47,14 +47,32 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "img_defs.h"
 #include "pvrsrv_error.h"
+#include "services.h"
 
 #include "pvr_tlcommon.h"
 
 
-/* This value is used for the hSrvHandle argument in the client API when
- * called directly from the kernel which will lead to a direct bridge access.
- */
-#define DIRECT_BRIDGE_HANDLE	((IMG_HANDLE)0xDEADBEEFU)
+/**************************************************************************/ /*!
+ @Function		TLClientConnect
+ @Description	Initialise direct connection to Services kernel server
+                transport layer
+ @Output		phSrvHandle	Address of a pointer to a connection object
+ @Return        PVRSRV_ERROR:	for system error codes
+*/ /***************************************************************************/
+IMG_INTERNAL
+PVRSRV_ERROR TLClientConnect(IMG_HANDLE* phSrvHandle);
+
+
+/**************************************************************************/ /*!
+ @Function		TLClientDisconnect
+ @Description	Disconnect from the direct connected Services kernel server
+                transport layer
+ @Input			hSrvHandle	Handle to connection object as returned from
+ 	 	 	 	 	 	 	TLClientConnect()
+ @Return        PVRSRV_ERROR:	for system error codes
+*/ /***************************************************************************/
+IMG_INTERNAL
+PVRSRV_ERROR TLClientDisconnect(IMG_HANDLE hSrvHandle);
 
 
 /**************************************************************************/ /*!

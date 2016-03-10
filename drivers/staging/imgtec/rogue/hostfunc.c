@@ -191,10 +191,10 @@ void PVRSRVDebugPrintf	(
 
  @Input    ui32Size :	number of bytes to set
 
- @Return   void
+ @Return   IMG_VOID
 
 ******************************************************************************/
-void HostMemSet(void *pvDest, IMG_UINT8 ui8Value, IMG_UINT32 ui32Size)
+IMG_VOID HostMemSet(IMG_VOID *pvDest, IMG_UINT8 ui8Value, IMG_UINT32 ui32Size)
 {
 	memset(pvDest, (int) ui8Value, (size_t) ui32Size);
 }
@@ -213,7 +213,7 @@ void HostMemSet(void *pvDest, IMG_UINT8 ui8Value, IMG_UINT32 ui32Size)
  @Return  none
 
 ******************************************************************************/
-void HostMemCopy(void *pvDst, void *pvSrc, IMG_UINT32 ui32Size)
+IMG_VOID HostMemCopy(IMG_VOID *pvDst, IMG_VOID *pvSrc, IMG_UINT32 ui32Size)
 {
 #if defined(USE_UNOPTIMISED_MEMCPY)
     unsigned char *src,*dst;
@@ -236,38 +236,38 @@ IMG_UINT32 HostReadRegistryDWORDFromString(char *pcKey, char *pcValueName, IMG_U
 	return 0;
 }
 
-void * HostPageablePageAlloc(IMG_UINT32 ui32Pages)
+IMG_VOID * HostPageablePageAlloc(IMG_UINT32 ui32Pages)
 {
     return (void*)vmalloc(ui32Pages * PAGE_SIZE);/*, GFP_KERNEL);*/
 }
 
-void HostPageablePageFree(void * pvBase)
+IMG_VOID HostPageablePageFree(IMG_VOID * pvBase)
 {
     vfree(pvBase);
 }
 
-void * HostNonPageablePageAlloc(IMG_UINT32 ui32Pages)
+IMG_VOID * HostNonPageablePageAlloc(IMG_UINT32 ui32Pages)
 {
     return (void*)vmalloc(ui32Pages * PAGE_SIZE);/*, GFP_KERNEL);*/
 }
 
-void HostNonPageablePageFree(void * pvBase)
+IMG_VOID HostNonPageablePageFree(IMG_VOID * pvBase)
 {
     vfree(pvBase);
 }
 
-void * HostMapKrnBufIntoUser(void * pvKrnAddr, IMG_UINT32 ui32Size, void **ppvMdl)
+IMG_VOID * HostMapKrnBufIntoUser(IMG_VOID * pvKrnAddr, IMG_UINT32 ui32Size, IMG_VOID **ppvMdl)
 {
     /* XXX Not yet implemented */
-	return NULL;
+	return IMG_NULL;
 }
 
-void HostUnMapKrnBufFromUser(void * pvUserAddr, void * pvMdl, void * pvProcess)
+IMG_VOID HostUnMapKrnBufFromUser(IMG_VOID * pvUserAddr, IMG_VOID * pvMdl, IMG_VOID * pvProcess)
 {
     /* XXX Not yet implemented */
 }
 
-void HostCreateRegDeclStreams(void)
+IMG_VOID HostCreateRegDeclStreams(IMG_VOID)
 {
     /* XXX Not yet implemented */
 }
@@ -280,14 +280,14 @@ void HostCreateRegDeclStreams(void)
 static int iStreamData;
 static wait_queue_head_t sStreamDataEvent;
 
-IMG_INT32 HostCreateEventObjects(void)
+IMG_INT32 HostCreateEventObjects(IMG_VOID)
 {
 	init_waitqueue_head(&sStreamDataEvent);
 
 	return 0;
 }
 
-void HostWaitForEvent(DBG_EVENT eEvent)
+IMG_VOID HostWaitForEvent(DBG_EVENT eEvent)
 {
 	switch(eEvent)
 	{
@@ -309,7 +309,7 @@ void HostWaitForEvent(DBG_EVENT eEvent)
 	}
 }
 
-void HostSignalEvent(DBG_EVENT eEvent)
+IMG_VOID HostSignalEvent(DBG_EVENT eEvent)
 {
 	switch(eEvent)
 	{
@@ -322,7 +322,7 @@ void HostSignalEvent(DBG_EVENT eEvent)
 	}
 }
 
-void HostDestroyEventObjects(void)
+IMG_VOID HostDestroyEventObjects(IMG_VOID)
 {
 }
 #endif	/* defined(SUPPORT_DBGDRV_EVENT_OBJECTS) */

@@ -68,7 +68,7 @@ typedef struct _PLAT_DATA_
 	struct drm_device *psDRMDev;
 } PLAT_DATA;
 
-PLAT_DATA *gpsPlatData = NULL;
+PLAT_DATA *gpsPlatData = IMG_NULL;
 extern struct drm_device *gpsPVRDRMDev;
 
 /* Unused globals to keep link with 3rdparty components happy */
@@ -98,7 +98,7 @@ static PVRSRV_ERROR PCIInitDev(PLAT_DATA *psPlatData)
 		return PVRSRV_ERROR_NOT_SUPPORTED;
 	}
 
-	psPlatData->hRGXPCI = OSPCISetDev((void *)psPlatData->psDRMDev->pdev, 0);
+	psPlatData->hRGXPCI = OSPCISetDev((IMG_VOID *)psPlatData->psDRMDev->pdev, 0);
 	if (!psPlatData->hRGXPCI)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PCIInitDev: Failed to acquire PCI device"));
@@ -160,7 +160,7 @@ e4:
  @Return	none
 
 ******************************************************************************/
-static void PCIDeInitDev(PLAT_DATA *psPlatData)
+static IMG_VOID PCIDeInitDev(PLAT_DATA *psPlatData)
 {
 	OSPCIReleaseAddrRange(psPlatData->hRGXPCI, 0);
 	OSPCIReleaseDev(psPlatData->hRGXPCI);
@@ -189,9 +189,9 @@ PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig, void *hDev
 	/* Save private data for the physical memory heap */
 	gsPhysHeapConfig[0].hPrivData = (IMG_HANDLE) psPlatData;
 
-#if defined(SUPPORT_TRUSTED_DEVICE)
+#if defined(TDMETACODE)
 	#error "Not supported services/3rdparty/intel_drm/sysconfig.c"
-	gsPhysHeapConfig[1].hPrivData = NULL;
+	gsPhysHeapConfig[1].hPrivData = IMG_NULL;
 #endif
 
 	*ppsSysConfig = &sSysConfig;
@@ -209,7 +209,7 @@ e0:
 	return eError;
 }
 
-void SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig)
+IMG_VOID SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig)
 {
 	PLAT_DATA *psPlatData = gpsPlatData;
 
@@ -229,10 +229,10 @@ PVRSRV_ERROR SysDebugInfo(PVRSRV_SYSTEM_CONFIG *psSysConfig, DUMPDEBUG_PRINTF_FU
 	return PVRSRV_OK;
 }
 
-static void SysCpuPAddrToDevPAddr(IMG_HANDLE hPrivData,
-								  IMG_UINT32 ui32NumOfAddr,
-								  IMG_DEV_PHYADDR *psDevPAddr,
-								  IMG_CPU_PHYADDR *psCpuPAddr)
+static IMG_VOID SysCpuPAddrToDevPAddr(IMG_HANDLE hPrivData,
+										IMG_UINT32 ui32NumOfAddr,
+										IMG_DEV_PHYADDR *psDevPAddr,
+										IMG_CPU_PHYADDR *psCpuPAddr)
 {
 	psDevPAddr[0].uiAddr = psCpuPAddr[0].uiAddr;
 	if (ui32NumOfAddr > 1)
@@ -245,10 +245,10 @@ static void SysCpuPAddrToDevPAddr(IMG_HANDLE hPrivData,
 	}
 }
 
-static void SysDevPAddrToCpuPAddr(IMG_HANDLE hPrivData,
-								  IMG_UINT ui32NumOfAddr,
-								  IMG_CPU_PHYADDR *psCpuPAddr,
-								  IMG_DEV_PHYADDR *psDevPAddr)
+static IMG_VOID SysDevPAddrToCpuPAddr(IMG_HANDLE hPrivData,
+										IMG_UINT ui32NumOfAddr,
+										IMG_CPU_PHYADDR *psCpuPAddr,
+										IMG_DEV_PHYADDR *psDevPAddr)
 {
 	psCpuPAddr[0].uiAddr = psDevPAddr[0].uiAddr;
 	if (ui32NumOfAddr > 1)
@@ -306,7 +306,7 @@ typedef int (*psb_irq_handler_t)(void *data);
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_UINT32 ui32IRQ,
 				  IMG_CHAR *pszName,
 				  PFN_LISR pfnLISR,
-				  void *pvData,
+				  IMG_PVOID pvData,
 				  IMG_HANDLE *phLISRData)
 {
 	register_rgx_irq_handler((psb_irq_handler_t) pfnLISR, pvData);
@@ -316,15 +316,11 @@ PVRSRV_ERROR SysInstallDeviceLISR(IMG_UINT32 ui32IRQ,
 
 PVRSRV_ERROR SysUninstallDeviceLISR(IMG_HANDLE hLISRData)
 {
-	register_rgx_irq_handler(NULL, NULL);
+	register_rgx_irq_handler(IMG_NULL, IMG_NULL);
 	return PVRSRV_OK;
 
 }
 
-SYS_PHYS_ADDRESS_MASK SysDevicePhysAddressMask(void)
-{
-	return SYS_PHYS_ADDRESS_64_BIT;
-}
 
 /******************************************************************************
  End of file (sysconfig.c)

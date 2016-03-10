@@ -112,12 +112,10 @@ PVRSRV_ERROR PVRSRVRGXDestroyComputeContextKM(RGX_SERVER_COMPUTE_CONTEXT *psComp
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXKickCDMKM(RGX_SERVER_COMPUTE_CONTEXT	*psComputeContext,
 								IMG_UINT32					ui32ClientFenceCount,
-								SYNC_PRIMITIVE_BLOCK			**pauiClientFenceUFOSyncPrimBlock,
-								IMG_UINT32					*paui32ClientFenceSyncOffset,
+								PRGXFWIF_UFO_ADDR			*pauiClientFenceUFOAddress,
 								IMG_UINT32					*paui32ClientFenceValue,
 								IMG_UINT32					ui32ClientUpdateCount,
-								SYNC_PRIMITIVE_BLOCK			**pauiClientUpdateUFOSyncPrimBlock,
-								IMG_UINT32					*paui32ClientUpdateSyncOffset,
+								PRGXFWIF_UFO_ADDR			*pauiClientUpdateUFOAddress,
 								IMG_UINT32					*paui32ClientUpdateValue,
 								IMG_UINT32					ui32ServerSyncPrims,
 								IMG_UINT32					*paui32ServerSyncFlags,
@@ -143,19 +141,39 @@ IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXFlushComputeDataKM(RGX_SERVER_COMPUTE_CONTEXT *psComputeContext);
 
 PVRSRV_ERROR PVRSRVRGXSetComputeContextPriorityKM(CONNECTION_DATA *psConnection,
-                                                  PVRSRV_DEVICE_NODE * psDeviceNode,
 												  RGX_SERVER_COMPUTE_CONTEXT *psComputeContext,
 												  IMG_UINT32 ui32Priority);
 
-PVRSRV_ERROR PVRSRVRGXGetLastComputeContextResetReasonKM(RGX_SERVER_COMPUTE_CONTEXT *psComputeContext,
-                                                         IMG_UINT32 *peLastResetReason,
-                                                         IMG_UINT32 *pui32LastResetJobRef);
-
 /* Debug - check if compute context is waiting on a fence */
-void CheckForStalledComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
-								DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
+IMG_VOID CheckForStalledComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
+									DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
 /* Debug/Watchdog - check if client compute contexts are stalled */
 IMG_BOOL CheckForStalledClientComputeCtxt(PVRSRV_RGXDEV_INFO *psDevInfo);
+
+/*!
+*******************************************************************************
+ @Function	PVRSRVRGXKickSyncCDMKM
+
+ @Description
+	Sending a sync kick command though this CDM context
+
+ @Return   PVRSRV_ERROR
+******************************************************************************/
+IMG_EXPORT PVRSRV_ERROR 
+PVRSRVRGXKickSyncCDMKM(RGX_SERVER_COMPUTE_CONTEXT  *psComputeContext,
+                       IMG_UINT32                  ui32ClientFenceCount,
+                       PRGXFWIF_UFO_ADDR           *pauiClientFenceUFOAddress,
+                       IMG_UINT32                  *paui32ClientFenceValue,
+                       IMG_UINT32                  ui32ClientUpdateCount,
+                       PRGXFWIF_UFO_ADDR           *pauiClientUpdateUFOAddress,
+                       IMG_UINT32                  *paui32ClientUpdateValue,
+                       IMG_UINT32                  ui32ServerSyncPrims,
+                       IMG_UINT32                  *paui32ServerSyncFlags,
+                       SERVER_SYNC_PRIMITIVE       **pasServerSyncs,
+					   IMG_UINT32				   ui32NumCheckFenceFDs,
+					   IMG_INT32				   *pai32CheckFenceFDs,
+					   IMG_INT32                   i32UpdateFenceFD,
+                       IMG_BOOL                    bPDumpContinuous);
 
 #endif /* __RGXCOMPUTE_H__ */

@@ -54,11 +54,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************
  * Device state flags
  *****************************************************************************/
-#define RGXKMIF_DEVICE_STATE_ZERO_FREELIST          (0x1 << 0)		/*!< Zeroing the physical pages of reconstructed free lists */
-#define RGXKMIF_DEVICE_STATE_FTRACE_EN              (0x1 << 1)		/*!< Used to enable production of GPT FTrace from HWPerf events in the MISR */
-#define RGXKMIF_DEVICE_STATE_DISABLE_DW_LOGGING_EN  (0x1 << 2)		/*!< Used to disable the Devices Watchdog logging */
-#define RGXKMIF_DEVICE_STATE_DUST_REQUEST_INJECT_EN (0x1 << 3)		/*!< Used for validation to inject dust requests every TA/3D kick */
-#define RGXKMIF_DEVICE_STATE_HWPERF_HOST_EN         (0x1 << 4)		/*!< Used to enable host-side-only HWPerf stream */
+#define RGXKMIF_DEVICE_STATE_ZERO_FREELIST			(0x1 << 0)		/*!< Zeroing the physical pages of reconstructed free lists */
+#define RGXKMIF_DEVICE_STATE_FTRACE_EN				(0x1 << 1)		/*!< Used to enable device FTrace thread to consume HWPerf data */
+#define RGXKMIF_DEVICE_STATE_DISABLE_DW_LOGGING_EN	(0x1 << 2)		/*!< Used to disable the Devices Watchdog logging */
 
 /* Required memory alignment for 64-bit variables accessible by Meta 
   (the gcc meta aligns 64-bit vars to 64-bit; therefore, mem shared between
@@ -83,18 +81,34 @@ typedef struct _RGXFWIF_DMA_ADDR_
 
 typedef IMG_UINT8	RGXFWIF_CCCB;
 
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_CCCB;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_CCCB_CTL;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_RENDER_TARGET;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_HWRTDATA;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_FREELIST;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_RAY_FRAME_DATA;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_RPM_FREELIST;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_RTA_CTL;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_UFO_ADDR;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_CLEANUP_CTL;
-typedef RGXFWIF_DEV_VIRTADDR  PRGXFWIF_TIMESTAMP_ADDR;
+#if defined(RGX_FIRMWARE)
+/* Compiling the actual firmware - use a fully typed pointer */
+typedef RGXFWIF_CCCB					*PRGXFWIF_CCCB;
+typedef struct _RGXFWIF_CCCB_CTL_		*PRGXFWIF_CCCB_CTL;
+typedef struct _RGXFWIF_RENDER_TARGET_	*PRGXFWIF_RENDER_TARGET;
+typedef struct _RGXFWIF_HWRTDATA_		*PRGXFWIF_HWRTDATA;
+typedef struct _RGXFWIF_FREELIST_		*PRGXFWIF_FREELIST;
+typedef struct _RGXFWIF_RAY_FRAME_DATA_	*PRGXFWIF_RAY_FRAME_DATA;
+typedef struct _RGXFWIF_RPM_FREELIST_	*PRGXFWIF_RPM_FREELIST;
+typedef struct _RGXFWIF_RTA_CTL_		*PRGXFWIF_RTA_CTL;
+typedef IMG_UINT32						*PRGXFWIF_UFO_ADDR;
+typedef struct _RGXFWIF_CLEANUP_CTL_	*PRGXFWIF_CLEANUP_CTL;
+#else
+/* Compiling the host driver - use a firmware device virtual pointer */
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CCCB;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CCCB_CTL;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RENDER_TARGET;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_HWRTDATA;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_FREELIST;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RAY_FRAME_DATA;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RPM_FREELIST;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_RTA_CTL;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_UFO_ADDR;
+typedef RGXFWIF_DEV_VIRTADDR	PRGXFWIF_CLEANUP_CTL;
+#endif /* RGX_FIRMWARE */
 
+
+/* FIXME PRGXFWIF_UFO_ADDR and RGXFWIF_UFO should move back into rgx_fwif_client.h */
 typedef struct _RGXFWIF_UFO_
 {
 	PRGXFWIF_UFO_ADDR	puiAddrUFO;
@@ -214,7 +228,7 @@ typedef struct _RGXFWIF_RPM_FREELIST_
 	IMG_UINT32			ui32WriteOffset;		/*!< tail: where to write de-alloc'd pages */
 	IMG_BOOL			bReadToggle;			/*!< toggle bit for circular buffer */
 	IMG_BOOL			bWriteToggle;
-	IMG_UINT32			ui32AllocatedPageCount;
+	IMG_UINT32			ui32AllocatedPageCount; /*!< TODO: not sure yet if this is useful */
 	IMG_UINT32			ui32HWRCounter;
 	IMG_UINT32			ui32FreeListID;			/*!< unique ID per device, e.g. rolling counter */
 	IMG_BOOL			bGrowPending;			/*!< FW is waiting for host to grow the freelist */
@@ -224,6 +238,7 @@ typedef struct _RGXFWIF_RAY_FRAME_DATA_
 {
 	/* state manager for shared state between vertex and ray processing */
 	
+	/* TODO: not sure if this will be useful, link it here for now */
 	IMG_UINT32		sRPMFreeLists[RGXFW_MAX_RPM_FREELISTS];
 	
 	IMG_BOOL		bAbortOccurred;
@@ -352,30 +367,19 @@ typedef struct _RGXFWIF_COMPCHECKS_BVNC_
 	IMG_CHAR	aszV[RGXFWIF_COMPCHECKS_BVNC_V_LEN_MAX + 1];
 } UNCACHED_ALIGN RGXFWIF_COMPCHECKS_BVNC;
 
-#define RGXFWIF_COMPCHECKS_BVNC_DECLARE_AND_INIT(name) \
-	RGXFWIF_COMPCHECKS_BVNC name = { \
-		RGXFWIF_COMPCHECKS_LAYOUT_VERSION, \
-		RGXFWIF_COMPCHECKS_BVNC_V_LEN_MAX, \
-		0, \
-		{ 0 }, \
-	}
-#define RGXFWIF_COMPCHECKS_BVNC_INIT(name) \
-	do { \
-		(name).ui32LayoutVersion = RGXFWIF_COMPCHECKS_LAYOUT_VERSION; \
-		(name).ui32VLenMax = RGXFWIF_COMPCHECKS_BVNC_V_LEN_MAX; \
-		(name).ui32BNC = 0; \
-		(name).aszV[0] = 0; \
-	} while (0)
+#define RGXFWIF_COMPCHECKS_BVNC_DECLARE_AND_INIT(name) RGXFWIF_COMPCHECKS_BVNC name = { RGXFWIF_COMPCHECKS_LAYOUT_VERSION, RGXFWIF_COMPCHECKS_BVNC_V_LEN_MAX }
+#define RGXFWIF_COMPCHECKS_BVNC_INIT(name) do { (name).ui32LayoutVersion = RGXFWIF_COMPCHECKS_LAYOUT_VERSION; \
+												(name).ui32VLenMax = RGXFWIF_COMPCHECKS_BVNC_V_LEN_MAX; } while (0)
 
 typedef struct _RGXFWIF_COMPCHECKS_
 {
-	RGXFWIF_COMPCHECKS_BVNC		sHWBVNC;				 /*!< hardware BNC (from the RGX registers) */
-	RGXFWIF_COMPCHECKS_BVNC		sFWBVNC;				 /*!< firmware BNC */
-	IMG_UINT32					ui32FWProcessorVersion;  /*!< identifier of the MIPS/META version */
-	IMG_UINT32					ui32DDKVersion;			 /*!< software DDK version */
-	IMG_UINT32					ui32DDKBuild;			 /*!< software DDK build no. */
-	IMG_UINT32					ui32BuildOptions;		 /*!< build options bit-field */
-	IMG_BOOL					bUpdated;				 /*!< Information is valid */
+	RGXFWIF_COMPCHECKS_BVNC		sHWBVNC;			/*!< hardware BNC (from the RGX registers) */
+	RGXFWIF_COMPCHECKS_BVNC		sFWBVNC;			/*!< firmware BNC */
+	IMG_UINT32					ui32METAVersion;
+	IMG_UINT32					ui32DDKVersion;		/*!< software DDK version */
+	IMG_UINT32					ui32DDKBuild;		/*!< software DDK build no. */
+	IMG_UINT32					ui32BuildOptions;	/*!< build options bit-field */
+	IMG_BOOL					bUpdated;			/*!< Information is valid */
 } UNCACHED_ALIGN RGXFWIF_COMPCHECKS;
 
 
@@ -389,50 +393,15 @@ typedef struct _RGXFWIF_COMPCHECKS_
 
 
 /* Defines relating to the per-context CCBs */
-
-/* This size is to be used when a client CCB is found to consume very negligible space
- * (e.g. a few hundred bytes to few KBs - less than a page). In such a case, instead of
- * allocating CCB of size of only a few KBs, we allocate at-least this much to be future
- * risk-free. */
-#define MIN_SAFE_CCB_SIZE_LOG2	13	/* 8K (2 Pages) */
-
-/* cCCB sizes per DM context */
-#if defined(EMULATOR)
-
-/* On emulator platform, the sizes are kept as 64 KB for all contexts as the cCCBs
- * are expected to be almost always used upto their full sizes */
-
-#define RGX_TQ3D_CCB_SIZE_LOG2	16	/* 64K */
-#define RGX_TQ2D_CCB_SIZE_LOG2	16
-#define RGX_CDM_CCB_SIZE_LOG2	16
-#define RGX_TA_CCB_SIZE_LOG2	16
-#define RGX_3D_CCB_SIZE_LOG2	16
-#define RGX_KICKSYNC_CCB_SIZE_LOG2	16
-#define RGX_RTU_CCB_SIZE_LOG2	16
-
-#else /* defined (EMULATOR) */
-
-/* The following figures are obtained by observing the cCCB usage levels of various
- * GL/CL benchmark applications under different platforms and configurations, such
- * that the high watermarks (almost) never hit the full size of the cCCB */
-#define RGX_TQ3D_CCB_SIZE_LOG2	14	/* 16K */
-#define RGX_TQ2D_CCB_SIZE_LOG2	14	/* 16K */
-#define RGX_CDM_CCB_SIZE_LOG2	MIN_SAFE_CCB_SIZE_LOG2	/* The compute cCCB was found to consume only a few hundred bytes on a compute benchmark */
-#define RGX_TA_CCB_SIZE_LOG2	15	/* 32K */
-#define RGX_3D_CCB_SIZE_LOG2	16	/* 64K */
-#define RGX_KICKSYNC_CCB_SIZE_LOG2	MIN_SAFE_CCB_SIZE_LOG2 /* KickSync expected to consume low, hence minimum size */
-#define RGX_RTU_CCB_SIZE_LOG2	15
-
-#endif /* defined (EMULATOR) */
+#define RGX_CCB_SIZE_LOG2			(16) /* 64kB */
+#define RGX_CCB_ALLOCGRAN			(64)
+#define RGX_CCB_TYPE_TASK			(1 << 31)
+#define RGX_CCB_FWALLOC_ALIGN(size)	(((size) + (RGXFWIF_FWALLOC_ALIGN-1)) & ~(RGXFWIF_FWALLOC_ALIGN - 1))
 
 /*!
  ******************************************************************************
  * Client CCB commands for RGX
  *****************************************************************************/
-
-#define RGX_CCB_TYPE_TASK			(1 << 31)
-#define RGX_CCB_FWALLOC_ALIGN(size)	(((size) + (RGXFWIF_FWALLOC_ALIGN-1)) & ~(RGXFWIF_FWALLOC_ALIGN - 1))
-
 typedef enum _RGXFWIF_CCB_CMD_TYPE_
 {
 	RGXFWIF_CCB_CMD_TYPE_TA			= 201 | RGX_CCB_TYPE_TASK,
@@ -468,25 +437,18 @@ typedef struct _RGXFWIF_CCB_CMD_HEADER_
 {
 	RGXFWIF_CCB_CMD_TYPE	eCmdType;
 	IMG_UINT32				ui32CmdSize;
-	IMG_UINT32				ui32ExtJobRef; /*!< external job reference - provided by client and used in debug for tracking submitted work */
-	IMG_UINT32				ui32IntJobRef; /*!< internal job reference - generated by services and used in debug for tracking submitted work */
 } RGXFWIF_CCB_CMD_HEADER;
 
-typedef enum _RGXFWIF_REG_CFG_TYPE_
+typedef enum _RGXFWIF_PWR_EVT_
 {
-	RGXFWIF_REG_CFG_TYPE_PWR_ON=0,       /* Sidekick power event */
-	RGXFWIF_REG_CFG_TYPE_DUST_CHANGE,    /* Rascal / dust power event */
-	RGXFWIF_REG_CFG_TYPE_TA,	         /* TA kick */
-	RGXFWIF_REG_CFG_TYPE_3D,	         /* 3D kick */
-	RGXFWIF_REG_CFG_TYPE_CDM,	         /* Compute kick */
-	RGXFWIF_REG_CFG_TYPE_TLA,	         /* TLA kick */
-	RGXFWIF_REG_CFG_TYPE_ALL             /* Applies to all types. Keep as last element */
-} RGXFWIF_REG_CFG_TYPE;
+	RGXFWIF_PWR_EVT_PWR_ON,			/* Sidekick power event */
+	RGXFWIF_PWR_EVT_DUST_CHANGE,		/* Rascal / dust power event */
+	RGXFWIF_PWR_EVT_ALL			/* Applies to all power events. Keep as last element */
+} RGXFWIF_PWR_EVT;
 
 typedef struct _RGXFWIF_REG_CFG_REC_
 {
 	IMG_UINT64		ui64Addr;
-	IMG_UINT64		ui64Mask;
 	IMG_UINT64		ui64Value;
 } RGXFWIF_REG_CFG_REC;
 
@@ -502,6 +464,12 @@ typedef struct _RGXFWIF_TIME_CORR_
 	 * deltaOS = (deltaCR * K) >> decimal_shift, see full explanation below */
 	IMG_UINT32             ui32CRDeltaToOSDeltaKNs;
 } UNCACHED_ALIGN RGXFWIF_TIME_CORR;
+
+typedef struct _RGXFWIF_TIMESTAMP_
+{
+	RGXFWIF_TIME_CORR      sTimeCorr;
+	IMG_UINT64 RGXFW_ALIGN ui64Timestamp;
+} UNCACHED_ALIGN RGXFWIF_TIMESTAMP;
 
 
 /* These macros are used to help converting FW timestamps to the Host time domain.
@@ -522,7 +490,7 @@ typedef struct _RGXFWIF_TIME_CORR_
  * This is the same as keeping K as a decimal number.
  *
  * The maximum deltaOS is slightly more than 5hrs for all GPU frequencies
- * (deltaCR * K is more or less a constant), and it's relative to
+ * (deltaCR * K is more or less a costant), and it's relative to
  * the base OS timestamp sampled as a part of the timer correlation data.
  * This base is refreshed on GPU power-on, DVFS transition and
  * periodic frequency calibration (executed every few seconds if the FW is

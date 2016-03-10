@@ -132,7 +132,7 @@ typedef struct _PVRSRV_PANEL_INFO_
 	Helper function to create a Config Info based on a Surface Info
 	to do a flip with no scale, transformation etc.
 */
-static INLINE void SurfaceConfigFromSurfInfo(PVRSRV_SURFACE_INFO *psSurfaceInfo,
+static INLINE IMG_VOID SurfaceConfigFromSurfInfo(PVRSRV_SURFACE_INFO *psSurfaceInfo,
 												 PVRSRV_SURFACE_CONFIG_INFO *psConfigInfo)
 {
 	psConfigInfo->sCrop.sDims = psSurfaceInfo->sDims;

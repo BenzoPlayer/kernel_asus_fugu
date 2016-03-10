@@ -43,13 +43,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef RGXHWPERF_H_
 #define RGXHWPERF_H_
-
+  
 #include "img_types.h"
 #include "img_defs.h"
 #include "pvrsrv_error.h"
 
 #include "device.h"
-#include "connection_server.h"
 #include "rgxdevice.h"
 #include "rgx_hwperf_km.h"
 
@@ -60,104 +59,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 PVRSRV_ERROR RGXHWPerfDataStoreCB(PVRSRV_DEVICE_NODE* psDevInfo);
 
-PVRSRV_ERROR RGXHWPerfInit(PVRSRV_DEVICE_NODE *psRgxDevInfo);
-PVRSRV_ERROR RGXHWPerfInitOnDemandResources(void);
-void RGXHWPerfDeinit(void);
+PVRSRV_ERROR RGXHWPerfInit(PVRSRV_DEVICE_NODE *psRgxDevInfo, IMG_BOOL bEnable);
+IMG_VOID RGXHWPerfDeinit(void);
+
 
 /******************************************************************************
  * RGX HW Performance Profiling API(s)
  *****************************************************************************/
 
 PVRSRV_ERROR PVRSRVRGXCtrlHWPerfKM(
-	CONNECTION_DATA      * psConnection,
-	PVRSRV_DEVICE_NODE   * psDeviceNode,
-	 RGX_HWPERF_STREAM_ID  eStreamId,
-	IMG_BOOL               bToggle,
-	IMG_UINT64             ui64Mask);
+		PVRSRV_DEVICE_NODE*	psDeviceNode,
+		IMG_BOOL			bToggle,
+		IMG_UINT64 			ui64Mask);
 
 
 PVRSRV_ERROR PVRSRVRGXConfigEnableHWPerfCountersKM(
-	CONNECTION_DATA    * psConnection,
-	PVRSRV_DEVICE_NODE * psDeviceNode,
-	IMG_UINT32         ui32ArrayLen,
-	RGX_HWPERF_CONFIG_CNTBLK * psBlockConfigs);
+		PVRSRV_DEVICE_NODE* 		psDeviceNode,
+		IMG_UINT32 					ui32ArrayLen,
+		RGX_HWPERF_CONFIG_CNTBLK* 	psBlockConfigs);
 
 PVRSRV_ERROR PVRSRVRGXCtrlHWPerfCountersKM(
-	CONNECTION_DATA    * psConnection,
-	PVRSRV_DEVICE_NODE * psDeviceNode,
-	IMG_BOOL           bEnable,
-	IMG_UINT32         ui32ArrayLen,
-	IMG_UINT16         * psBlockIDs);
+		PVRSRV_DEVICE_NODE*		psDeviceNode,
+		IMG_BOOL			bEnable,
+	    IMG_UINT32 			ui32ArrayLen,
+	    IMG_UINT16*			psBlockIDs);
 
 PVRSRV_ERROR PVRSRVRGXConfigCustomCountersKM(
-	CONNECTION_DATA    * psConnection,
-	PVRSRV_DEVICE_NODE * psDeviceNode,
-	IMG_UINT16           ui16CustomBlockID,
-	IMG_UINT16           ui16NumCustomCounters,
-	IMG_UINT32         * pui32CustomCounterIDs);
-
-/******************************************************************************
- * RGX HW Performance Host Stream API
- *****************************************************************************/
-
-PVRSRV_ERROR RGXHWPerfHostInit(void);
-PVRSRV_ERROR RGXHWPerfHostInitOnDemandResources(void);
-void RGXHWPerfHostDeInit(void);
-
-void RGXHWPerfHostSetEventFilter(IMG_UINT32 ui32Filter);
-
-void RGXHWPerfHostPostEnqEvent(RGX_HWPERF_KICK_TYPE eEnqType,
-                               IMG_UINT32 ui32Pid,
-                               IMG_UINT32 ui32FWCtx,
-                               IMG_UINT32 ui32ExtJobRef,
-                               IMG_UINT32 ui32IntJobRef);
-
-void RGXHWPerfHostPostUfoEvent(RGX_HWPERF_UFO_EV eUfoType,
-                               RGX_HWPERF_UFO_DATA_ELEMENT psUFOData[],
-                               IMG_UINT uiNoOfUFOs);
-
-void RGXHWPerfHostPostClkSyncEvent(void);
-
-IMG_BOOL RGXHWPerfHostIsEventEnabled(RGX_HWPERF_HOST_EVENT_TYPE eEvent);
-
-#define _RGX_HWPERF_HOST_FILTER(CTX, EV) \
-		(((PVRSRV_RGXDEV_INFO *)CTX->psDeviceNode->pvDevice)->ui32HWPerfHostFilter \
-		& RGX_HWPERF_EVENT_MASK_VALUE(EV))
-
-/**
- * This macro checks if HWPerfHost and the event are enabled and if they are
- * it posts event to the HWPerfHost stream.
- *
- * @param C context
- * @param P process id (PID)
- * @param X firmware context
- * @param E ExtJobRef
- * @param I IntJobRef
- * @param K kick type
- */
-#define RGX_HWPERF_HOST_ENQ(C, P, X, E, I, K) \
-		do { \
-			if (_RGX_HWPERF_HOST_FILTER(C, RGX_HWPERF_HOST_ENQ)) \
-			{ \
-				RGXHWPerfHostPostEnqEvent((K), (P), (X), (E), (I)); \
-			} \
-		} while (0)
-
-/**
- * This macro checks if HWPerfHost and the event are enabled and if they are
- * it posts event to the HWPerfHost stream.
- *
- * @param T Host UFO event type
- * @param D UFO data array
- * @param N nomber of syncs in data array
- */
-#define RGX_HWPERF_HOST_UFO(T, D, N) \
-		do { \
-			if (RGXHWPerfHostIsEventEnabled(RGX_HWPERF_HOST_UFO)) \
-			{ \
-				RGXHWPerfHostPostUfoEvent((T), (D), (N)); \
-			} \
-		} while (0)
+		PVRSRV_DEVICE_NODE*     psDeviceNode,
+		IMG_UINT16              ui16CustomBlockID,
+		IMG_UINT16              ui16NumCustomCounters,
+		IMG_UINT32*             pui32CustomCounterIDs);
 
 /******************************************************************************
  * RGX HW Performance To FTrace Profiling API(s)
@@ -166,39 +97,18 @@ IMG_BOOL RGXHWPerfHostIsEventEnabled(RGX_HWPERF_HOST_EVENT_TYPE eEvent);
 #if defined(SUPPORT_GPUTRACE_EVENTS)
 
 PVRSRV_ERROR RGXHWPerfFTraceGPUInit(PVRSRV_RGXDEV_INFO *psDevInfo);
-void RGXHWPerfFTraceGPUDeInit(PVRSRV_RGXDEV_INFO *psDevInfo);
+IMG_VOID RGXHWPerfFTraceGPUDeInit(PVRSRV_RGXDEV_INFO *psDevInfo);
 
-void RGXHWPerfFTraceGPUEnqueueEvent(PVRSRV_RGXDEV_INFO *psDevInfo,
+IMG_VOID RGXHWPerfFTraceGPUEnqueueEvent(PVRSRV_RGXDEV_INFO *psDevInfo,
 		IMG_UINT32 ui32ExternalJobRef, IMG_UINT32 ui32InternalJobRef,
-		RGX_HWPERF_KICK_TYPE eKickType);
+		const IMG_CHAR* pszJobType);
 
 PVRSRV_ERROR RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue);
-IMG_BOOL RGXHWPerfFTraceGPUEventsEnabled(void);
+IMG_BOOL RGXHWPerfFTraceGPUEventsEnabled(IMG_VOID);
 
-void RGXHWPerfFTraceGPUThread(void *pvData);
+IMG_VOID RGXHWPerfFTraceGPUThread(IMG_PVOID pvData);
 
 #endif
 
-/**
- * This macro checks if HWPerfHost and the event are enabled and if they are
- * it posts event to the HWPerfHost stream.
- */
-#if defined(PVRSRV_GPUVIRT_GUESTDRV)
-#define RGX_HWPERF_HOST_CLK_SYNC()
-#else
-#define RGX_HWPERF_HOST_CLK_SYNC() \
-		do { \
-			if (RGXHWPerfHostIsEventEnabled(RGX_HWPERF_HOST_CLK_SYNC)) \
-			{ \
-				RGXHWPerfHostPostClkSyncEvent(); \
-			} \
-		} while (0)
-#endif
-
-/******************************************************************************
- * RGX HW utils functions
- *****************************************************************************/
-
-const IMG_CHAR *RGXHWPerfKickTypeToStr(RGX_HWPERF_KICK_TYPE eKickType);
 
 #endif /* RGXHWPERF_H_ */

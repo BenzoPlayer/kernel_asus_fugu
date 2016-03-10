@@ -56,7 +56,7 @@ static SID_INFO gaSID_Xlat_Table[MAX_SID_ENTRIES];
 
 IMG_SID PStream2SID(PDBG_STREAM psStream)
 {
-	if (psStream != (PDBG_STREAM)NULL)
+	if (psStream != (PDBG_STREAM)IMG_NULL)
 	{
 		IMG_INT32 iIdx;
 
@@ -85,14 +85,14 @@ PDBG_STREAM SID2PStream(IMG_SID hStream)
 	}
 	else
 	{
-    	return (PDBG_STREAM)NULL;
+    	return (PDBG_STREAM)IMG_NULL;
     }
 }
 
 
 IMG_BOOL AddSIDEntry(PDBG_STREAM psStream)
 {
-	if (psStream != (PDBG_STREAM)NULL)
+	if (psStream != (PDBG_STREAM)IMG_NULL)
 	{
 		IMG_INT32 iIdx;
 
@@ -104,7 +104,7 @@ IMG_BOOL AddSIDEntry(PDBG_STREAM psStream)
 				return IMG_TRUE;
 			}
 
-			if (gaSID_Xlat_Table[iIdx].psStream == (PDBG_STREAM)NULL)
+			if (gaSID_Xlat_Table[iIdx].psStream == (PDBG_STREAM)IMG_NULL)
 			{
 				/* free entry */
 				gaSID_Xlat_Table[iIdx].psStream = psStream;
@@ -118,7 +118,7 @@ IMG_BOOL AddSIDEntry(PDBG_STREAM psStream)
 
 IMG_BOOL RemoveSIDEntry(PDBG_STREAM psStream)
 {
-	if (psStream != (PDBG_STREAM)NULL)
+	if (psStream != (PDBG_STREAM)IMG_NULL)
 	{
 		IMG_INT32 iIdx;
 
@@ -126,7 +126,7 @@ IMG_BOOL RemoveSIDEntry(PDBG_STREAM psStream)
 		{
 			if (psStream == gaSID_Xlat_Table[iIdx].psStream)
 			{
-				gaSID_Xlat_Table[iIdx].psStream = (PDBG_STREAM)NULL;
+				gaSID_Xlat_Table[iIdx].psStream = (PDBG_STREAM)IMG_NULL;
 				return IMG_TRUE;
 			}
 		}

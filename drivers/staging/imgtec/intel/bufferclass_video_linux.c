@@ -476,7 +476,7 @@ BC_CreateBuffers(int id, bc_buf_params_t * p, IMG_BOOL is_conti_addr)
 	if (p->type != BC_MEMORY_MMAP && p->type != BC_MEMORY_USERPTR)
 		return -EINVAL;
 
-	if ((psDevInfo = GetAnchorPtr(id)) == NULL)
+	if ((psDevInfo = GetAnchorPtr(id)) == IMG_NULL)
 		return -ENODEV;
 
 	if (psDevInfo->ulNumBuffers)
@@ -535,7 +535,7 @@ BCVideoDestroyBuffers(int id)
 {
 	BC_VIDEO_DEVINFO *psDevInfo;
 	IMG_UINT32 i;
-	if ((psDevInfo = GetAnchorPtr(id)) == NULL)
+	if ((psDevInfo = GetAnchorPtr(id)) == IMG_NULL)
 		return -ENODEV;
 
 	if (!psDevInfo->ulNumBuffers)
@@ -570,7 +570,7 @@ GetBufferCount(unsigned int *puiBufferCount, int id)
 {
 	BC_VIDEO_DEVINFO *psDevInfo = GetAnchorPtr(id);
 
-	if (psDevInfo == NULL) {
+	if (psDevInfo == IMG_NULL) {
 		return -1;
 	}
 
@@ -580,7 +580,7 @@ GetBufferCount(unsigned int *puiBufferCount, int id)
 }
 
 static int
-BCVideoBridge(struct drm_device *dev, void * arg,
+BCVideoBridge(struct drm_device *dev, IMG_VOID * arg,
 		struct drm_file *file_priv)
 {
 	int err = -EFAULT;
@@ -608,7 +608,7 @@ BCVideoBridge(struct drm_device *dev, void * arg,
 	} else
 		id = psBridge->device_id;
 
-	if ((devinfo = GetAnchorPtr(id)) == NULL)
+	if ((devinfo = GetAnchorPtr(id)) == IMG_NULL)
 		return -ENODEV;
 
 	switch (command) {
@@ -703,7 +703,7 @@ BCVideoBridge(struct drm_device *dev, void * arg,
 	}
 	case BC_Video_ioctl_alloc_buffer: {
 		bc_buf_ptr_t p;
-		void *pvBuf;
+		IMG_VOID *pvBuf;
 		IMG_UINT32 ui32Size;
 		IMG_UINT32 ulCounter;
 		BUFFER_INFO *bufferInfo;
@@ -814,7 +814,7 @@ BC_Camera_Bridge(BC_Video_ioctl_package * psBridge, unsigned long pAddr)
 	int id = BC_CAMERA_DEVICEID;
 	int command = psBridge->ioctl_cmd;
 
-	if ((devinfo = GetAnchorPtr(BC_CAMERA_DEVICEID)) == NULL)
+	if ((devinfo = GetAnchorPtr(BC_CAMERA_DEVICEID)) == IMG_NULL)
 		return -ENODEV;
 
 	switch (command) {

@@ -86,7 +86,7 @@ typedef enum _IMG_STENCILOP_
 
 /**
  * Memory layout enumeration.
- * Defines how pixels are laid out within a surface.
+ * Defines how pixels are layed out within a surface.
  */
 typedef enum _IMG_MEMLAYOUT_
 {
@@ -99,7 +99,7 @@ typedef enum _IMG_MEMLAYOUT_
 
 /**
  * Alpha blending allows colours and textures on one surface
- * to be blended with transparency onto another surface.
+ * to be blended with transparancy onto another surface.
  * These definitions apply to both source and destination blending
  * states
  */
@@ -197,10 +197,10 @@ typedef enum _IMG_FILTER_
  */
 typedef enum _IMG_ADDRESSMODE_
 {
-	IMG_ADDRESSMODE_REPEAT,	/**< Texture repeats continuously */
+	IMG_ADDRESSMODE_REPEAT,	/**< Texture repeats conintuously */
 	IMG_ADDRESSMODE_FLIP, /**< Texture flips on odd integer part */
 	IMG_ADDRESSMODE_CLAMP, /**< Texture clamped at 0 or 1 */
-	IMG_ADDRESSMODE_FLIPCLAMP, /**< Flipped once, then clamp */
+	IMG_ADDRESSMODE_FLIPCLAMP, /**< Flipped once, then clampe */
 	IMG_ADDRESSMODE_CLAMPBORDER,
 	IMG_ADDRESSMODE_OGL_CLAMP,
 	IMG_ADDRESSMODE_OVG_TILEFILL,
@@ -226,9 +226,7 @@ typedef enum _IMG_ROTATION_
 	IMG_ROTATION_90DEG = 1,
 	IMG_ROTATION_180DEG = 2,
 	IMG_ROTATION_270DEG = 3,
-	IMG_ROTATION_FLIP_Y = 4,
-
-	IMG_ROTATION_BAD = 255,
+	IMG_ROTATION_FLIP_Y = 4
 } IMG_ROTATION;
 
 

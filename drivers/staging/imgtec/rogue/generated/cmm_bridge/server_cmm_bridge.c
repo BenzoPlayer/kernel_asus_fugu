@@ -60,9 +60,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
+static PVRSRV_ERROR ReleaseDevMemIntCtxExport(IMG_VOID *pvData)
+{
+	PVR_UNREFERENCED_PARAMETER(pvData);
+
+	return PVRSRV_OK;
+}
 
 
 /* ***************************************************************************
@@ -70,86 +80,114 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
  
 static IMG_INT
-PVRSRVBridgeDevmemIntExportCtx(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_DEVMEMINTEXPORTCTX *psDevmemIntExportCtxIN,
-					  PVRSRV_BRIDGE_OUT_DEVMEMINTEXPORTCTX *psDevmemIntExportCtxOUT,
+PVRSRVBridgeDevmemIntCtxExport(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_DEVMEMINTCTXEXPORT *psDevmemIntCtxExportIN,
+					  PVRSRV_BRIDGE_OUT_DEVMEMINTCTXEXPORT *psDevmemIntCtxExportOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	DEVMEMINT_CTX * psContextInt = NULL;
-	PMR * psPMRInt = NULL;
-	DEVMEMINT_CTX_EXPORT * psContextExportInt = NULL;
+	DEVMEMINT_CTX * psDevMemServerContextInt = IMG_NULL;
+	DEVMEMINT_CTX_EXPORT * psDevMemIntCtxExportInt = IMG_NULL;
+	IMG_HANDLE hDevMemIntCtxExportInt = IMG_NULL;
 
 
 
 
 
-	PMRLock();
 
 
 				{
 					/* Look up the address from the handle */
-					psDevmemIntExportCtxOUT->eError =
+					psDevmemIntCtxExportOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psContextInt,
-											psDevmemIntExportCtxIN->hContext,
+											(IMG_VOID **) &psDevMemServerContextInt,
+											psDevmemIntCtxExportIN->hDevMemServerContext,
 											PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX);
-					if(psDevmemIntExportCtxOUT->eError != PVRSRV_OK)
+					if(psDevmemIntCtxExportOUT->eError != PVRSRV_OK)
 					{
-						PMRUnlock();
-						goto DevmemIntExportCtx_exit;
+						goto DevmemIntCtxExport_exit;
 					}
 				}
 
 
-				{
-					/* Look up the address from the handle */
-					psDevmemIntExportCtxOUT->eError =
-						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psPMRInt,
-											psDevmemIntExportCtxIN->hPMR,
-											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
-					if(psDevmemIntExportCtxOUT->eError != PVRSRV_OK)
-					{
-						PMRUnlock();
-						goto DevmemIntExportCtx_exit;
-					}
-				}
-
-
-	psDevmemIntExportCtxOUT->eError =
-		DevmemIntExportCtx(
-					psContextInt,
-					psPMRInt,
-					&psContextExportInt);
+	psDevmemIntCtxExportOUT->eError =
+		DevmemIntCtxExport(
+					psDevMemServerContextInt,
+					&psDevMemIntCtxExportInt);
 	/* Exit early if bridged call fails */
-	if(psDevmemIntExportCtxOUT->eError != PVRSRV_OK)
+	if(psDevmemIntCtxExportOUT->eError != PVRSRV_OK)
 	{
-		PMRUnlock();
-		goto DevmemIntExportCtx_exit;
+		goto DevmemIntCtxExport_exit;
 	}
-	PMRUnlock();
 
 
-	psDevmemIntExportCtxOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
-							&psDevmemIntExportCtxOUT->hContextExport,
-							(void *) psContextExportInt,
+	/*
+	 * For cases where we need a cross process handle we actually allocate two.
+	 * 
+	 * The first one is a connection specific handle and it gets given the real
+	 * release function. This handle does *NOT* get returned to the caller. It's
+	 * purpose is to release any leaked resources when we either have a bad or
+	 * abnormally terminated client. If we didn't do this then the resource
+	 * wouldn't be freed until driver unload. If the resource is freed normally,
+	 * this handle can be looked up via the cross process handle and then
+	 * released accordingly.
+	 * 
+	 * The second one is a cross process handle and it gets given a noop release
+	 * function. This handle does get returned to the caller.
+	 */
+	psDevmemIntCtxExportOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
+							&hDevMemIntCtxExportInt,
+							(IMG_VOID *) psDevMemIntCtxExportInt,
 							PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT,
-							PVRSRV_HANDLE_ALLOC_FLAG_NONE
-							,(PFN_HANDLE_RELEASE)&DevmemIntUnexportCtx);
-	if (psDevmemIntExportCtxOUT->eError != PVRSRV_OK)
+							PVRSRV_HANDLE_ALLOC_FLAG_SHARED
+							,(PFN_HANDLE_RELEASE)&DevmemIntCtxUnexport);
+	if (psDevmemIntCtxExportOUT->eError != PVRSRV_OK)
 	{
-		goto DevmemIntExportCtx_exit;
+		goto DevmemIntCtxExport_exit;
+	}
+
+	psDevmemIntCtxExportOUT->eError = PVRSRVAllocHandle(KERNEL_HANDLE_BASE,
+							&psDevmemIntCtxExportOUT->hDevMemIntCtxExport,
+							(IMG_VOID *) psDevMemIntCtxExportInt,
+							PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT,
+							PVRSRV_HANDLE_ALLOC_FLAG_MULTI,
+							(PFN_HANDLE_RELEASE)&ReleaseDevMemIntCtxExport);
+	if (psDevmemIntCtxExportOUT->eError != PVRSRV_OK)
+	{
+		goto DevmemIntCtxExport_exit;
 	}
 
 
 
-
-DevmemIntExportCtx_exit:
-	if (psDevmemIntExportCtxOUT->eError != PVRSRV_OK)
+DevmemIntCtxExport_exit:
+	if (psDevmemIntCtxExportOUT->eError != PVRSRV_OK)
 	{
-		if (psContextExportInt)
+		if (psDevmemIntCtxExportOUT->hDevMemIntCtxExport)
 		{
-			DevmemIntUnexportCtx(psContextExportInt);
+			PVRSRV_ERROR eError = PVRSRVReleaseHandle(KERNEL_HANDLE_BASE,
+						(IMG_HANDLE) psDevmemIntCtxExportOUT->hDevMemIntCtxExport,
+						PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+
+			/* Releasing the handle should free/destroy/release the resource. This should never fail... */
+			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+
+		}
+
+		if (hDevMemIntCtxExportInt)
+		{
+			PVRSRV_ERROR eError = PVRSRVReleaseHandle(psConnection->psHandleBase,
+						hDevMemIntCtxExportInt,
+						PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+
+			/* Releasing the handle should free/destroy/release the resource. This should never fail... */
+			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
+
+			/* Avoid freeing/destroying/releasing the resource a second time below */
+			psDevMemIntCtxExportInt = IMG_NULL;
+		}
+
+		if (psDevMemIntCtxExportInt)
+		{
+			DevmemIntCtxUnexport(psDevMemIntCtxExportInt);
 		}
 	}
 
@@ -158,129 +196,154 @@ DevmemIntExportCtx_exit:
 }
 
 static IMG_INT
-PVRSRVBridgeDevmemIntUnexportCtx(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_DEVMEMINTUNEXPORTCTX *psDevmemIntUnexportCtxIN,
-					  PVRSRV_BRIDGE_OUT_DEVMEMINTUNEXPORTCTX *psDevmemIntUnexportCtxOUT,
+PVRSRVBridgeDevmemIntCtxUnexport(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_DEVMEMINTCTXUNEXPORT *psDevmemIntCtxUnexportIN,
+					  PVRSRV_BRIDGE_OUT_DEVMEMINTCTXUNEXPORT *psDevmemIntCtxUnexportOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	DEVMEMINT_CTX_EXPORT * psDevMemIntCtxExportInt = IMG_NULL;
+	IMG_HANDLE hDevMemIntCtxExportInt = IMG_NULL;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
 
 
 
 
 
-	PMRLock();
 
 
-
-
-	psDevmemIntUnexportCtxOUT->eError =
-		PVRSRVReleaseHandle(psConnection->psHandleBase,
-					(IMG_HANDLE) psDevmemIntUnexportCtxIN->hContextExport,
+	psDevmemIntCtxUnexportOUT->eError =
+		PVRSRVLookupHandle(KERNEL_HANDLE_BASE,
+					(IMG_VOID **) &psDevMemIntCtxExportInt,
+					(IMG_HANDLE) psDevmemIntCtxUnexportIN->hDevMemIntCtxExport,
 					PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
-	if ((psDevmemIntUnexportCtxOUT->eError != PVRSRV_OK) && (psDevmemIntUnexportCtxOUT->eError != PVRSRV_ERROR_RETRY))
+	PVR_ASSERT(psDevmemIntCtxUnexportOUT->eError == PVRSRV_OK);
+
+	/*
+	 * Find the connection specific handle that represents the same data
+	 * as the cross process handle as releasing it will actually call the
+	 * data's real release function (see the function where the cross
+	 * process handle is allocated for more details).
+	 */
+	psDevmemIntCtxUnexportOUT->eError =
+		PVRSRVFindHandle(psConnection->psHandleBase,
+					&hDevMemIntCtxExportInt,
+					psDevMemIntCtxExportInt,
+					PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+	PVR_ASSERT(psDevmemIntCtxUnexportOUT->eError == PVRSRV_OK);
+
+	psDevmemIntCtxUnexportOUT->eError =
+		PVRSRVReleaseHandle(psConnection->psHandleBase,
+					hDevMemIntCtxExportInt,
+					PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+	PVR_ASSERT((psDevmemIntCtxUnexportOUT->eError == PVRSRV_OK) || (psDevmemIntCtxUnexportOUT->eError == PVRSRV_ERROR_RETRY));
+
+	psDevmemIntCtxUnexportOUT->eError =
+		PVRSRVReleaseHandle(KERNEL_HANDLE_BASE,
+					(IMG_HANDLE) psDevmemIntCtxUnexportIN->hDevMemIntCtxExport,
+					PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+	if ((psDevmemIntCtxUnexportOUT->eError != PVRSRV_OK) && (psDevmemIntCtxUnexportOUT->eError != PVRSRV_ERROR_RETRY))
 	{
 		PVR_ASSERT(0);
-		PMRUnlock();
-		goto DevmemIntUnexportCtx_exit;
+		goto DevmemIntCtxUnexport_exit;
 	}
 
-	PMRUnlock();
 
 
-DevmemIntUnexportCtx_exit:
+DevmemIntCtxUnexport_exit:
 
 	return 0;
 }
 
 static IMG_INT
-PVRSRVBridgeDevmemIntAcquireRemoteCtx(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_DEVMEMINTACQUIREREMOTECTX *psDevmemIntAcquireRemoteCtxIN,
-					  PVRSRV_BRIDGE_OUT_DEVMEMINTACQUIREREMOTECTX *psDevmemIntAcquireRemoteCtxOUT,
+PVRSRVBridgeDevmemIntCtxImport(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_DEVMEMINTCTXIMPORT *psDevmemIntCtxImportIN,
+					  PVRSRV_BRIDGE_OUT_DEVMEMINTCTXIMPORT *psDevmemIntCtxImportOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	PMR * psPMRInt = NULL;
-	DEVMEMINT_CTX * psContextInt = NULL;
-	IMG_HANDLE hPrivDataInt = NULL;
+	DEVMEMINT_CTX_EXPORT * psDevMemIntCtxExportInt = IMG_NULL;
+	DEVMEMINT_CTX * psDevMemServerContextInt = IMG_NULL;
+	IMG_HANDLE hPrivDataInt = IMG_NULL;
 
 
 
-	psDevmemIntAcquireRemoteCtxOUT->hContext = NULL;
+	psDevmemIntCtxImportOUT->hDevMemServerContext = IMG_NULL;
 
 
 
 
 				{
 					/* Look up the address from the handle */
-					psDevmemIntAcquireRemoteCtxOUT->eError =
-						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psPMRInt,
-											psDevmemIntAcquireRemoteCtxIN->hPMR,
-											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
-					if(psDevmemIntAcquireRemoteCtxOUT->eError != PVRSRV_OK)
+					psDevmemIntCtxImportOUT->eError =
+						PVRSRVLookupHandle(KERNEL_HANDLE_BASE,
+											(IMG_VOID **) &psDevMemIntCtxExportInt,
+											psDevmemIntCtxImportIN->hDevMemIntCtxExport,
+											PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+					if(psDevmemIntCtxImportOUT->eError != PVRSRV_OK)
 					{
-						goto DevmemIntAcquireRemoteCtx_exit;
+						goto DevmemIntCtxImport_exit;
 					}
 				}
 
 
-	psDevmemIntAcquireRemoteCtxOUT->eError =
-		DevmemIntAcquireRemoteCtx(
-					psPMRInt,
-					&psContextInt,
+	psDevmemIntCtxImportOUT->eError =
+		DevmemIntCtxImport(
+					psDevMemIntCtxExportInt,
+					&psDevMemServerContextInt,
 					&hPrivDataInt);
 	/* Exit early if bridged call fails */
-	if(psDevmemIntAcquireRemoteCtxOUT->eError != PVRSRV_OK)
+	if(psDevmemIntCtxImportOUT->eError != PVRSRV_OK)
 	{
-		goto DevmemIntAcquireRemoteCtx_exit;
+		goto DevmemIntCtxImport_exit;
 	}
 
 
-	psDevmemIntAcquireRemoteCtxOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
-							&psDevmemIntAcquireRemoteCtxOUT->hContext,
-							(void *) psContextInt,
+	psDevmemIntCtxImportOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
+							&psDevmemIntCtxImportOUT->hDevMemServerContext,
+							(IMG_VOID *) psDevMemServerContextInt,
 							PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX,
-							PVRSRV_HANDLE_ALLOC_FLAG_NONE
+							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
 							,(PFN_HANDLE_RELEASE)&DevmemIntCtxDestroy);
-	if (psDevmemIntAcquireRemoteCtxOUT->eError != PVRSRV_OK)
+	if (psDevmemIntCtxImportOUT->eError != PVRSRV_OK)
 	{
-		goto DevmemIntAcquireRemoteCtx_exit;
+		goto DevmemIntCtxImport_exit;
 	}
 
 
-	psDevmemIntAcquireRemoteCtxOUT->eError = PVRSRVAllocSubHandle(psConnection->psHandleBase,
-							&psDevmemIntAcquireRemoteCtxOUT->hPrivData,
-							(void *) hPrivDataInt,
+	psDevmemIntCtxImportOUT->eError = PVRSRVAllocSubHandle(psConnection->psHandleBase,
+							&psDevmemIntCtxImportOUT->hPrivData,
+							(IMG_VOID *) hPrivDataInt,
 							PVRSRV_HANDLE_TYPE_DEV_PRIV_DATA,
-							PVRSRV_HANDLE_ALLOC_FLAG_NONE
-							,psDevmemIntAcquireRemoteCtxOUT->hContext);
-	if (psDevmemIntAcquireRemoteCtxOUT->eError != PVRSRV_OK)
+							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
+							,psDevmemIntCtxImportOUT->hDevMemServerContext);
+	if (psDevmemIntCtxImportOUT->eError != PVRSRV_OK)
 	{
-		goto DevmemIntAcquireRemoteCtx_exit;
+		goto DevmemIntCtxImport_exit;
 	}
 
 
 
 
-DevmemIntAcquireRemoteCtx_exit:
-	if (psDevmemIntAcquireRemoteCtxOUT->eError != PVRSRV_OK)
+DevmemIntCtxImport_exit:
+	if (psDevmemIntCtxImportOUT->eError != PVRSRV_OK)
 	{
-		if (psDevmemIntAcquireRemoteCtxOUT->hContext)
+		if (psDevmemIntCtxImportOUT->hDevMemServerContext)
 		{
 			PVRSRV_ERROR eError = PVRSRVReleaseHandle(psConnection->psHandleBase,
-						(IMG_HANDLE) psDevmemIntAcquireRemoteCtxOUT->hContext,
+						(IMG_HANDLE) psDevmemIntCtxImportOUT->hDevMemServerContext,
 						PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX);
 
 			/* Releasing the handle should free/destroy/release the resource. This should never fail... */
 			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
 
 			/* Avoid freeing/destroying/releasing the resource a second time below */
-			psContextInt = NULL;
+			psDevMemServerContextInt = IMG_NULL;
 		}
 
 
-		if (psContextInt)
+		if (psDevMemServerContextInt)
 		{
-			DevmemIntCtxDestroy(psContextInt);
+			DevmemIntCtxDestroy(psDevMemServerContextInt);
 		}
 	}
 
@@ -294,25 +357,27 @@ DevmemIntAcquireRemoteCtx_exit:
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitCMMBridge(void);
-PVRSRV_ERROR DeinitCMMBridge(void);
+PVRSRV_ERROR InitCMMBridge(IMG_VOID);
+PVRSRV_ERROR DeinitCMMBridge(IMG_VOID);
 
 /*
  * Register all CMM functions with services
  */
-PVRSRV_ERROR InitCMMBridge(void)
+PVRSRV_ERROR InitCMMBridge(IMG_VOID)
 {
 
-	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTEXPORTCTX, PVRSRVBridgeDevmemIntExportCtx,
-					NULL, bUseLock);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTCTXEXPORT, PVRSRVBridgeDevmemIntCtxExport,
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
-	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTUNEXPORTCTX, PVRSRVBridgeDevmemIntUnexportCtx,
-					NULL, bUseLock);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTCTXUNEXPORT, PVRSRVBridgeDevmemIntCtxUnexport,
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
-	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTACQUIREREMOTECTX, PVRSRVBridgeDevmemIntAcquireRemoteCtx,
-					NULL, bUseLock);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTCTXIMPORT, PVRSRVBridgeDevmemIntCtxImport,
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -321,7 +386,7 @@ PVRSRV_ERROR InitCMMBridge(void)
 /*
  * Unregister all cmm functions with services
  */
-PVRSRV_ERROR DeinitCMMBridge(void)
+PVRSRV_ERROR DeinitCMMBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

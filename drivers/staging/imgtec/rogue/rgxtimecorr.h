@@ -56,10 +56,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  @Input       hDevHandle : RGX Device Node
 
- @Return      void
+ @Return      IMG_VOID
 
 ******************************************************************************/
-void RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle);
+IMG_VOID RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle);
 
 /*!
 ******************************************************************************
@@ -71,10 +71,10 @@ void RGXGPUFreqCalibratePrePowerState(IMG_HANDLE hDevHandle);
 
  @Input       hDevHandle : RGX Device Node
 
- @Return      void
+ @Return      IMG_VOID
 
 ******************************************************************************/
-void RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle);
+IMG_VOID RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle);
 
 /*!
 ******************************************************************************
@@ -86,10 +86,10 @@ void RGXGPUFreqCalibratePostPowerState(IMG_HANDLE hDevHandle);
 
  @Input       hDevHandle : RGX Device Node
 
- @Return      void
+ @Return      IMG_VOID
 
 ******************************************************************************/
-void RGXGPUFreqCalibratePreClockSpeedChange(IMG_HANDLE hDevHandle);
+IMG_VOID RGXGPUFreqCalibratePreClockSpeedChange(IMG_HANDLE hDevHandle);
 
 /*!
 ******************************************************************************
@@ -117,9 +117,9 @@ IMG_UINT32 RGXGPUFreqCalibratePostClockSpeedChange(IMG_HANDLE hDevHandle, IMG_UI
 
  @Input       hDevHandle : RGX Device Node
 
- @Return      void
+ @Return      IMG_VOID
 
 ******************************************************************************/
-void RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle);
+IMG_VOID RGXGPUFreqCalibrateCorrelatePeriodic(IMG_HANDLE hDevHandle);
 
 #endif /* __RGXTIMECORR_H__ */

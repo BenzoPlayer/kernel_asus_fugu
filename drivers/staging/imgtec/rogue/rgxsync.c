@@ -71,12 +71,11 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
                            IMG_UINT32                ui32ServerSyncPrims,
                            IMG_UINT32                *paui32ServerSyncFlags,
                            SERVER_SYNC_PRIMITIVE     **pasServerSyncs,
-                           IMG_BOOL                  bPDumpContinuous,
-                           IMG_UINT32                ui32ExtJobRef,
-                           IMG_UINT32                ui32JobId)
+                           IMG_BOOL                  bPDumpContinuous)
 {
 	RGXFWIF_KCCB_CMD		sCmpKCCBCmd;
 	RGX_CCB_CMD_HELPER_DATA	asCmdHelperData[1];
+	IMG_BOOL				bKickRequired;
 	PVRSRV_ERROR			eError;
 	PVRSRV_ERROR			eError2;
 	IMG_UINT32				i;
@@ -102,13 +101,11 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
 									  paui32ServerSyncFlags,
 									  pasServerSyncs,
 									  0,         /* ui32CmdSize */
-									  NULL,  /* pui8DMCmd */
-									  NULL,  /* ppPreAddr */
-									  NULL,  /* ppPostAddr */
-									  NULL,  /* ppRMWUFOAddr */
+									  IMG_NULL,  /* pui8DMCmd */
+									  IMG_NULL,  /* ppPreAddr */
+									  IMG_NULL,  /* ppPostAddr */
+									  IMG_NULL,  /* ppRMWUFOAddr */
 									  RGXFWIF_CCB_CMD_TYPE_NULL,
-									  ui32ExtJobRef,
-									  ui32JobId,
 									  bPDumpContinuous,
 									  pszCommandName,
 									  asCmdHelperData);
@@ -118,10 +115,15 @@ PVRSRV_ERROR RGXKickSyncKM(PVRSRV_DEVICE_NODE        *psDeviceNode,
 	}
 
 	eError = RGXCmdHelperAcquireCmdCCB(IMG_ARR_NUM_ELEMS(asCmdHelperData),
-	                                   asCmdHelperData);
-	if (eError != PVRSRV_OK)
+	                                   asCmdHelperData, &bKickRequired);
+	if ((eError != PVRSRV_OK) && (!bKickRequired))
 	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to acquire space for client CCB command", __FUNCTION__));
+		/*
+			Only bail if no new data was submitted into the client CCB, we might
+			have already submitted a padding packet which we should flush through
+			the FW.
+		*/
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create client CCB command", __FUNCTION__));
 		goto fail_cmdaquire;
 	}
 

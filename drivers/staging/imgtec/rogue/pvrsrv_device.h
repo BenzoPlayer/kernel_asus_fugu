@@ -50,11 +50,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgx_fwif_km.h"
 #include "pmr.h"
 #include "lock.h"
-#if defined(PVR_DVFS)
 #include "pvr_dvfs.h"
-#endif
 
 typedef struct _PVRSRV_DEVICE_CONFIG_ PVRSRV_DEVICE_CONFIG;
+
+/*! The CPU physical base of the LMA physical heap is used as the base for
+ *  device memory physical heap allocations */
+#define PVRSRV_DEVICE_CONFIG_LMA_USE_CPU_ADDR	(1<<0)
 
 /*
  *  The maximum number of physical heaps associated
@@ -64,7 +66,6 @@ typedef enum
 {
 	PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL = 0,
 	PVRSRV_DEVICE_PHYS_HEAP_CPU_LOCAL = 1,
-	PVRSRV_DEVICE_PHYS_HEAP_FW_LOCAL = 2,
 	PVRSRV_DEVICE_PHYS_HEAP_LAST
 }PVRSRV_DEVICE_PHYS_HEAP;
 
@@ -75,9 +76,9 @@ typedef enum
 	PVRSRV_DEVICE_IRQ_ACTIVE_HIGH
 }PVRSRV_DEVICE_IRQ_ACTIVE_LEVEL;
 
-typedef void (*PFN_MISR)(void *pvData);
+typedef IMG_VOID (*PFN_MISR)(IMG_VOID *pvData);
 
-typedef IMG_BOOL (*PFN_LISR)(void *pvData);
+typedef IMG_BOOL (*PFN_LISR)(IMG_VOID *pvData);
 
 typedef IMG_UINT32 (*PFN_SYS_DEV_CLK_FREQ_GET)(IMG_HANDLE hSysData);
 
@@ -90,50 +91,10 @@ typedef PVRSRV_ERROR (*PFN_SYS_DEV_POST_POWER)(PVRSRV_DEV_POWER_STATE eNewPowerS
                                                PVRSRV_DEV_POWER_STATE eCurrentPowerState,
 											   IMG_BOOL bForced);
 
-typedef void (*PFN_SYS_DEV_INTERRUPT_HANDLED)(PVRSRV_DEVICE_CONFIG *psDevConfig);
+typedef IMG_VOID (*PFN_SYS_DEV_INTERRUPT_HANDLED)(PVRSRV_DEVICE_CONFIG *psDevConfig);
 
 typedef PVRSRV_ERROR (*PFN_SYS_DEV_CHECK_MEM_ALLOC_SIZE)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 														 IMG_UINT64 ui64MemSize);
-
-#if defined(SUPPORT_TRUSTED_DEVICE)
-typedef struct _PVRSRV_TD_FW_PARAMS_
-{
-	const void *pvFirmware;
-	IMG_UINT32 ui32FirmwareSize;
-	IMG_DEV_VIRTADDR sFWCodeDevVAddrBase;
-	IMG_DEV_VIRTADDR sFWDataDevVAddrBase;
-	RGXFWIF_DEV_VIRTADDR sFWCorememCodeFWAddr;
-	RGXFWIF_DEV_VIRTADDR sFWInitFWAddr;
-} PVRSRV_TD_FW_PARAMS;
-
-typedef PVRSRV_ERROR (*PFN_TD_SEND_FW_IMAGE)(PVRSRV_TD_FW_PARAMS *psTDFWParams);
-
-
-typedef struct _PVRSRV_TD_POWER_PARAMS_
-{
-	IMG_DEV_PHYADDR sPCAddr;
-} PVRSRV_TD_POWER_PARAMS;
-
-typedef PVRSRV_ERROR (*PFN_TD_SET_POWER_PARAMS)(PVRSRV_TD_POWER_PARAMS *psTDPowerParams);
-
-typedef PVRSRV_ERROR (*PFN_TD_RGXSTART)(void);
-
-typedef PVRSRV_ERROR (*PFN_TD_RGXSTOP)(void);
-
-
-typedef struct _PVRSRV_TD_SECBUF_PARAMS_
-{
-	IMG_DEVMEM_SIZE_T uiSize;
-	IMG_DEVMEM_ALIGN_T uiAlign;
-	IMG_CPU_PHYADDR *psSecBufAddr;
-	IMG_UINT64 *pui64SecBufHandle;
-} PVRSRV_TD_SECBUF_PARAMS;
-
-typedef PVRSRV_ERROR (*PFN_TD_SECUREBUF_ALLOC)(PVRSRV_TD_SECBUF_PARAMS *psTDSecBufParams);
-
-typedef PVRSRV_ERROR (*PFN_TD_SECUREBUF_FREE)(IMG_UINT64 ui64SecBufHandle);
-#endif
-
 
 struct _PVRSRV_DEVICE_CONFIG_
 {
@@ -172,10 +133,8 @@ struct _PVRSRV_DEVICE_CONFIG_
 	 *! The second entry (aui32PhysHeapID[PVRSRV_DEVICE_PHYS_HEAP_CPU_LOCAL]) will be used for allocations
 	 *!  where the PVRSRV_MEMALLOCFLAG_CPU_LOCAL flag is set. Normally this will be the PhysHeapID
 	 *!  of a UMA heap (but the configuration could specify an LMA heap here, if desired)
-	 *! The third entry (aui32PhysHeapID[PVRSRV_DEVICE_PHYS_HEAP_FW_LOCAL]) will be used for allocations
-	 *!  where the PVRSRV_MEMALLOCFLAG_FW_LOCAL flag is set.
 	 *! In the event of there being only one Physical Heap, the configuration should specify the
-	 *!  same heap details in all entries */
+	 *!  same heap details in both entries */
 	IMG_UINT32			aui32PhysHeapID[PVRSRV_DEVICE_PHYS_HEAP_LAST];
 
 	/*! Callback to inform the device we about to change power state */
@@ -192,24 +151,6 @@ struct _PVRSRV_DEVICE_CONFIG_
 
 	/*! Callback to handle memory budgeting */
 	PFN_SYS_DEV_CHECK_MEM_ALLOC_SIZE	pfnCheckMemAllocSize;
-
-#if defined(SUPPORT_TRUSTED_DEVICE)
-	/*! Callback to send FW image and FW boot time parameters
-	 *! to the trusted device */
-	PFN_TD_SEND_FW_IMAGE     pfnTDSendFWImage;
-
-	/*! Callback to send parameters needed in a power transition
-	 *! to the trusted device */
-	PFN_TD_SET_POWER_PARAMS  pfnTDSetPowerParams;
-
-	/*! Callbacks to ping the trusted device to securely run RGXStart/Stop() */
-	PFN_TD_RGXSTART          pfnTDRGXStart;
-	PFN_TD_RGXSTOP           pfnTDRGXStop;
-
-	/*! Callback to request allocation/freeing of secure buffers */
-	PFN_TD_SECUREBUF_ALLOC   pfnTDSecureBufAlloc;
-	PFN_TD_SECUREBUF_FREE    pfnTDSecureBufFree;
-#endif
 
 	/*! Current breakpoint data master */
 	RGXFWIF_DM			eBPDM;
@@ -243,7 +184,6 @@ typedef struct _PVRSRV_SYSTEM_CONFIG_
 
 	PHYS_HEAP_CONFIG		*pasPhysHeaps;
 	IMG_UINT32				ui32PhysHeapCount;
-	IMG_UINT64				ui64DevMemPhysOffset;
 
 	IMG_UINT32              *pui32BIFTilingHeapConfigs;
 	IMG_UINT32              ui32BIFTilingHeapCount;

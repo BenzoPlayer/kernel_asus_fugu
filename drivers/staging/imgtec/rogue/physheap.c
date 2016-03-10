@@ -61,9 +61,6 @@ struct _PHYS_HEAP_
 	IMG_CPU_PHYADDR				sStartAddr;
 	/*! Size of the physcial memory heap (LMA only) */
 	IMG_UINT64					uiSize;
-	/*! Heap card base (GPU view of sStartAddr, LMA only) */
-	IMG_UINT64					uiCardBase;
-
 
 	/*! PDump name of this physcial memory heap */
 	IMG_CHAR					*pszPDumpMemspaceName;
@@ -118,7 +115,7 @@ PVRSRV_ERROR PhysHeapRegister(PHYS_HEAP_CONFIG *psConfig,
 	}
 
 	psNew = OSAllocMem(sizeof(PHYS_HEAP));
-	if (psNew == NULL)
+	if (psNew == IMG_NULL)
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
@@ -126,7 +123,6 @@ PVRSRV_ERROR PhysHeapRegister(PHYS_HEAP_CONFIG *psConfig,
 	psNew->ui32PhysHeapID = psConfig->ui32PhysHeapID;
 	psNew->eType = psConfig->eType;
 	psNew->sStartAddr = psConfig->sStartAddr;
-	psNew->uiCardBase = psConfig->uiCardBase;
 	psNew->uiSize = psConfig->uiSize;
 	psNew->psMemFuncs = psConfig->psMemFuncs;
 	psNew->hPrivData = psConfig->hPrivData;
@@ -141,7 +137,7 @@ PVRSRV_ERROR PhysHeapRegister(PHYS_HEAP_CONFIG *psConfig,
 	PVR_DPF_RETURN_RC1(PVRSRV_OK, *ppsPhysHeap);
 }
 
-void PhysHeapUnregister(PHYS_HEAP *psPhysHeap)
+IMG_VOID PhysHeapUnregister(PHYS_HEAP *psPhysHeap)
 {
 	PVR_DPF_ENTERED1(psPhysHeap);
 
@@ -184,7 +180,7 @@ PVRSRV_ERROR PhysHeapAcquire(IMG_UINT32 ui32PhysHeapID,
 		psTmp = psTmp->psNext;
 	}
 	
-	if (psTmp == NULL)
+	if (psTmp == IMG_NULL)
 	{
 		eError = PVRSRV_ERROR_PHYSHEAP_ID_INVALID;
 	}
@@ -198,7 +194,7 @@ PVRSRV_ERROR PhysHeapAcquire(IMG_UINT32 ui32PhysHeapID,
 	PVR_DPF_RETURN_RC1(eError, *ppsPhysHeap);
 }
 
-void PhysHeapRelease(PHYS_HEAP *psPhysHeap)
+IMG_VOID PhysHeapRelease(PHYS_HEAP *psPhysHeap)
 {
 	PVR_DPF_ENTERED1(psPhysHeap);
 
@@ -225,24 +221,6 @@ PVRSRV_ERROR PhysHeapGetAddress(PHYS_HEAP *psPhysHeap,
 	return PVRSRV_ERROR_INVALID_PARAMS;
 }
 
-PVRSRV_ERROR PhysHeapGetBase(PHYS_HEAP *psPhysHeap,
-							 IMG_UINT64 *puiBase)
-{
-	if (psPhysHeap->eType == PHYS_HEAP_TYPE_LMA)
-	{
-		IMG_UINT64 uiTmp = 0;
-		if (psPhysHeap->uiCardBase == --uiTmp)
-		{
-			return PVRSRV_ERROR_INVALID_HEAPINFO;
-		}
-
-		*puiBase = psPhysHeap->uiCardBase;
-		return PVRSRV_OK;
-	}
-
-	return PVRSRV_ERROR_INVALID_PARAMS;
-}
-
 PVRSRV_ERROR PhysHeapGetSize(PHYS_HEAP *psPhysHeap,
 							   IMG_UINT64 *puiSize)
 {
@@ -255,10 +233,10 @@ PVRSRV_ERROR PhysHeapGetSize(PHYS_HEAP *psPhysHeap,
 	return PVRSRV_ERROR_INVALID_PARAMS;
 }
 
-void PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
-								IMG_UINT32 ui32NumOfAddr,
-								IMG_DEV_PHYADDR *psDevPAddr,
-								IMG_CPU_PHYADDR *psCpuPAddr)
+IMG_VOID PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
+									IMG_UINT32 ui32NumOfAddr,
+									IMG_DEV_PHYADDR *psDevPAddr,
+									IMG_CPU_PHYADDR *psCpuPAddr)
 {
 	psPhysHeap->psMemFuncs->pfnCpuPAddrToDevPAddr(psPhysHeap->hPrivData,
 												 ui32NumOfAddr,
@@ -266,10 +244,10 @@ void PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
 												 psCpuPAddr);
 }
 
-void PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
-								IMG_UINT32 ui32NumOfAddr,
-								IMG_CPU_PHYADDR *psCpuPAddr,
-								IMG_DEV_PHYADDR *psDevPAddr)
+IMG_VOID PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
+									IMG_UINT32 ui32NumOfAddr,
+									IMG_CPU_PHYADDR *psCpuPAddr,
+									IMG_DEV_PHYADDR *psDevPAddr)
 {
 	psPhysHeap->psMemFuncs->pfnDevPAddrToCpuPAddr(psPhysHeap->hPrivData,
 												 ui32NumOfAddr,
@@ -282,16 +260,16 @@ IMG_CHAR *PhysHeapPDumpMemspaceName(PHYS_HEAP *psPhysHeap)
 	return psPhysHeap->pszPDumpMemspaceName;
 }
 
-PVRSRV_ERROR PhysHeapInit(void)
+PVRSRV_ERROR PhysHeapInit(IMG_VOID)
 {
-	g_psPhysHeapList = NULL;
+	g_psPhysHeapList = IMG_NULL;
 
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR PhysHeapDeinit(void)
+PVRSRV_ERROR PhysHeapDeinit(IMG_VOID)
 {
-	PVR_ASSERT(g_psPhysHeapList == NULL);
+	PVR_ASSERT(g_psPhysHeapList == IMG_NULL);
 
 	return PVRSRV_OK;
 }

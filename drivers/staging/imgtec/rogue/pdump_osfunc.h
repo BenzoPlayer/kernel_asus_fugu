@@ -47,6 +47,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_device_types.h"
 
 
+/* FIXME
+ * Some OSes (WinXP,CE) allocate the string on the stack, but some
+ * (Linux) use a global variable/lock instead.
+ * Would be good to use the same across all OSes.
+ *
+ * A handle is returned which represents IMG_CHAR* type on all OSes.
+ *
+ * The allocated buffer length is also returned on OSes where it's
+ * supported (e.g. Linux).
+ */
 #define MAX_PDUMP_STRING_LENGTH (256)
 #if defined(WIN32)
 #define PDUMP_GET_SCRIPT_STRING()	\
@@ -56,6 +66,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PDUMP_GET_MSG_STRING()		\
 	IMG_CHAR pszMsg[MAX_PDUMP_STRING_LENGTH];			\
+	IMG_UINT32	ui32MaxLen = MAX_PDUMP_STRING_LENGTH-1;
+
+#define PDUMP_GET_FILE_STRING()		\
+	IMG_CHAR	pszFileName[MAX_PDUMP_STRING_LENGTH];	\
 	IMG_UINT32	ui32MaxLen = MAX_PDUMP_STRING_LENGTH-1;
 
 #define PDUMP_GET_SCRIPT_AND_FILE_STRING()		\
@@ -76,6 +90,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PDUMP_GET_MSG_STRING()		\
 	IMG_CHAR pszMsg[MAX_PDUMP_STRING_LENGTH];			\
+	IMG_UINT32	ui32MaxLen = MAX_PDUMP_STRING_LENGTH-1;
+
+#define PDUMP_GET_FILE_STRING()		\
+	IMG_CHAR	pszFileName[MAX_PDUMP_STRING_LENGTH];	\
 	IMG_UINT32	ui32MaxLen = MAX_PDUMP_STRING_LENGTH-1;
 
 #define PDUMP_GET_SCRIPT_AND_FILE_STRING()		\
@@ -104,6 +122,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	eErrorPDump = PDumpOSGetMessageString(&pszMsg, &ui32MaxLen);\
 	PVR_LOGR_IF_ERROR(eErrorPDump, "PDumpOSGetMessageString");
 
+#define PDUMP_GET_FILE_STRING()				\
+	IMG_CHAR *pszFileName;					\
+	IMG_UINT32	ui32MaxLen;					\
+	PVRSRV_ERROR eErrorPDump;				\
+	eErrorPDump = PDumpOSGetFilenameString(&pszFileName, &ui32MaxLen);\
+	PVR_LOGR_IF_ERROR(eErrorPDump, "PDumpOSGetFilenameString");
+
 #define PDUMP_GET_SCRIPT_AND_FILE_STRING()		\
 	IMG_HANDLE hScript;							\
 	IMG_CHAR *pszFileName;						\
@@ -120,6 +145,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	 * @brief	Get the "script" buffer
 	 * @param	phScript - buffer handle for pdump script
 	 * @param	pui32MaxLen - max length of the script buffer
+	 * 			FIXME: the max length should be internal to the OS-specific code
 	 * @return	error (always PVRSRV_OK on some OSes)
 	 */
 	PVRSRV_ERROR PDumpOSGetScriptString(IMG_HANDLE *phScript, IMG_UINT32 *pui32MaxLen);
@@ -129,6 +155,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	 * @brief	Get the "message" buffer
 	 * @param	pszMsg - buffer pointer for pdump messages
 	 * @param	pui32MaxLen - max length of the message buffer
+	 * 			FIXME: the max length should be internal to the OS-specific code
 	 * @return	error (always PVRSRV_OK on some OSes)
 	 */
 	PVRSRV_ERROR PDumpOSGetMessageString(IMG_CHAR **ppszMsg, IMG_UINT32 *pui32MaxLen);
@@ -138,6 +165,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	 * @brief	Get the "filename" buffer
 	 * @param	ppszFile - buffer pointer for filename
 	 * @param	pui32MaxLen - max length of the filename buffer
+	 * 			FIXME: the max length should be internal to the OS-specific code
 	 * @return	error (always PVRSRV_OK on some OSes)
 	 */
 	PVRSRV_ERROR PDumpOSGetFilenameString(IMG_CHAR **ppszFile, IMG_UINT32 *pui32MaxLen);
@@ -160,7 +188,7 @@ typedef struct
 PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 		IMG_UINT32* pui32InitCapMode, IMG_CHAR** ppszEnvComment);
 
-void PDumpOSDeInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript);
+IMG_VOID PDumpOSDeInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript);
 
 /*!
  * @name	PDumpOSSetSplitMarker
@@ -180,7 +208,7 @@ IMG_UINT32 PDumpOSDebugDriverWrite(IMG_HANDLE psStream,
 
 /*
  * Define macro for processing variable args list in OS-independent
- * manner. See e.g. PDumpCommentWithFlags().
+ * manner. See e.g. PDumpComment().
  */
 #define PDUMP_va_list	va_list
 #define PDUMP_va_start	va_start
@@ -201,7 +229,7 @@ PVRSRV_ERROR PDumpOSBufprintf(IMG_HANDLE hBuf, IMG_UINT32 ui32ScriptSizeMax, IMG
  * @brief	Debug message during pdumping
  * @param	pszFormat - format string
  */
-void PDumpOSDebugPrintf(IMG_CHAR* pszFormat, ...) IMG_FORMAT_PRINTF(1, 2);
+IMG_VOID PDumpOSDebugPrintf(IMG_CHAR* pszFormat, ...) IMG_FORMAT_PRINTF(1, 2);
 
 /*
  * Write into a IMG_CHAR* on all OSes. Can be allocated on the stack or heap.
@@ -239,7 +267,7 @@ IMG_UINT32 PDumpOSBuflen(IMG_HANDLE hBuffer, IMG_UINT32 ui32BufferSizeMax);
  * @param	hBuffer - handle to buffer
  * @param	ui32BufferSizeMax - max size of buffer (chars)
  */
-void PDumpOSVerifyLineEnding(IMG_HANDLE hBuffer, IMG_UINT32 ui32BufferSizeMax);
+IMG_VOID PDumpOSVerifyLineEnding(IMG_HANDLE hBuffer, IMG_UINT32 ui32BufferSizeMax);
 
 /*!
  * @name	PDumpOSCPUVAddrToDevPAddr
@@ -250,7 +278,7 @@ void PDumpOSVerifyLineEnding(IMG_HANDLE hBuffer, IMG_UINT32 ui32BufferSizeMax);
  * @param	ui32PageSize	page size, used for assertion check
  * @return	psDevPAddr		device physical addr
  */
-void PDumpOSCPUVAddrToDevPAddr(PVRSRV_DEVICE_TYPE eDeviceType,
+IMG_VOID PDumpOSCPUVAddrToDevPAddr(PVRSRV_DEVICE_TYPE eDeviceType,
         IMG_HANDLE hOSMemHandle,
 		IMG_UINT32 ui32Offset,
 		IMG_UINT8 *pui8LinAddr,
@@ -266,7 +294,7 @@ void PDumpOSCPUVAddrToDevPAddr(PVRSRV_DEVICE_TYPE eDeviceType,
  * @param	ui32DataPageMask	mask for data page (= data page size -1)
  * @return	pui32PageOffset	CPU page offset (same as device page offset if page sizes equal)
  */
-void PDumpOSCPUVAddrToPhysPages(IMG_HANDLE hOSMemHandle,
+IMG_VOID PDumpOSCPUVAddrToPhysPages(IMG_HANDLE hOSMemHandle,
 		IMG_UINT32 ui32Offset,
 		IMG_PUINT8 pui8LinAddr,
 		IMG_UINT32 ui32DataPageMask,
@@ -276,31 +304,31 @@ void PDumpOSCPUVAddrToPhysPages(IMG_HANDLE hOSMemHandle,
  * @name	PDumpOSReleaseExecution
  * @brief	OS function to switch to another process, to clear pdump buffers
  */
-void PDumpOSReleaseExecution(void);
+IMG_VOID PDumpOSReleaseExecution(IMG_VOID);
 
 /*!
  * @name	PDumpOSCreateLock
  * @brief	Create the global pdump lock
  */
-PVRSRV_ERROR PDumpOSCreateLock(void);
+PVRSRV_ERROR PDumpOSCreateLock(IMG_VOID);
 
 /*!
  * @name	PDumpOSDestroyLock
  * @brief	Destroy the global pdump lock
  */
-void PDumpOSDestroyLock(void);
+IMG_VOID PDumpOSDestroyLock(IMG_VOID);
 
 /*!
  * @name	PDumpOSLock
  * @brief	Acquire the global pdump lock
  */
-void PDumpOSLock(void);
+IMG_VOID PDumpOSLock(IMG_VOID);
 
 /*!
  * @name	PDumpOSUnlock
  * @brief	Release the global pdump lock
  */
-void PDumpOSUnlock(void);
+IMG_VOID PDumpOSUnlock(IMG_VOID);
 
 /*!
  * @name	PDumpOSGetCtrlState
@@ -312,13 +340,13 @@ IMG_UINT32 PDumpOSGetCtrlState(IMG_HANDLE hDbgStream, IMG_UINT32 ui32StateID);
  * @name	PDumpOSSetFrame
  * @brief	Set the current frame value mirrored in the debug driver
  */
-void PDumpOSSetFrame(IMG_UINT32 ui32Frame);
+IMG_VOID PDumpOSSetFrame(IMG_UINT32 ui32Frame);
 
 /*!
  * @name	PDumpOSAllowInitPhaseToComplete
  * @brief	Some platforms wish to control when the init phase is marked as
  *          complete depending on who is instructing it so.
  */
-IMG_BOOL PDumpOSAllowInitPhaseToComplete(IMG_BOOL bPDumpClient, IMG_BOOL bInitClient);
+IMG_BOOL PDumpOSAllowInitPhaseToComplete(IMG_UINT32 eModuleID);
 
 

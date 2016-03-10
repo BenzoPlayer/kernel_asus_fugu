@@ -92,11 +92,11 @@ PVRSRV_ERROR PVRSRVSetInitServerState(PVRSRV_INIT_SERVER_STATE	eInitServerState,
 
 
 
-IMG_IMPORT PVRSRV_ERROR PVRSRVPowerLock(void);
-IMG_IMPORT void PVRSRVForcedPowerLock(void);
-IMG_IMPORT void PVRSRVPowerUnlock(void);
+IMG_IMPORT PVRSRV_ERROR PVRSRVPowerLock(IMG_VOID);
+IMG_IMPORT IMG_VOID PVRSRVForcedPowerLock(IMG_VOID);
+IMG_IMPORT IMG_VOID PVRSRVPowerUnlock(IMG_VOID);
 
-IMG_IMPORT IMG_BOOL PVRSRVDeviceIsDefaultStateOFF(PVRSRV_POWER_DEV *psPowerDevice);
+IMG_BOOL PVRSRVDeviceIsDefaultStateOFF(PVRSRV_POWER_DEV *psPowerDevice);
 
 IMG_IMPORT
 PVRSRV_ERROR PVRSRVSetDevicePowerStateKM(IMG_UINT32				ui32DeviceIndex,
@@ -134,20 +134,18 @@ IMG_BOOL PVRSRVIsDevicePowered(IMG_UINT32 ui32DeviceIndex);
 IMG_IMPORT
 PVRSRV_ERROR PVRSRVDevicePreClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 											 IMG_BOOL	bIdleDevice,
-											 void	*pvInfo);
+											 IMG_VOID	*pvInfo);
 
 IMG_IMPORT
-void PVRSRVDevicePostClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
+IMG_VOID PVRSRVDevicePostClockSpeedChange(IMG_UINT32	ui32DeviceIndex,
 										  IMG_BOOL		bIdleDevice,
-										  void		*pvInfo);
+										  IMG_VOID		*pvInfo);
 
-IMG_IMPORT
 PVRSRV_ERROR PVRSRVDeviceIdleRequestKM(IMG_BOOL					bAllDevices,
 					IMG_UINT32				ui32DeviceIndex,
 					PFN_SYS_DEV_IS_DEFAULT_STATE_OFF	pfnCheckIdleReq,
 					IMG_BOOL				bDeviceOffPermitted);
 
-IMG_IMPORT
 PVRSRV_ERROR PVRSRVDeviceIdleCancelRequestKM(IMG_BOOL			bAllDevices,
 						IMG_UINT32		ui32DeviceIndex);
 

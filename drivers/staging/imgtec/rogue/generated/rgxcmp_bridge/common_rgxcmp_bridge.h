@@ -59,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRSRV_BRIDGE_RGXCMP_RGXKICKCDM			PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+2
 #define PVRSRV_BRIDGE_RGXCMP_RGXFLUSHCOMPUTEDATA			PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+3
 #define PVRSRV_BRIDGE_RGXCMP_RGXSETCOMPUTECONTEXTPRIORITY			PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+4
-#define PVRSRV_BRIDGE_RGXCMP_RGXGETLASTCOMPUTECONTEXTRESETREASON			PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+5
+#define PVRSRV_BRIDGE_RGXCMP_RGXKICKSYNCCDM			PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+5
 #define PVRSRV_BRIDGE_RGXCMP_CMD_LAST			(PVRSRV_BRIDGE_RGXCMP_CMD_FIRST+5)
 
 
@@ -70,6 +70,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for RGXCreateComputeContext */
 typedef struct PVRSRV_BRIDGE_IN_RGXCREATECOMPUTECONTEXT_TAG
 {
+	IMG_HANDLE hDevNode;
 	IMG_UINT32 ui32Priority;
 	IMG_DEV_VIRTADDR sMCUFenceAddr;
 	IMG_UINT32 ui32FrameworkCmdize;
@@ -77,13 +78,13 @@ typedef struct PVRSRV_BRIDGE_IN_RGXCREATECOMPUTECONTEXT_TAG
 	IMG_HANDLE hPrivData;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXCREATECOMPUTECONTEXT;
 
+
 /* Bridge out structure for RGXCreateComputeContext */
 typedef struct PVRSRV_BRIDGE_OUT_RGXCREATECOMPUTECONTEXT_TAG
 {
 	IMG_HANDLE hComputeContext;
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXCREATECOMPUTECONTEXT;
-
 
 /*******************************************
             RGXDestroyComputeContext          
@@ -95,12 +96,12 @@ typedef struct PVRSRV_BRIDGE_IN_RGXDESTROYCOMPUTECONTEXT_TAG
 	IMG_HANDLE hComputeContext;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXDESTROYCOMPUTECONTEXT;
 
+
 /* Bridge out structure for RGXDestroyComputeContext */
 typedef struct PVRSRV_BRIDGE_OUT_RGXDESTROYCOMPUTECONTEXT_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXDESTROYCOMPUTECONTEXT;
-
 
 /*******************************************
             RGXKickCDM          
@@ -111,12 +112,10 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKCDM_TAG
 {
 	IMG_HANDLE hComputeContext;
 	IMG_UINT32 ui32ClientFenceCount;
-	IMG_HANDLE * phClientFenceUFOSyncPrimBlock;
-	IMG_UINT32 * pui32ClientFenceOffset;
+	PRGXFWIF_UFO_ADDR * psClientFenceUFOAddress;
 	IMG_UINT32 * pui32ClientFenceValue;
 	IMG_UINT32 ui32ClientUpdateCount;
-	IMG_HANDLE * phClientUpdateUFOSyncPrimBlock;
-	IMG_UINT32 * pui32ClientUpdateOffset;
+	PRGXFWIF_UFO_ADDR * psClientUpdateUFOAddress;
 	IMG_UINT32 * pui32ClientUpdateValue;
 	IMG_UINT32 ui32ServerSyncCount;
 	IMG_UINT32 * pui32ServerSyncFlags;
@@ -124,16 +123,16 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKCDM_TAG
 	IMG_UINT32 ui32CmdSize;
 	IMG_BYTE * psDMCmd;
 	IMG_BOOL bbPDumpContinuous;
-	IMG_UINT32 ui32ExtJobRef;
-	IMG_UINT32 ui32IntJobRef;
+	IMG_UINT32 ui32ExternalJobReference;
+	IMG_UINT32 ui32InternalJobReference;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXKICKCDM;
+
 
 /* Bridge out structure for RGXKickCDM */
 typedef struct PVRSRV_BRIDGE_OUT_RGXKICKCDM_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXKICKCDM;
-
 
 /*******************************************
             RGXFlushComputeData          
@@ -145,12 +144,12 @@ typedef struct PVRSRV_BRIDGE_IN_RGXFLUSHCOMPUTEDATA_TAG
 	IMG_HANDLE hComputeContext;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXFLUSHCOMPUTEDATA;
 
+
 /* Bridge out structure for RGXFlushComputeData */
 typedef struct PVRSRV_BRIDGE_OUT_RGXFLUSHCOMPUTEDATA_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXFLUSHCOMPUTEDATA;
-
 
 /*******************************************
             RGXSetComputeContextPriority          
@@ -163,30 +162,41 @@ typedef struct PVRSRV_BRIDGE_IN_RGXSETCOMPUTECONTEXTPRIORITY_TAG
 	IMG_UINT32 ui32Priority;
 } __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXSETCOMPUTECONTEXTPRIORITY;
 
+
 /* Bridge out structure for RGXSetComputeContextPriority */
 typedef struct PVRSRV_BRIDGE_OUT_RGXSETCOMPUTECONTEXTPRIORITY_TAG
 {
 	PVRSRV_ERROR eError;
 } __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXSETCOMPUTECONTEXTPRIORITY;
 
-
 /*******************************************
-            RGXGetLastComputeContextResetReason          
+            RGXKickSyncCDM          
  *******************************************/
 
-/* Bridge in structure for RGXGetLastComputeContextResetReason */
-typedef struct PVRSRV_BRIDGE_IN_RGXGETLASTCOMPUTECONTEXTRESETREASON_TAG
+/* Bridge in structure for RGXKickSyncCDM */
+typedef struct PVRSRV_BRIDGE_IN_RGXKICKSYNCCDM_TAG
 {
 	IMG_HANDLE hComputeContext;
-} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXGETLASTCOMPUTECONTEXTRESETREASON;
+	IMG_UINT32 ui32ClientFenceCount;
+	PRGXFWIF_UFO_ADDR * psClientFenceUFOAddress;
+	IMG_UINT32 * pui32ClientFenceValue;
+	IMG_UINT32 ui32ClientUpdateCount;
+	PRGXFWIF_UFO_ADDR * psClientUpdateUFOAddress;
+	IMG_UINT32 * pui32ClientUpdateValue;
+	IMG_UINT32 ui32ServerSyncCount;
+	IMG_UINT32 * pui32ServerSyncFlags;
+	IMG_HANDLE * phServerSyncs;
+	IMG_UINT32 ui32NumCheckFenceFDs;
+	IMG_INT32 * pi32CheckFenceFDs;
+	IMG_INT32 i32UpdateFenceFD;
+	IMG_BOOL bbPDumpContinuous;
+} __attribute__((packed)) PVRSRV_BRIDGE_IN_RGXKICKSYNCCDM;
 
-/* Bridge out structure for RGXGetLastComputeContextResetReason */
-typedef struct PVRSRV_BRIDGE_OUT_RGXGETLASTCOMPUTECONTEXTRESETREASON_TAG
+
+/* Bridge out structure for RGXKickSyncCDM */
+typedef struct PVRSRV_BRIDGE_OUT_RGXKICKSYNCCDM_TAG
 {
-	IMG_UINT32 ui32LastResetReason;
-	IMG_UINT32 ui32LastResetJobRef;
 	PVRSRV_ERROR eError;
-} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXGETLASTCOMPUTECONTEXTRESETREASON;
-
+} __attribute__((packed)) PVRSRV_BRIDGE_OUT_RGXKICKSYNCCDM;
 
 #endif /* COMMON_RGXCMP_BRIDGE_H */

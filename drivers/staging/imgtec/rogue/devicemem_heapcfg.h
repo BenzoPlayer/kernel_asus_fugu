@@ -47,11 +47,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "pvrsrv_error.h"
 
-
-
+/* FIXME: Find a better way of defining _PVRSRV_DEVICE_NODE_ */
 struct _PVRSRV_DEVICE_NODE_;
-struct _CONNECTION_DATA_;
-
 
 /*
   A "heap config" is a blueprint to be used for initial setting up of
@@ -117,20 +114,20 @@ typedef struct _DEVMEM_HEAP_CONFIG_
 
 
 extern PVRSRV_ERROR
-HeapCfgHeapConfigCount(struct _CONNECTION_DATA_ * psConnection,
+HeapCfgHeapConfigCount(
     const struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
     IMG_UINT32 *puiNumHeapConfigsOut
 );
 
 extern PVRSRV_ERROR
-HeapCfgHeapCount(struct _CONNECTION_DATA_ * psConnection,
+HeapCfgHeapCount(
     const struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
     IMG_UINT32 uiHeapConfigIndex,
     IMG_UINT32 *puiNumHeapsOut
 );
 
 extern PVRSRV_ERROR
-HeapCfgHeapConfigName(struct _CONNECTION_DATA_ * psConnection,
+HeapCfgHeapConfigName(
     const struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
     IMG_UINT32 uiHeapConfigIndex,
     IMG_UINT32 uiHeapConfigNameBufSz,
@@ -138,7 +135,7 @@ HeapCfgHeapConfigName(struct _CONNECTION_DATA_ * psConnection,
 );
 
 extern PVRSRV_ERROR
-HeapCfgHeapDetails(struct _CONNECTION_DATA_ * psConnection,
+HeapCfgHeapDetails(
     const struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
     IMG_UINT32 uiHeapConfigIndex,
     IMG_UINT32 uiHeapIndex,

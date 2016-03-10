@@ -63,9 +63,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ******************************************************************************/
 IMG_EXPORT
-PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
-                                          PVRSRV_DEVICE_NODE * psDeviceNode,
-                                          IMG_UINT32 ui32PDumpFlags);
+PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+										IMG_UINT32			ui32PDumpFlags);
 
 /*!
 ******************************************************************************
@@ -80,20 +79,17 @@ PVRSRV_ERROR PVRSRVPDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 
 ******************************************************************************/
 IMG_EXPORT
-PVRSRV_ERROR PVRSRVPDumpTraceBufferKM(CONNECTION_DATA * psConnection,
-                                      PVRSRV_DEVICE_NODE *psDeviceNode,
-                                      IMG_UINT32 ui32PDumpFlags);
+PVRSRV_ERROR PVRSRVPDumpTraceBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+										IMG_UINT32			ui32PDumpFlags);
 #else  	/* PDUMP */
 
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(PVRSRVPDumpSignatureBufferKM)
 #endif
 static INLINE PVRSRV_ERROR
-PVRSRVPDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
-                             PVRSRV_DEVICE_NODE	*psDeviceNode,
+PVRSRVPDumpSignatureBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 							 IMG_UINT32			ui32PDumpFlags)
 {
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
 	return PVRSRV_OK;
@@ -103,11 +99,9 @@ PVRSRVPDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 #pragma inline(PVRSRVPDumpTraceBufferKM)
 #endif
 static INLINE PVRSRV_ERROR
-PVRSRVPDumpTraceBufferKM(CONNECTION_DATA * psConnection,
-                         PVRSRV_DEVICE_NODE	*psDeviceNode,
+PVRSRVPDumpTraceBufferKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
 						 IMG_UINT32			ui32PDumpFlags)
 {
-	PVR_UNREFERENCED_PARAMETER(psConnection);	
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
 	return PVRSRV_OK;

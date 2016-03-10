@@ -376,24 +376,6 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
 #define PVRSRV_MEMALLOCFLAG_CPU_LOCAL 					(1U<<16)
 #define PVRSRV_CHECK_CPU_LOCAL(uiFlags)					((uiFlags & PVRSRV_MEMALLOCFLAG_CPU_LOCAL) != 0)
 
-
-/*!
-    PVRSRV_MEMALLOCFLAG_FW_LOCAL
-
-    Indicates that the allocation will primarily be accessed by
-    the FW.
- */
-#define PVRSRV_MEMALLOCFLAG_FW_LOCAL 					(1U<<17)
-#define PVRSRV_CHECK_FW_LOCAL(uiFlags)					((uiFlags & PVRSRV_MEMALLOCFLAG_FW_LOCAL) != 0)
-
-/*
- * PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING
- *
- * Indicates the particular memory thats being allocated is sparse
- * and the sparse regions should not be backed by dummy page */
-#define PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING		(1U << 18)
-#define PVRSRV_IS_SPARSE_DUMMY_BACKING_REQUIRED(uiFlags)		((uiFlags & PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING) == 0)
-
 /*
  *
  *  **********************************************************
@@ -430,7 +412,6 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
  */
 #define PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC 				(1U<<31)
 #define PVRSRV_CHECK_ZERO_ON_ALLOC(uiFlags)				((uiFlags & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC) != 0)
-#define PVRSRV_GET_ZERO_ON_ALLOC_FLAG(uiFlags)			((uiFlags) & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC)
 
 /*!
     VRSRV_MEMALLOCFLAG_POISON_ON_ALLOC
@@ -491,8 +472,6 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
                                             PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK | \
                                             PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
                                             PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
-                                            PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING | \
-                                            PVRSRV_MEMALLOCFLAG_FW_LOCAL | \
                                             PVRSRV_MEMALLOCFLAG_CPU_LOCAL)
 
 #if ((~(PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK) & PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK) != 0)
@@ -539,45 +518,11 @@ typedef IMG_UINT32 PVRSRV_MEMALLOCFLAGS_T;
                                                     PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE | \
                                                     PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK | \
                                                     PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK | \
-                                                    PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
-                                                    PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING)
+                                                    PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC)
 
 #if ((~(PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK) & PVRSRV_MEMALLOCFLAGS_PERMAPPINGFLAGSMASK) != 0)
 #error PVRSRV_MEMALLOCFLAGS_PERMAPPINGFLAGSMASK is not a subset of PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK
 #endif
-
-
-/*!
-  Flags that affect _physical allocations_ in the DevMemX API
- */
-#define PVRSRV_MEMALLOCFLAGS_DEVMEMX_PHYSICAL_MASK (PVRSRV_MEMALLOCFLAG_CPU_READABLE | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_LOCAL | \
-                                                    PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC | \
-                                                    PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
-                                                    PVRSRV_MEMALLOCFLAG_POISON_ON_FREE | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_UNCACHED | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_CACHED | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_CACHED_CACHE_COHERENT | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_CACHE_COHERENT | \
-                                                    PVRSRV_MEMALLOCFLAG_CPU_CACHE_INCOHERENT)
-
-/*!
-  Flags that affect _virtual allocations_ in the DevMemX API
- */
-#define PVRSRV_MEMALLOCFLAGS_DEVMEMX_VIRTUAL_MASK  (PVRSRV_MEMALLOCFLAG_GPU_READABLE | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_READ_PERMITTED | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_WRITE_PERMITTED | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_UNCACHED | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_WRITE_COMBINE | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_CACHED | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_CACHED_CACHE_COHERENT | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_CACHE_COHERENT | \
-                                                    PVRSRV_MEMALLOCFLAG_GPU_CACHE_INCOHERENT)
 
 #endif /* #ifndef PVRSRV_MEMALLOCFLAGS_H */
 

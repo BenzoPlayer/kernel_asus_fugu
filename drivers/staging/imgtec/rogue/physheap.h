@@ -49,15 +49,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _PHYS_HEAP_ PHYS_HEAP;
 
-typedef void (*CpuPAddrToDevPAddr)(IMG_HANDLE hPrivData,
-								   IMG_UINT32 ui32NumOfAddr,
-								   IMG_DEV_PHYADDR *psDevPAddr,
-								   IMG_CPU_PHYADDR *psCpuPAddr);
+typedef IMG_VOID (*CpuPAddrToDevPAddr)(IMG_HANDLE hPrivData,
+									   IMG_UINT32 ui32NumOfAddr,
+									   IMG_DEV_PHYADDR *psDevPAddr,
+									   IMG_CPU_PHYADDR *psCpuPAddr);
 
-typedef void (*DevPAddrToCpuPAddr)(IMG_HANDLE hPrivData,
-								   IMG_UINT32 ui32NumOfAddr,
-								   IMG_CPU_PHYADDR *psCpuPAddr,
-								   IMG_DEV_PHYADDR *psDevPAddr);
+typedef IMG_VOID (*DevPAddrToCpuPAddr)(IMG_HANDLE hPrivData,
+									   IMG_UINT32 ui32NumOfAddr,
+									   IMG_CPU_PHYADDR *psCpuPAddr,
+									   IMG_DEV_PHYADDR *psDevPAddr);
 
 typedef struct _PHYS_HEAP_FUNCTIONS_
 {
@@ -80,10 +80,9 @@ typedef struct _PHYS_HEAP_CONFIG_
 	PHYS_HEAP_TYPE			eType;
 	/*
 		Note:
-		sStartAddr, uiCardBase and uiSize are only required for LMA heaps
+		sStartAddr and uiSize are only required for LMA heaps
 	*/
 	IMG_CPU_PHYADDR			sStartAddr;
-	IMG_UINT64				uiCardBase;
 	IMG_UINT64				uiSize;
 	IMG_CHAR				*pszPDumpMemspaceName;
 	PHYS_HEAP_FUNCTIONS		*psMemFuncs;
@@ -93,36 +92,33 @@ typedef struct _PHYS_HEAP_CONFIG_
 PVRSRV_ERROR PhysHeapRegister(PHYS_HEAP_CONFIG *psConfig,
 							  PHYS_HEAP **ppsPhysHeap);
 
-void PhysHeapUnregister(PHYS_HEAP *psPhysHeap);
+IMG_VOID PhysHeapUnregister(PHYS_HEAP *psPhysHeap);
 
 PVRSRV_ERROR PhysHeapAcquire(IMG_UINT32 ui32PhysHeapID,
 							 PHYS_HEAP **ppsPhysHeap);
 
-void PhysHeapRelease(PHYS_HEAP *psPhysHeap);
+IMG_VOID PhysHeapRelease(PHYS_HEAP *psPhysHeap);
 
 PHYS_HEAP_TYPE PhysHeapGetType(PHYS_HEAP *psPhysHeap);
 
 PVRSRV_ERROR PhysHeapGetAddress(PHYS_HEAP *psPhysHeap,
 								IMG_CPU_PHYADDR *psCpuPAddr);
 
-PVRSRV_ERROR PhysHeapGetBase(PHYS_HEAP *psPhysHeap,
-							IMG_UINT64 *puiBase);
-
 PVRSRV_ERROR PhysHeapGetSize(PHYS_HEAP *psPhysHeap,
 						     IMG_UINT64 *puiSize);
 
-void PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
-								IMG_UINT32 ui32NumOfAddr,
-								IMG_DEV_PHYADDR *psDevPAddr,
-								IMG_CPU_PHYADDR *psCpuPAddr);
-void PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
-								IMG_UINT32 ui32NumOfAddr,
-								IMG_CPU_PHYADDR *psCpuPAddr,
-								IMG_DEV_PHYADDR *psDevPAddr);
+IMG_VOID PhysHeapCpuPAddrToDevPAddr(PHYS_HEAP *psPhysHeap,
+									IMG_UINT32 ui32NumOfAddr,
+									IMG_DEV_PHYADDR *psDevPAddr,
+									IMG_CPU_PHYADDR *psCpuPAddr);
+IMG_VOID PhysHeapDevPAddrToCpuPAddr(PHYS_HEAP *psPhysHeap,
+									IMG_UINT32 ui32NumOfAddr,
+									IMG_CPU_PHYADDR *psCpuPAddr,
+									IMG_DEV_PHYADDR *psDevPAddr);
 
 IMG_CHAR *PhysHeapPDumpMemspaceName(PHYS_HEAP *psPhysHeap);
 
-PVRSRV_ERROR PhysHeapInit(void);
-PVRSRV_ERROR PhysHeapDeinit(void);
+PVRSRV_ERROR PhysHeapInit(IMG_VOID);
+PVRSRV_ERROR PhysHeapDeinit(IMG_VOID);
 
 #endif /* _PHYSHEAP_H_ */

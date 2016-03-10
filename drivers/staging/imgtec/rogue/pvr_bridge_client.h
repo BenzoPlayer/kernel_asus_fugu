@@ -59,20 +59,15 @@ extern "C" {
 IMG_EXPORT IMG_BOOL PVRSRVIsKernel64Bit(void);
 #endif
 
-PVRSRV_ERROR OpenServices(IMG_HANDLE *phServices,
-			  IMG_OS_CONNECTION hOSConnection,
-			  IMG_UINT32 ui32SrvFlags);
+PVRSRV_ERROR OpenServices(IMG_HANDLE *phServices, IMG_UINT32 ui32SrvFlags);
 PVRSRV_ERROR CloseServices(IMG_HANDLE hServices);
 PVRSRV_ERROR PVRSRVBridgeCall(IMG_HANDLE hServices,
 							  IMG_UINT8	ui8BridgeGroup,
 							  IMG_UINT32 ui32FunctionID,
-							  void *pvParamIn,
+							  IMG_VOID *pvParamIn,
 							  IMG_UINT32 ui32InBufferSize,
-							  void *pvParamOut,
+							  IMG_VOID *pvParamOut,
 							  IMG_UINT32 ui32OutBufferSize);
-
-IMG_OS_CONNECTION GetOSConnection(IMG_HANDLE hServices);
-
 
 #if defined (__cplusplus)
 }

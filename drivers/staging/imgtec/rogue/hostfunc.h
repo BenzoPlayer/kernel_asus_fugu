@@ -53,15 +53,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *****************************************************************************/
 IMG_UINT32 HostReadRegistryDWORDFromString(IMG_CHAR *pcKey, IMG_CHAR *pcValueName, IMG_UINT32 *pui32Data);
 
-void * HostPageablePageAlloc(IMG_UINT32 ui32Pages);
-void HostPageablePageFree(void * pvBase);
-void * HostNonPageablePageAlloc(IMG_UINT32 ui32Pages);
-void HostNonPageablePageFree(void * pvBase);
+IMG_VOID * HostPageablePageAlloc(IMG_UINT32 ui32Pages);
+IMG_VOID HostPageablePageFree(IMG_VOID * pvBase);
+IMG_VOID * HostNonPageablePageAlloc(IMG_UINT32 ui32Pages);
+IMG_VOID HostNonPageablePageFree(IMG_VOID * pvBase);
 
-void * HostMapKrnBufIntoUser(void * pvKrnAddr, IMG_UINT32 ui32Size, void * *ppvMdl);
-void HostUnMapKrnBufFromUser(void * pvUserAddr, void * pvMdl, void * pvProcess);
+IMG_VOID * HostMapKrnBufIntoUser(IMG_VOID * pvKrnAddr, IMG_UINT32 ui32Size, IMG_VOID * *ppvMdl);
+IMG_VOID HostUnMapKrnBufFromUser(IMG_VOID * pvUserAddr, IMG_VOID * pvMdl, IMG_VOID * pvProcess);
 
-void HostCreateRegDeclStreams(void);
+IMG_VOID HostCreateRegDeclStreams(IMG_VOID);
 
 /* Direct macros for Linux to avoid LockDep false-positives from occurring */
 #if defined(LINUX) && defined(__KERNEL__)
@@ -69,7 +69,7 @@ void HostCreateRegDeclStreams(void);
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#define HostCreateMutex(void) ({ \
+#define HostCreateMutex(IMG_VOID) ({ \
 	struct mutex* pMutex = NULL; \
 	pMutex = kmalloc(sizeof(struct mutex), GFP_KERNEL); \
 	if (pMutex) { mutex_init(pMutex); }; \
@@ -81,18 +81,18 @@ void HostCreateRegDeclStreams(void);
 
 #else /* defined(LINUX) && defined(__KERNEL__) */
 
-void * HostCreateMutex(void);
-void HostAquireMutex(void * pvMutex);
-void HostReleaseMutex(void * pvMutex);
-void HostDestroyMutex(void * pvMutex);
+IMG_VOID * HostCreateMutex(IMG_VOID);
+IMG_VOID HostAquireMutex(IMG_VOID * pvMutex);
+IMG_VOID HostReleaseMutex(IMG_VOID * pvMutex);
+IMG_VOID HostDestroyMutex(IMG_VOID * pvMutex);
 
 #endif
 
 #if defined(SUPPORT_DBGDRV_EVENT_OBJECTS)
-IMG_INT32 HostCreateEventObjects(void);
-void HostWaitForEvent(DBG_EVENT eEvent);
-void HostSignalEvent(DBG_EVENT eEvent);
-void HostDestroyEventObjects(void);
+IMG_INT32 HostCreateEventObjects(IMG_VOID);
+IMG_VOID HostWaitForEvent(DBG_EVENT eEvent);
+IMG_VOID HostSignalEvent(DBG_EVENT eEvent);
+IMG_VOID HostDestroyEventObjects(IMG_VOID);
 #endif	/*defined(SUPPORT_DBGDRV_EVENT_OBJECTS) */
 
 #endif

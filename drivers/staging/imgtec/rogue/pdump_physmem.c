@@ -69,29 +69,30 @@ struct _PDUMP_PHYSMEM_INFO_T_
     IMG_UINT32 ui32SerialNum;
 };
 
+
 /**************************************************************************
- * Function Name  : PDumpMalloc
+ * Function Name  : PDumpPMRMalloc
  * Inputs         :
  * Outputs        :
  * Returns        : PVRSRV_ERROR
  * Description    :
 **************************************************************************/
-PVRSRV_ERROR PDumpMalloc(const IMG_CHAR *pszDevSpace,
+PVRSRV_ERROR PDumpPMRMalloc(const IMG_CHAR *pszDevSpace,
                             const IMG_CHAR *pszSymbolicAddress,
                             IMG_UINT64 ui64Size,
                             IMG_DEVMEM_ALIGN_T uiAlign,
                             IMG_BOOL bForcePersistent,
                             IMG_HANDLE *phHandlePtr)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 	IMG_UINT32 ui32Flags = PDUMP_FLAGS_CONTINUOUS;
 
-	PDUMP_PHYSMEM_INFO_T *psPDumpAllocationInfo;
+    PDUMP_PHYSMEM_INFO_T *psPDumpAllocationInfo;
 
 	PDUMP_GET_SCRIPT_STRING()
 
     psPDumpAllocationInfo = OSAllocMem(sizeof*psPDumpAllocationInfo);
-    PVR_ASSERT(psPDumpAllocationInfo != NULL);
+    PVR_ASSERT(psPDumpAllocationInfo != IMG_NULL);
 
 	if (bForcePersistent)
 	{
@@ -115,7 +116,6 @@ PVRSRV_ERROR PDumpMalloc(const IMG_CHAR *pszDevSpace,
 	/*
 		Write to the MMU script stream indicating the memory allocation
 	*/
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript, ui32MaxLen, "MALLOC %s 0x%llX 0x%llX\n",
                             psPDumpAllocationInfo->aszSymbolicAddress,
                             ui64Size,
@@ -123,32 +123,32 @@ PVRSRV_ERROR PDumpMalloc(const IMG_CHAR *pszDevSpace,
 	if(eError != PVRSRV_OK)
 	{
 		OSFreeMem(psPDumpAllocationInfo);
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, ui32Flags);
+	PDumpOSUnlock();
 
     psPDumpAllocationInfo->ui64Size = ui64Size;
     psPDumpAllocationInfo->ui32Align = TRUNCATE_64BITS_TO_32BITS(uiAlign);
 
     *phHandlePtr = (IMG_HANDLE)psPDumpAllocationInfo;
 
-_return:
-   	PDUMP_UNLOCK();
-    return eError;
+	return PVRSRV_OK;
 }
 
 
 /**************************************************************************
- * Function Name  : PDumpFree
+ * Function Name  : PDumpPMRFree
  * Inputs         :
  * Outputs        :
  * Returns        : PVRSRV_ERROR
  * Description    :
 **************************************************************************/
-PVRSRV_ERROR PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
+PVRSRV_ERROR PDumpPMRFree(IMG_HANDLE hPDumpAllocationInfoHandle)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 	IMG_UINT32 ui32Flags = PDUMP_FLAGS_CONTINUOUS;
 
     PDUMP_PHYSMEM_INFO_T *psPDumpAllocationInfo;
@@ -162,20 +162,19 @@ PVRSRV_ERROR PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
 	/*
 		Write to the MMU script stream indicating the memory free
 	*/
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript, ui32MaxLen, "FREE %s\n",
                               psPDumpAllocationInfo->aszSymbolicAddress);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
-
+	PDumpOSLock();
 	PDumpWriteScript(hScript, ui32Flags);
+	PDumpOSUnlock();
+
     OSFreeMem(psPDumpAllocationInfo);
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
@@ -185,13 +184,12 @@ PDumpPMRWRW32(const IMG_CHAR *pszDevSpace,
             IMG_UINT32 ui32Value,
             PDUMP_FLAGS_T uiPDumpFlags)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 
 	PDUMP_GET_SCRIPT_STRING()
 
 	uiPDumpFlags |= (PDumpIsPersistent()) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "WRW :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -202,14 +200,14 @@ PDumpPMRWRW32(const IMG_CHAR *pszDevSpace,
                               ui32Value);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
@@ -219,13 +217,12 @@ PDumpPMRWRW64(const IMG_CHAR *pszDevSpace,
             IMG_UINT64 ui64Value,
             PDUMP_FLAGS_T uiPDumpFlags)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 
 	PDUMP_GET_SCRIPT_STRING()
 
 	uiPDumpFlags |= (PDumpIsPersistent()) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "WRW64 :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -236,14 +233,14 @@ PDumpPMRWRW64(const IMG_CHAR *pszDevSpace,
                               ui64Value);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
@@ -255,13 +252,12 @@ PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
             IMG_UINT32 uiFileOffset,
             PDUMP_FLAGS_T uiPDumpFlags)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 
 	PDUMP_GET_SCRIPT_STRING()
 
 	uiPDumpFlags |= (PDumpIsPersistent()) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "LDB :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -275,14 +271,14 @@ PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
                               pszFilename);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
@@ -292,7 +288,7 @@ PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
                          const IMG_CHAR *pszFileName,
                          IMG_UINT32 uiFileOffset)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 	IMG_UINT32 uiPDumpFlags;
 
 	PDUMP_GET_SCRIPT_STRING()
@@ -300,7 +296,6 @@ PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
     uiPDumpFlags = 0; //PDUMP_FLAGS_CONTINUOUS;
 	uiPDumpFlags |= ( PDumpIsPersistent() ) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "SAB :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -314,14 +309,14 @@ PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
                               pszFileName);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
@@ -335,14 +330,13 @@ PDumpPMRPOL(const IMG_CHAR *pszMemspaceName,
             IMG_UINT32 uiDelay,
             PDUMP_FLAGS_T uiPDumpFlags)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 
 	PDUMP_GET_SCRIPT_STRING()
 
 
 	uiPDumpFlags |= ( PDumpIsPersistent() ) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "POL :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -357,14 +351,14 @@ PDumpPMRPOL(const IMG_CHAR *pszMemspaceName,
                               uiDelay);
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
@@ -375,14 +369,13 @@ PDumpPMRCBP(const IMG_CHAR *pszMemspaceName,
             IMG_DEVMEM_SIZE_T uiPacketSize,
             IMG_DEVMEM_SIZE_T uiBufferSize)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
+	PVRSRV_ERROR eError;
 	PDUMP_FLAGS_T uiPDumpFlags = 0;
 
 	PDUMP_GET_SCRIPT_STRING()
 
 	uiPDumpFlags |= ( PDumpIsPersistent() ) ? PDUMP_FLAGS_PERSISTENT : 0;
 
-	PDUMP_LOCK();
 	eError = PDumpOSBufprintf(hScript,
                               ui32MaxLen,
                               "CBP :%s:%s:" IMG_DEVMEM_OFFSET_FMTSPEC " "
@@ -396,22 +389,22 @@ PDumpPMRCBP(const IMG_CHAR *pszMemspaceName,
 
 	if(eError != PVRSRV_OK)
 	{
-		goto _return;
+		return eError;
 	}
 
+	PDumpOSLock();
 	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpOSUnlock();
 
-_return:
-	PDUMP_UNLOCK();
-	return eError;
+	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR
 PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
-                 size_t uiNumBytes,
+                 IMG_SIZE_T uiNumBytes,
                  PDUMP_FLAGS_T uiPDumpFlags,
                  IMG_CHAR *pszFilenameOut,
-                 size_t uiFilenameBufSz,
+                 IMG_SIZE_T uiFilenameBufSz,
                  PDUMP_FILEOFFSET_T *puiOffsetOut)
 {
 	PVRSRV_ERROR eError;
@@ -419,7 +412,8 @@ PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
 
 	if (!PDumpReady())
 	{
-		return PVRSRV_ERROR_PDUMP_NOT_AVAILABLE;
+		eError = PVRSRV_ERROR_PDUMP_NOT_AVAILABLE;
+        goto e0;
 	}
 
     PVR_ASSERT(uiNumBytes > 0);
@@ -427,28 +421,26 @@ PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
 	/* PRQA S 3415 1 */ /* side effects desired */
 	if (PDumpIsDumpSuspended())
 	{
-		return PVRSRV_ERROR_PDUMP_NOT_ALLOWED;
+		return PVRSRV_OK;
 	}
 
-	PVR_ASSERT(uiFilenameBufSz <= PDUMP_PARAM_MAX_FILE_NAME);
-
-	PDUMP_LOCK();
+	PDumpOSLock();
 
 	eError = PDumpWriteParameter(pcBuffer, uiNumBytes, uiPDumpFlags, puiOffsetOut, pszFilenameOut);
 
-	PDUMP_UNLOCK();
+	PDumpOSUnlock();
 
-	if ((eError != PVRSRV_ERROR_PDUMP_NOT_ALLOWED) && (eError != PVRSRV_OK))
-	{
-		PVR_LOGR_IF_ERROR(eError, "PDumpWriteParameter");
-	}
-	/* else Write to parameter file Ok or Prevented under the flags and
-	 * current state of the driver so skip further writes and let caller know.
-	 */
-	return eError;
+	PVR_LOGG_IF_ERROR(eError, "PDumpWriteParameter", e0);
+
+	return PVRSRV_OK;
+
+ e0:
+	/* Die on debug builds */
+	PVR_ASSERT(eError != PVRSRV_OK);
+    return eError;
 }
 
-IMG_INTERNAL void
+IMG_INTERNAL IMG_VOID
 PDumpPMRMallocPMR(const PMR *psPMR,
                   IMG_DEVMEM_SIZE_T uiSize,
                   IMG_DEVMEM_ALIGN_T uiBlockSize,
@@ -475,7 +467,7 @@ PDumpPMRMallocPMR(const PMR *psPMR,
     PVR_ASSERT(uiOffset == 0);
     PVR_ASSERT((uiOffset + uiSize) <= uiNextSymName);
 
-	PDumpMalloc(aszMemspaceName,
+	PDumpPMRMalloc(aszMemspaceName,
 				   aszSymbolicName,
 				   uiSize,
 				   uiBlockSize,

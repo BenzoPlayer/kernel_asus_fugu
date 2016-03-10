@@ -60,9 +60,9 @@ typedef struct  tagIOCTL_PACKAGE
 
 IMG_UINT32 DeviceIoControl(IMG_UINT32 hDevice,		
 						IMG_UINT32 ui32ControlCode, 
-						void *pInBuffer,
+						IMG_VOID *pInBuffer,		
 						IMG_UINT32 ui32InBufferSize,
-						void *pOutBuffer,
+						IMG_VOID *pOutBuffer,		
 						IMG_UINT32 ui32OutBufferSize,  
 						IMG_UINT32 *pui32BytesReturned); 
 

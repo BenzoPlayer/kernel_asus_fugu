@@ -59,7 +59,6 @@ typedef enum
 	RGX_PDUMP_PANIC_ZSBUFFER_UNBACKING       = 102, /*!< Requests ZSBuffer to be unbacked */
 	RGX_PDUMP_PANIC_FREELIST_GROW            = 103, /*!< Requests an on-demand freelist grow/shrink */
 	RGX_PDUMP_PANIC_FREELISTS_RECONSTRUCTION = 104, /*!< Requests freelists reconstruction */
-	RGX_PDUMP_PANIC_SPARSEMEM_SWAP			= 105, /*!<	Requests sparse remap memory swap feature */
 } RGX_PDUMP_PANIC;
  
 

@@ -61,13 +61,13 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 	IMG_PSPLAY_TREE psRight;
 	IMG_PSPLAY_TREE psTmp2;
 
-	if (psTree == NULL)
+	if (psTree == IMG_NULL)
 	{
-		return NULL;
+		return IMG_NULL;
 	}
 	
-	sTmp1.psLeft = NULL;
-	sTmp1.psRight = NULL;
+	sTmp1.psLeft = IMG_NULL;
+	sTmp1.psRight = IMG_NULL;
 
 	psLeft = &sTmp1;
 	psRight = &sTmp1;
@@ -76,7 +76,7 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 	{
 		if (ui32Flags < psTree->ui32Flags)
 		{
-			if (psTree->psLeft == NULL)
+			if (psTree->psLeft == IMG_NULL)
 			{
 				break;
 			}
@@ -88,7 +88,7 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 				psTree->psLeft = psTmp2->psRight;
 				psTmp2->psRight = psTree;
 				psTree = psTmp2;
-				if (psTree->psLeft == NULL)
+				if (psTree->psLeft == IMG_NULL)
 				{
 					break;
 				}
@@ -103,7 +103,7 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 		{
 			if (ui32Flags > psTree->ui32Flags)
 			{
-				if (psTree->psRight == NULL)
+				if (psTree->psRight == IMG_NULL)
 				{
 					break;
 				}
@@ -115,7 +115,7 @@ IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 					psTree->psRight = psTmp2->psLeft;
 					psTmp2->psLeft = psTree;
 					psTree = psTmp2;
-					if (psTree->psRight == NULL)
+					if (psTree->psRight == IMG_NULL)
 					{
 						break;
 					}
@@ -155,7 +155,7 @@ IMG_PSPLAY_TREE PVRSRVInsert(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 {
     IMG_PSPLAY_TREE psNew;
 
-	if (psTree != NULL)
+	if (psTree != IMG_NULL)
 	{
 		psTree = PVRSRVSplay(ui32Flags, psTree);
 		if (psTree->ui32Flags == ui32Flags)
@@ -165,10 +165,10 @@ IMG_PSPLAY_TREE PVRSRVInsert(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 	}
 	
 	psNew = (IMG_PSPLAY_TREE) OSAllocMem(sizeof(IMG_SPLAY_TREE));
-	if (psNew == NULL)
+	if (psNew == IMG_NULL)
 	{
 		PVR_DPF ((PVR_DBG_ERROR, "Error: failed to allocate memory to add a node to the splay tree."));
-		return NULL;
+		return IMG_NULL;
 	}
 	
 	psNew->ui32Flags = ui32Flags;
@@ -178,10 +178,10 @@ IMG_PSPLAY_TREE PVRSRVInsert(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 	psNew->bHasEltsMapping = ~(((IMG_ELTS_MAPPINGS) 1 << (sizeof(psNew->buckets) / (sizeof(psNew->buckets[0])))) - 1);
 #endif
 
-    if (psTree == NULL)
+    if (psTree == IMG_NULL)
 	{
-		psNew->psLeft  = NULL;
-		psNew->psRight = NULL;
+		psNew->psLeft  = IMG_NULL;
+		psNew->psRight = IMG_NULL;
 		return psNew;
     }
 
@@ -189,13 +189,13 @@ IMG_PSPLAY_TREE PVRSRVInsert(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 	{
 		psNew->psLeft  = psTree->psLeft;
 		psNew->psRight = psTree;
-		psTree->psLeft = NULL;
+		psTree->psLeft = IMG_NULL;
     }
 	else 
 	{
 		psNew->psRight  = psTree->psRight;
 		psNew->psLeft   = psTree;
-		psTree->psRight = NULL;
+		psTree->psRight = IMG_NULL;
     }
 
 	return psNew;
@@ -214,16 +214,16 @@ IMG_INTERNAL
 IMG_PSPLAY_TREE PVRSRVDelete(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree)
 {
     IMG_PSPLAY_TREE psTmp;
-    if (psTree == NULL)
+    if (psTree == IMG_NULL)
 	{
-		return NULL;
+		return IMG_NULL;
 	}
 
     psTree = PVRSRVSplay(ui32Flags, psTree);
     if (ui32Flags == psTree->ui32Flags)
 	{
 		/* The value was present in the tree */
-		if (psTree->psLeft == NULL)
+		if (psTree->psLeft == IMG_NULL)
 		{
 			psTmp = psTree->psRight;
 		}

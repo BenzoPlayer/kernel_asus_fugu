@@ -109,9 +109,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "pdump.h"
 
-#include "device_connection.h"
-
-
 /* Use GET and SET function to access this */
 IMG_INTERNAL extern IMG_UINT32  g_uiLog2PageSize;
 
@@ -126,53 +123,12 @@ typedef IMG_UINT32 DEVMEM_HEAPCFGID;
 #define DEVMEM_HEAPCFG_FORCLIENTS 0
 #define DEVMEM_HEAPCFG_META 1
 
-
-
-
-
 /*
   In order to call the server side functions, we need a bridge handle.
   We abstract that here, as we may wish to change its form.
  */
 
 typedef IMG_HANDLE DEVMEM_BRIDGE_HANDLE;
-
-/**************************************************************************/ /*!
-@Function       DevmemUnpin
-@Description    This is the counterpart to DevmemPin(). It is meant to be
-                called before repinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          phMemDesc       The MemDesc that is going to be unpinned.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the memory is
-                                registered to be reclaimed. Error otherwise.
-*/ /***************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-DevmemUnpin(DEVMEM_MEMDESC *psMemDesc);
-
-/**************************************************************************/ /*!
-@Function       DevmemPin
-@Description    This is the counterpart to DevmemUnpin(). It is meant to be
-                called after unpinning an allocation.
-
-                For a detailed description see client API documentation.
-
-@Input          phMemDesc       The MemDesc that is going to be pinned.
-
-@Return         PVRSRV_ERROR:   PVRSRV_OK on success and the allocation content
-                                was successfully restored.
-
-                                PVRSRV_ERROR_PMR_NEW_MEMORY when the content
-                                could not be restored and new physical memory
-                                was allocated.
-
-                                A different error otherwise.
-*/ /***************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-DevmemPin(DEVMEM_MEMDESC *psMemDesc);
-
 
 /*
  * DevmemCreateContext()
@@ -189,7 +145,7 @@ DevmemPin(DEVMEM_MEMDESC *psMemDesc);
  *
  * Note that when compiled in services/server, the hBridge is not used
  * and is thrown away by the "fake" direct bridge.  (This may change.
- * It is recommended that NULL be passed for the handle for now)
+ * It is recommended that IMG_NULL be passed for the handle for now)
  *
  * hDeviceNode and uiHeapBlueprintID shall together dictate which
  * heap-config to use.
@@ -205,7 +161,8 @@ DevmemPin(DEVMEM_MEMDESC *psMemDesc);
  * object thusly created.
  */
 extern PVRSRV_ERROR
-DevmemCreateContext(SHARED_DEV_CONNECTION hDevConnection,
+DevmemCreateContext(DEVMEM_BRIDGE_HANDLE hBridge,
+                    IMG_HANDLE hDeviceNode,
                     DEVMEM_HEAPCFGID uiHeapBlueprintID,
                     DEVMEM_CONTEXT **ppsCtxPtr);
 
@@ -279,7 +236,6 @@ DevmemCreateHeap(DEVMEM_CONTEXT *psCtxPtr,
                  /* N.B.  Okay to exist on caller's stack - this
                     func takes a copy if it needs it. */
                  const IMG_CHAR *pszName,
-                 DEVMEM_HEAPCFGID uiHeapBlueprintID,
                  DEVMEM_HEAP **ppsHeapPtr);
 /*
  * DevmemDestroyHeap()
@@ -296,7 +252,7 @@ DevmemDestroyHeap(DEVMEM_HEAP *psHeap);
  * DevmemExportalignAdjustSizeAndAlign()
  * Compute the Size and Align passed to avoid suballocations (used when allocation with PVRSRV_MEMALLOCFLAG_EXPORTALIGN)
  */
-IMG_INTERNAL void
+IMG_INTERNAL IMG_VOID
 DevmemExportalignAdjustSizeAndAlign(DEVMEM_HEAP *psHeap, IMG_DEVMEM_SIZE_T *puiSize, IMG_DEVMEM_ALIGN_T *puiAlign);
 
 /*
@@ -334,7 +290,8 @@ PVRSRV_ERROR DevmemAllocate(DEVMEM_HEAP *psHeap,
                             DEVMEM_MEMDESC **ppsMemDescPtr);
 
 PVRSRV_ERROR
-DevmemAllocateExportable(SHARED_DEV_CONNECTION hDevConnection,
+DevmemAllocateExportable(IMG_HANDLE hBridge,
+						 IMG_HANDLE hDeviceNode,
 						 IMG_DEVMEM_SIZE_T uiSize,
 						 IMG_DEVMEM_ALIGN_T uiAlign,
 						 DEVMEM_FLAGS_T uiFlags,
@@ -342,21 +299,13 @@ DevmemAllocateExportable(SHARED_DEV_CONNECTION hDevConnection,
 						 DEVMEM_MEMDESC **ppsMemDescPtr);
 
 PVRSRV_ERROR
-DeviceMemChangeSparse(DEVMEM_MEMDESC *psMemDesc,
-					  IMG_UINT32 ui32AllocPageCount,
-					  IMG_UINT32 *paui32AllocPageIndices,
-					  IMG_UINT32 ui32FreePageCount,
-					  IMG_UINT32 *pauiFreePageIndices,
-					  SPARSE_MEM_RESIZE_FLAGS uiFlags,
-					  IMG_UINT32 *pui32Status);
-
-PVRSRV_ERROR
-DevmemAllocateSparse(SHARED_DEV_CONNECTION hDevConnection,
+DevmemAllocateSparse(IMG_HANDLE hBridge,
+					 IMG_HANDLE hDeviceNode,
 					 IMG_DEVMEM_SIZE_T uiSize,
 					 IMG_DEVMEM_SIZE_T uiChunkSize,
 					 IMG_UINT32 ui32NumPhysChunks,
 					 IMG_UINT32 ui32NumVirtChunks,
-					 IMG_UINT32 *pui32MappingTable,
+					 IMG_BOOL *pabMappingTable,
 					 IMG_DEVMEM_ALIGN_T uiAlign,
 					 DEVMEM_FLAGS_T uiFlags,
 					 const IMG_PCHAR pszText,
@@ -372,13 +321,13 @@ DevmemAllocateSparse(SHARED_DEV_CONNECTION hDevConnection,
  * properly refcounted, so the caller does not have to care.
  */
 
-extern void
+extern IMG_VOID
 DevmemFree(DEVMEM_MEMDESC *psMemDesc);
 
 /*
 	DevmemMapToDevice:
 
-	Map an allocation to the device it was allocated from.
+	Map an allocation to the device is was allocated from.
 	This function _must_ be called before any call to 
 	DevmemAcquireDevVirtAddr is made as it binds the allocation
 	to the heap.
@@ -391,17 +340,6 @@ DevmemFree(DEVMEM_MEMDESC *psMemDesc);
 PVRSRV_ERROR DevmemMapToDevice(DEVMEM_MEMDESC *psMemDesc,
 							   DEVMEM_HEAP *psHeap,
 							   IMG_DEV_VIRTADDR *psDevVirtAddr);
-
-/*
-	DevmemMapToDeviceAddress:
-
-	Same as DevmemMapToDevice but the caller chooses the address
-	to map to.
-*/
-IMG_INTERNAL PVRSRV_ERROR
-DevmemMapToDeviceAddress(DEVMEM_MEMDESC *psMemDesc,
-                         DEVMEM_HEAP *psHeap,
-                         IMG_DEV_VIRTADDR sDevVirtAddr);
 
 /*
 	DevmemAcquireDevVirtAddr
@@ -419,7 +357,7 @@ PVRSRV_ERROR DevmemAcquireDevVirtAddr(DEVMEM_MEMDESC *psMemDesc,
  * give up the licence to use the device virtual address that was
  * acquired by "Acquire" or "MapToDevice"
  */
-extern void
+extern IMG_VOID
 DevmemReleaseDevVirtAddr(DEVMEM_MEMDESC *psMemDesc);
 
 /*
@@ -433,17 +371,16 @@ DevmemReleaseDevVirtAddr(DEVMEM_MEMDESC *psMemDesc);
  * the memory to be mapped at a different address.
  */
 PVRSRV_ERROR DevmemAcquireCpuVirtAddr(DEVMEM_MEMDESC *psMemDesc,
-                                      void **ppvCpuVirtAddr);
+                                      IMG_VOID **ppvCpuVirtAddr);
 /*
  * DevmemReleaseDevVirtAddr()
  *
  * give up the licence to use the cpu virtual address that was granted
  * with the "Get" call.
  */
-extern void
+extern IMG_VOID
 DevmemReleaseCpuVirtAddr(DEVMEM_MEMDESC *psMemDesc);
 
-#if defined(SUPPORT_INSECURE_EXPORT)
 /*
  * DevmemExport()
  *
@@ -461,36 +398,41 @@ PVRSRV_ERROR DevmemExport(DEVMEM_MEMDESC *psMemDesc,
                           DEVMEM_EXPORTCOOKIE *psExportCookie);
 
 
-void DevmemUnexport(DEVMEM_MEMDESC *psMemDesc,
-					DEVMEM_EXPORTCOOKIE *psExportCookie);
+IMG_VOID DevmemUnexport(DEVMEM_MEMDESC *psMemDesc,
+						DEVMEM_EXPORTCOOKIE *psExportCookie);
 
 PVRSRV_ERROR
-DevmemImport(SHARED_DEV_CONNECTION hDevConnection,
+DevmemImport(IMG_HANDLE hBridge,
 			 DEVMEM_EXPORTCOOKIE *psCookie,
 			 DEVMEM_FLAGS_T uiFlags,
 			 DEVMEM_MEMDESC **ppsMemDescPtr);
-#endif /* SUPPORT_INSECURE_EXPORT */
 
 /*
- * DevmemMakeLocalImportHandle()
+ * DevmemIsValidExportCookie()
+ * Check whether the Export Cookie contains a valid export */
+IMG_BOOL
+DevmemIsValidExportCookie(DEVMEM_EXPORTCOOKIE *psExportCookie);
+
+/*
+ * DevmemMakeServerExportClientExport()
  * 
  * This is a "special case" function for making a server export cookie
  * which went through the direct bridge into an export cookie that can
  * be passed through the client bridge.
  */
 PVRSRV_ERROR
-DevmemMakeLocalImportHandle(SHARED_DEV_CONNECTION hDevConnection,
-                            IMG_HANDLE hServerExport,
-                            IMG_HANDLE *hClientExport);
+DevmemMakeServerExportClientExport(DEVMEM_BRIDGE_HANDLE hBridge,
+                                   DEVMEM_SERVER_EXPORTCOOKIE hServerExportCookie,
+                                   DEVMEM_EXPORTCOOKIE *psExportCookie);
 
 /*
- * DevmemUnmakeLocalImportHandle()
+ * DevmemUnmakeServerExportClientExport()
  * 
  * Free any resource associated with the Make operation
  */
 PVRSRV_ERROR
-DevmemUnmakeLocalImportHandle(SHARED_DEV_CONNECTION hDevConnection,
-                              IMG_HANDLE hClientExport);
+DevmemUnmakeServerExportClientExport(DEVMEM_BRIDGE_HANDLE hBridge,
+                                   DEVMEM_EXPORTCOOKIE *psExportCookie);
 
 /*
  *
@@ -505,7 +447,8 @@ DevmemUnmakeLocalImportHandle(SHARED_DEV_CONNECTION hDevConnection,
    required, as this data is guaranteed to be constant for the
    lifetime of the device node */
 extern PVRSRV_ERROR
-DevmemHeapConfigCount(SHARED_DEV_CONNECTION hDevConnection,
+DevmemHeapConfigCount(DEVMEM_BRIDGE_HANDLE hBridge,
+                      IMG_HANDLE hDeviceNode,
                       IMG_UINT32 *puiNumHeapConfigsOut);
 
 /* Devmem_HeapCount: returns the number of heaps that a given heap
@@ -513,7 +456,8 @@ DevmemHeapConfigCount(SHARED_DEV_CONNECTION hDevConnection,
    semantics required, as this data is guaranteed to be constant for
    the lifetime of the device node */
 extern PVRSRV_ERROR
-DevmemHeapCount(SHARED_DEV_CONNECTION hDevConnection,
+DevmemHeapCount(DEVMEM_BRIDGE_HANDLE hBridge,
+                IMG_HANDLE hDeviceNode,
                 IMG_UINT32 uiHeapConfigIndex,
                 IMG_UINT32 *puiNumHeapsOut);
 /* Devmem_HeapConfigName: return the name of the given heap config.
@@ -524,7 +468,8 @@ DevmemHeapCount(SHARED_DEV_CONNECTION hDevConnection,
    the lifetime of the device node.
  */
 extern PVRSRV_ERROR
-DevmemHeapConfigName(SHARED_DEV_CONNECTION hsDevConnection,
+DevmemHeapConfigName(DEVMEM_BRIDGE_HANDLE hBridge,
+                     IMG_HANDLE hDeviceNode,
                      IMG_UINT32 uiHeapConfigIndex,
                      IMG_CHAR *pszConfigNameOut,
                      IMG_UINT32 uiConfigNameBufSz);
@@ -538,7 +483,8 @@ DevmemHeapConfigName(SHARED_DEV_CONNECTION hsDevConnection,
    data is guaranteed to be constant for the lifetime of the device
    node. */
 extern PVRSRV_ERROR
-DevmemHeapDetails(SHARED_DEV_CONNECTION hDevConnection,
+DevmemHeapDetails(DEVMEM_BRIDGE_HANDLE hBridge,
+                  IMG_HANDLE hDeviceNode,
                   IMG_UINT32 uiHeapConfigIndex,
                   IMG_UINT32 uiHeapIndex,
                   IMG_CHAR *pszHeapNameOut,
@@ -601,13 +547,6 @@ DevmemLocalImport(IMG_HANDLE hBridge,
 IMG_INTERNAL PVRSRV_ERROR
 DevmemIsDevVirtAddrValid(DEVMEM_CONTEXT *psContext,
                          IMG_DEV_VIRTADDR sDevVAddr);
-
-/* DevmemGetHeapLog2PageSize()
- *
- * Get the page size used for a certain heap.
- */
-IMG_UINT32
-DevmemGetHeapLog2PageSize(DEVMEM_HEAP *psHeap);
 
 /* DevmemGetHeapLog2ImportAlignment()
  *

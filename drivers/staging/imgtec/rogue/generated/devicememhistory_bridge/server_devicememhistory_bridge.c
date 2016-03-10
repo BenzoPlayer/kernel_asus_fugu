@@ -59,6 +59,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 #include "lock.h"
@@ -75,7 +79,7 @@ PVRSRVBridgeDevicememHistoryMap(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYMAP *psDevicememHistoryMapOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	IMG_CHAR *uiTextInt = NULL;
+	IMG_CHAR *uiTextInt = IMG_NULL;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
@@ -93,7 +97,7 @@ PVRSRVBridgeDevicememHistoryMap(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psDevicememHistoryMapIN->puiText, DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psDevicememHistoryMapIN->puiText, DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiTextInt, psDevicememHistoryMapIN->puiText,
 				DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -126,7 +130,7 @@ PVRSRVBridgeDevicememHistoryUnmap(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYUNMAP *psDevicememHistoryUnmapOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	IMG_CHAR *uiTextInt = NULL;
+	IMG_CHAR *uiTextInt = IMG_NULL;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
@@ -144,7 +148,7 @@ PVRSRVBridgeDevicememHistoryUnmap(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psDevicememHistoryUnmapIN->puiText, DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psDevicememHistoryUnmapIN->puiText, DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiTextInt, psDevicememHistoryUnmapIN->puiText,
 				DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -178,23 +182,25 @@ DevicememHistoryUnmap_exit:
  */
 
 static POS_LOCK pDEVICEMEMHISTORYBridgeLock;
-static IMG_BOOL bUseLock = IMG_TRUE;
+static IMG_BYTE pbyDEVICEMEMHISTORYBridgeBuffer[56 +  4];
 
-PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(void);
-PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(void);
+PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(IMG_VOID);
+PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(IMG_VOID);
 
 /*
  * Register all DEVICEMEMHISTORY functions with services
  */
-PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(void)
+PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(IMG_VOID)
 {
 	PVR_LOGR_IF_ERROR(OSLockCreate(&pDEVICEMEMHISTORYBridgeLock, LOCK_TYPE_PASSIVE), "OSLockCreate");
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_DEVICEMEMHISTORY, PVRSRV_BRIDGE_DEVICEMEMHISTORY_DEVICEMEMHISTORYMAP, PVRSRVBridgeDevicememHistoryMap,
-					pDEVICEMEMHISTORYBridgeLock, bUseLock);
+					pDEVICEMEMHISTORYBridgeLock, pbyDEVICEMEMHISTORYBridgeBuffer,
+					56,  4);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_DEVICEMEMHISTORY, PVRSRV_BRIDGE_DEVICEMEMHISTORY_DEVICEMEMHISTORYUNMAP, PVRSRVBridgeDevicememHistoryUnmap,
-					pDEVICEMEMHISTORYBridgeLock, bUseLock);
+					pDEVICEMEMHISTORYBridgeLock, pbyDEVICEMEMHISTORYBridgeBuffer,
+					56,  4);
 
 
 	return PVRSRV_OK;
@@ -203,7 +209,7 @@ PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(void)
 /*
  * Unregister all devicememhistory functions with services
  */
-PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(void)
+PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(IMG_VOID)
 {
 	PVR_LOGR_IF_ERROR(OSLockDestroy(pDEVICEMEMHISTORYBridgeLock), "OSLockDestroy");
 	return PVRSRV_OK;

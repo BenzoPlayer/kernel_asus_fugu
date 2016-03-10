@@ -59,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "lock.h"
 
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "virt_validation_defs.h"
+#include "services.h"
 #endif
 
 /* BM context forward reference */
@@ -94,8 +94,8 @@ typedef PVRSRV_ERROR (*AllocUFOBlockCallback)(struct _PVRSRV_DEVICE_NODE_ *psDev
                                 the UFO block to free.
  */
 /*********************************************************************/
-typedef void (*FreeUFOBlockCallback)(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
-									 DEVMEM_MEMDESC *psMemDesc);
+typedef IMG_VOID (*FreeUFOBlockCallback)(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
+										 DEVMEM_MEMDESC *psMemDesc);
 
 
 typedef struct _DEVICE_MEMORY_INFO_
@@ -125,32 +125,14 @@ typedef struct _DEVICE_MEMORY_INFO_
 } DEVICE_MEMORY_INFO;
 
 
-typedef struct _PG_HANDLE_
+typedef struct _Px_HANDLE_
 {
 	union
 	{
-		void *pvHandle;
+		IMG_VOID *pvHandle;
 		IMG_UINT64 ui64Handle;
 	}u;
-	/*Order of the corresponding allocation */
-	IMG_UINT32	ui32Order;
-} PG_HANDLE;
-
-#define MMU_BAD_PHYS_ADDR (0xbadbad00badULL)
-typedef struct __DUMMY_PAGE__
-{
-	/*Page handle for the dummy page allocated (UMA/LMA)*/
-	PG_HANDLE	sDummyPageHandle;
-	POS_LOCK	psDummyPgLock;
-	ATOMIC_T	atRefCounter;
-	/*Dummy page size in terms of log2 */
-	IMG_UINT32	ui32Log2DummyPgSize;
-	IMG_UINT64	ui64DummyPgPhysAddr;
-#if defined(PDUMP)
-#define DUMMY_PAGE	("DUMMY_PAGE")
-	IMG_HANDLE hPdumpDummyPg;
-#endif
-} PVRSRV_DUMMY_PAGE ;
+} Px_HANDLE;
 
 typedef enum _PVRSRV_DEVICE_STATE_
 {
@@ -182,7 +164,7 @@ typedef PVRSRV_ERROR (*FN_CREATERAMBACKEDPMR)(struct _PVRSRV_DEVICE_NODE_ *psDev
 										IMG_DEVMEM_SIZE_T uiChunkSize,
 										IMG_UINT32 ui32NumPhysChunks,
 										IMG_UINT32 ui32NumVirtChunks,
-										IMG_UINT32 *pui32MappingTable,
+										IMG_BOOL *pabMappingTable,
 										IMG_UINT32 uiLog2PageSize,
 										PVRSRV_MEMALLOCFLAGS_T uiFlags,
 										PMR **ppsPMRPtr);
@@ -195,10 +177,7 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	PVRSRV_DEVICE_HEALTH_REASON eHealthReason;
 
 	/* device specific MMU attributes */
-   	MMU_DEVICEATTRIBS      *psMMUDevAttrs;
-	/* device specific MMU firmware atrributes, used only in some devices*/
-	MMU_DEVICEATTRIBS      *psFirmwareMMUDevAttrs;
-
+    MMU_DEVICEATTRIBS      *psMMUDevAttrs;
 
 	/*
 		callbacks the device must support:
@@ -206,30 +185,30 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
     FN_CREATERAMBACKEDPMR pfnCreateRamBackedPMR[PVRSRV_DEVICE_PHYS_HEAP_LAST];
 
-    PVRSRV_ERROR (*pfnDevPxAlloc)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, size_t uiSize,
-									PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
+    PVRSRV_ERROR (*pfnMMUPxAlloc)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, IMG_SIZE_T uiSize,
+									Px_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
 
-    void (*pfnDevPxFree)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, PG_HANDLE *psMemHandle);
+    IMG_VOID (*pfnMMUPxFree)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, Px_HANDLE *psMemHandle);
 
-	PVRSRV_ERROR (*pfnDevPxMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, PG_HANDLE *pshMemHandle,
-								size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
-								void **pvPtr);
+	PVRSRV_ERROR (*pfnMMUPxMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, Px_HANDLE *pshMemHandle,
+								IMG_SIZE_T uiSize, IMG_DEV_PHYADDR *psDevPAddr,
+								IMG_VOID **pvPtr);
 
-	void (*pfnDevPxUnMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
-						  PG_HANDLE *psMemHandle, void *pvPtr);
+	IMG_VOID (*pfnMMUPxUnmap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
+								Px_HANDLE *psMemHandle, IMG_VOID *pvPtr);
 
 	IMG_UINT32 uiMMUPxLog2AllocGran;
 	IMG_CHAR				*pszMMUPxPDumpMemSpaceName;
 
-	void (*pfnMMUCacheInvalidate)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
-								  IMG_HANDLE hDeviceData,
-								  MMU_LEVEL eLevel,
-								  IMG_BOOL bUnmap);
+	IMG_VOID (*pfnMMUCacheInvalidate)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
+										IMG_HANDLE hDeviceData,
+										MMU_LEVEL eLevel,
+										IMG_BOOL bUnmap);
 
 	PVRSRV_ERROR (*pfnSLCCacheInvalidateRequest)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 										PMR *psPmr);
 
-	void (*pfnDumpDebugInfo)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
+	IMG_VOID (*pfnDumpDebugInfo)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
 
 	PVRSRV_ERROR (*pfnUpdateHealthStatus)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 	                                      IMG_BOOL bIsTimerPoll);
@@ -254,7 +233,7 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	DEVICE_MEMORY_INFO		sDevMemoryInfo;
 
 	/* private device information */
-	void					*pvDevice;
+	IMG_VOID				*pvDevice;
 
 	IMG_CHAR				szRAName[50];
 
@@ -263,11 +242,6 @@ typedef struct _PVRSRV_DEVICE_NODE_
 #endif
 
 	RA_ARENA				*psLocalDevMemArena;
-#if defined(SUPPORT_PVRSRV_GPUVIRT)
-	IMG_CHAR				szKernelFwRAName[RGXFW_NUM_OS][50];
-	RA_ARENA				*psKernelFwMemArena[RGXFW_NUM_OS];
-	IMG_UINT32				uiKernelFwRAIdx;
-#endif
 
 	/*
 	 * Pointers to the device's physical memory heap(s)
@@ -277,12 +251,9 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	 * The second entry (apsPhysHeap[PVRSRV_DEVICE_PHYS_HEAP_CPU_LOCAL]) will be used for allocations
 	 *  where the PVRSRV_MEMALLOCFLAG_CPU_LOCAL flag is set. Normally this will be a UMA heap
 	 *  (but the configuration could specify an LMA heap here, if desired)
-	 * The third entry (apsPhysHeap[PVRSRV_DEVICE_PHYS_HEAP_FW_LOCAL]) will be used for allocations
-	 *  where the PVRSRV_MEMALLOCFLAG_FW_LOCAL flag is set; this is used when SUPPORT_PVRSRV_GPUVIRT is enabled
 	 * The device configuration will always specify two physical heap IDs - in the event of the device
 	 *  only using one physical heap, both of these IDs will be the same, and hence both pointers below
-	 *  will also be the same; when SUPPORT_PVRSRV_GPUVIRT is enabled the device configuration specifies
-	 *  three physical heap IDs, the last being for PVRSRV_DEVICE_PHYS_HEAP_FW_LOCAL allocations
+	 *  will also be the same
 	 */
 	PHYS_HEAP				*apsPhysHeap[PVRSRV_DEVICE_PHYS_HEAP_LAST];
 
@@ -293,7 +264,7 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	PVRSRV_ERROR			(*pfnRegisterMemoryContext)(struct _PVRSRV_DEVICE_NODE_	*psDeviceNode,
 														MMU_CONTEXT					*psMMUContext,
 														IMG_HANDLE					*hPrivData);
-	void					(*pfnUnregisterMemoryContext)(IMG_HANDLE hPrivData);
+	IMG_VOID				(*pfnUnregisterMemoryContext)(IMG_HANDLE hPrivData);
 
 	/* Funtions for allocation/freeing of UFOs */
 	AllocUFOBlockCallback	pfnAllocUFOBlock;	/*!< Callback for allocation of a block of UFO memory */
@@ -305,7 +276,7 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
 	IMG_HANDLE				hCmdCompNotify;
 	IMG_HANDLE				hDbgReqNotify;
-	PVRSRV_DUMMY_PAGE		sDummyPage;
+
 #if defined(PDUMP)
 	/* 	device-level callback which is called when pdump.exe starts.
 	 *	Should be implemented in device-specific init code, e.g. rgxinit.c

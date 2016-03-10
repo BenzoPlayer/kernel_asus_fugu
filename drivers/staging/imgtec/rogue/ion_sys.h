@@ -52,9 +52,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 PVRSRV_ERROR IonInit(void *phPrivateData);
 
-struct ion_device *IonDevAcquire(void);
+struct ion_device *IonDevAcquire(IMG_VOID);
 
-void IonDevRelease(struct ion_device *psIonDev);
+IMG_VOID IonDevRelease(struct ion_device *psIonDev);
+
+IMG_UINT32 IonPhysHeapID(IMG_VOID);
 
 #if defined(LMA)
 IMG_DEV_PHYADDR IonCPUPhysToDevPhys(IMG_CPU_PHYADDR sCPUPhysAddr,
@@ -69,6 +71,6 @@ IMG_DEV_PHYADDR IonCPUPhysToDevPhys(IMG_CPU_PHYADDR sCPUPhysAddr,
 }
 #endif
 
-void IonDeinit(void);
+IMG_VOID IonDeinit(IMG_VOID);
 
 #endif /* _ION_SYS_H_ */

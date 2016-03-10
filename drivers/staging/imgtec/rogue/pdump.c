@@ -54,7 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "allocmem.h"
 #include "pdump_km.h"
 #include "pdump_osfunc.h"
-#include "services_km.h"
 
 #include <linux/kernel.h> // sprintf
 #include <linux/string.h> // strncpy, strlen
@@ -63,7 +62,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PDUMP_DATAMASTER_PIXEL		(1)
 #define PDUMP_DATAMASTER_EDM		(3)
 
-static PDBGKM_SERVICE_TABLE gpfnDbgDrv = NULL;
+static PDBGKM_SERVICE_TABLE gpfnDbgDrv = IMG_NULL;
 
 
 typedef struct PDBG_PDUMP_STATE_TAG
@@ -76,7 +75,7 @@ typedef struct PDBG_PDUMP_STATE_TAG
 
 } PDBG_PDUMP_STATE;
 
-static PDBG_PDUMP_STATE gsDBGPdumpState = {{NULL}, NULL, NULL, NULL};
+static PDBG_PDUMP_STATE gsDBGPdumpState = {{IMG_NULL}, IMG_NULL, IMG_NULL, IMG_NULL};
 
 #define SZ_MSG_SIZE_MAX			PVRSRV_PDUMP_MAX_COMMENT_SIZE-1
 #define SZ_SCRIPT_SIZE_MAX		PVRSRV_PDUMP_MAX_COMMENT_SIZE-1
@@ -189,6 +188,8 @@ PVRSRV_ERROR PDumpOSVSprintf(IMG_CHAR *pszComment, IMG_UINT32 ui32ScriptSizeMax,
 void PDumpOSDebugPrintf(IMG_CHAR* pszFormat, ...)
 {
 	PVR_UNREFERENCED_PARAMETER(pszFormat);
+
+	/* FIXME: Implement using services PVR_DBG or otherwise with kprintf */
 }
 
 /*!
@@ -271,7 +272,7 @@ IMG_UINT32 PDumpOSDebugDriverWrite( IMG_HANDLE psStream,
 									IMG_UINT8 *pui8Data,
 									IMG_UINT32 ui32BCount)
 {
-	PVR_ASSERT(gpfnDbgDrv != NULL);
+	PVR_ASSERT(gpfnDbgDrv != IMG_NULL);
 
 	return gpfnDbgDrv->pfnDBGDrivWrite2(psStream, pui8Data, ui32BCount);
 }
@@ -297,7 +298,7 @@ PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 	PVRSRV_ERROR     eError;
 
 	*pui32InitCapMode = DEBUG_CAPMODE_FRAMED;
-	*ppszEnvComment = NULL;
+	*ppszEnvComment = IMG_NULL;
 
 	/* If we tried this earlier, then we might have connected to the driver
 	 * But if pdump.exe was running then the stream connected would fail
@@ -307,7 +308,7 @@ PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 		DBGDrvGetServiceTable((void **)&gpfnDbgDrv);
 
 		// If something failed then no point in trying to connect streams
-		if (gpfnDbgDrv == NULL)
+		if (gpfnDbgDrv == IMG_NULL)
 		{
 			return PVRSRV_ERROR_PDUMP_NOT_AVAILABLE;
 		}
@@ -316,7 +317,7 @@ PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 		if(!gsDBGPdumpState.pszFile)
 		{
 			gsDBGPdumpState.pszFile = OSAllocMem(SZ_FILENAME_SIZE_MAX);
-			if (gsDBGPdumpState.pszFile == NULL)
+			if (gsDBGPdumpState.pszFile == IMG_NULL)
 			{
 				goto init_failed;
 			}
@@ -325,7 +326,7 @@ PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 		if(!gsDBGPdumpState.pszMsg)
 		{
 			gsDBGPdumpState.pszMsg = OSAllocMem(SZ_MSG_SIZE_MAX);
-			if (gsDBGPdumpState.pszMsg == NULL)
+			if (gsDBGPdumpState.pszMsg == IMG_NULL)
 			{
 				goto init_failed;
 			}
@@ -334,7 +335,7 @@ PVRSRV_ERROR PDumpOSInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript,
 		if(!gsDBGPdumpState.pszScript)
 		{
 			gsDBGPdumpState.pszScript = OSAllocMem(SZ_SCRIPT_SIZE_MAX);
-			if (gsDBGPdumpState.pszScript == NULL)
+			if (gsDBGPdumpState.pszScript == IMG_NULL)
 			{
 				goto init_failed;
 			}
@@ -371,22 +372,22 @@ void PDumpOSDeInit(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript)
 	if(gsDBGPdumpState.pszFile)
 	{
 		OSFreeMem(gsDBGPdumpState.pszFile);
-		gsDBGPdumpState.pszFile = NULL;
+		gsDBGPdumpState.pszFile = IMG_NULL;
 	}
 
 	if(gsDBGPdumpState.pszScript)
 	{
 		OSFreeMem(gsDBGPdumpState.pszScript);
-		gsDBGPdumpState.pszScript = NULL;
+		gsDBGPdumpState.pszScript = IMG_NULL;
 	}
 
 	if(gsDBGPdumpState.pszMsg)
 	{
 		OSFreeMem(gsDBGPdumpState.pszMsg);
-		gsDBGPdumpState.pszMsg = NULL;
+		gsDBGPdumpState.pszMsg = IMG_NULL;
 	}
 
-	gpfnDbgDrv = NULL;
+	gpfnDbgDrv = IMG_NULL;
 }
 
 PVRSRV_ERROR PDumpOSCreateLock(void)
@@ -424,9 +425,9 @@ void PDumpOSSetFrame(IMG_UINT32 ui32Frame)
 	return;
 }
 
-IMG_BOOL PDumpOSAllowInitPhaseToComplete(IMG_BOOL bPDumpClient, IMG_BOOL bInitClient)
+IMG_BOOL PDumpOSAllowInitPhaseToComplete(IMG_UINT32 eModuleID)
 {
-	return (bInitClient);
+ 	return (eModuleID != IMG_PDUMPCTRL);
 }
 
 #if defined(PVR_TESTING_UTILS)

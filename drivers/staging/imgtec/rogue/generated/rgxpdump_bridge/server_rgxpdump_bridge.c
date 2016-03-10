@@ -59,6 +59,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
@@ -74,20 +78,37 @@ PVRSRVBridgePDumpTraceBuffer(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_PDUMPTRACEBUFFER *psPDumpTraceBufferOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDeviceNodeInt = IMG_NULL;
 
 
 
 
 
+
+
+				{
+					/* Look up the address from the handle */
+					psPDumpTraceBufferOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDeviceNodeInt,
+											psPDumpTraceBufferIN->hDeviceNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psPDumpTraceBufferOUT->eError != PVRSRV_OK)
+					{
+						goto PDumpTraceBuffer_exit;
+					}
+				}
 
 
 	psPDumpTraceBufferOUT->eError =
-		PVRSRVPDumpTraceBufferKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVPDumpTraceBufferKM(
+					hDeviceNodeInt,
 					psPDumpTraceBufferIN->ui32PDumpFlags);
 
 
 
 
+PDumpTraceBuffer_exit:
 
 	return 0;
 }
@@ -98,20 +119,37 @@ PVRSRVBridgePDumpSignatureBuffer(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_PDUMPSIGNATUREBUFFER *psPDumpSignatureBufferOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDeviceNodeInt = IMG_NULL;
 
 
 
 
 
+
+
+				{
+					/* Look up the address from the handle */
+					psPDumpSignatureBufferOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDeviceNodeInt,
+											psPDumpSignatureBufferIN->hDeviceNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psPDumpSignatureBufferOUT->eError != PVRSRV_OK)
+					{
+						goto PDumpSignatureBuffer_exit;
+					}
+				}
 
 
 	psPDumpSignatureBufferOUT->eError =
-		PVRSRVPDumpSignatureBufferKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVPDumpSignatureBufferKM(
+					hDeviceNodeInt,
 					psPDumpSignatureBufferIN->ui32PDumpFlags);
 
 
 
 
+PDumpSignatureBuffer_exit:
 
 	return 0;
 }
@@ -122,22 +160,23 @@ PVRSRVBridgePDumpSignatureBuffer(IMG_UINT32 ui32DispatchTableEntry,
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitRGXPDUMPBridge(void);
-PVRSRV_ERROR DeinitRGXPDUMPBridge(void);
+PVRSRV_ERROR InitRGXPDUMPBridge(IMG_VOID);
+PVRSRV_ERROR DeinitRGXPDUMPBridge(IMG_VOID);
 
 /*
  * Register all RGXPDUMP functions with services
  */
-PVRSRV_ERROR InitRGXPDUMPBridge(void)
+PVRSRV_ERROR InitRGXPDUMPBridge(IMG_VOID)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXPDUMP, PVRSRV_BRIDGE_RGXPDUMP_PDUMPTRACEBUFFER, PVRSRVBridgePDumpTraceBuffer,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_RGXPDUMP, PVRSRV_BRIDGE_RGXPDUMP_PDUMPSIGNATUREBUFFER, PVRSRVBridgePDumpSignatureBuffer,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -146,7 +185,7 @@ PVRSRV_ERROR InitRGXPDUMPBridge(void)
 /*
  * Unregister all rgxpdump functions with services
  */
-PVRSRV_ERROR DeinitRGXPDUMPBridge(void)
+PVRSRV_ERROR DeinitRGXPDUMPBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

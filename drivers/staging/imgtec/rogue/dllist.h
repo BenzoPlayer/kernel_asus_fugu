@@ -85,7 +85,7 @@ DLLIST_NODE n = {&n, &n}
 */
 /*****************************************************************************/
 static INLINE
-void dllist_init(PDLLIST_NODE psListHead)
+IMG_VOID dllist_init(PDLLIST_NODE psListHead)
 {
 	psListHead->psPrevNode = psListHead;
 	psListHead->psNextNode = psListHead;
@@ -120,7 +120,7 @@ IMG_BOOL dllist_is_empty(PDLLIST_NODE psListHead)
 */
 /*****************************************************************************/
 static INLINE
-void dllist_add_to_head(PDLLIST_NODE psListHead, PDLLIST_NODE psNewNode)
+IMG_VOID dllist_add_to_head(PDLLIST_NODE psListHead, PDLLIST_NODE psNewNode)
 {
 	PDLLIST_NODE psTmp;
 
@@ -145,7 +145,7 @@ void dllist_add_to_head(PDLLIST_NODE psListHead, PDLLIST_NODE psNewNode)
 */
 /*****************************************************************************/
 static INLINE
-void dllist_add_to_tail(PDLLIST_NODE psListHead, PDLLIST_NODE psNewNode)
+IMG_VOID dllist_add_to_tail(PDLLIST_NODE psListHead, PDLLIST_NODE psNewNode)
 {
 	PDLLIST_NODE psTmp;
 
@@ -178,7 +178,7 @@ IMG_BOOL dllist_node_is_in_list(PDLLIST_NODE psNode)
 /*************************************************************************/ /*!
 @Function       dllist_get_next_node
 
-@Description    Returns the list node after psListHead or NULL psListHead
+@Description    Returns the list node after psListHead or IMG_NULL psListHead
 				is the only element in the list.
 
 @Input          psListHead             List node to start the operation
@@ -190,7 +190,7 @@ PDLLIST_NODE dllist_get_next_node(PDLLIST_NODE psListHead)
 {
 	if (psListHead->psNextNode == psListHead)
 	{
-		return NULL;
+		return IMG_NULL;
 	}
 	else
 	{
@@ -209,7 +209,7 @@ PDLLIST_NODE dllist_get_next_node(PDLLIST_NODE psListHead)
 */
 /*****************************************************************************/
 static INLINE
-void dllist_remove_node(PDLLIST_NODE psListNode)
+IMG_VOID dllist_remove_node(PDLLIST_NODE psListNode)
 {
 	psListNode->psNextNode->psPrevNode = psListNode->psPrevNode;
 	psListNode->psPrevNode->psNextNode = psListNode->psNextNode;
@@ -220,20 +220,29 @@ void dllist_remove_node(PDLLIST_NODE psListNode)
 }
 
 
+/*!
+	Callback function called on each element of the list
+*/
+typedef IMG_BOOL (*PFN_NODE_CALLBACK)(PDLLIST_NODE psNode, IMG_PVOID pvCallbackData);
+
+
 /*************************************************************************/ /*!
 @Function       dllist_foreach_node
 
-@Description    Walk through all the nodes on the list
+@Description    Walk through all the nodes on the list until the 
+				end or a callback returns FALSE
 
-@Input          list_head			List node to start the operation
-@Input			node				Current list node
-@Input			next				Node after the current one
+@Input          psListHead			List node to start the operation
+@Input			pfnCallBack			PFN_NODE_CALLBACK function called on each element	
+@Input			pvCallbackData		Data passed to pfnCallBack alongside the current Node
 
 */
 /*****************************************************************************/
-#define dllist_foreach_node(list_head, node, next)						\
-	for (node = (list_head)->psNextNode, next = (node)->psNextNode;		\
-		 node != (list_head);											\
-		 node = next, next = (node)->psNextNode)
+IMG_INTERNAL
+IMG_VOID dllist_foreach_node(PDLLIST_NODE psListHead,
+							  PFN_NODE_CALLBACK pfnCallBack,
+							  IMG_PVOID pvCallbackData);
+
 
 #endif	/* _DLLIST_ */
+

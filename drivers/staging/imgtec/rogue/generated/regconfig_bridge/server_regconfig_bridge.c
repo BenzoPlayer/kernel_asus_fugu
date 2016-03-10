@@ -59,6 +59,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
@@ -69,11 +73,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
  
 static IMG_INT
-PVRSRVBridgeRGXSetRegConfigType(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_RGXSETREGCONFIGTYPE *psRGXSetRegConfigTypeIN,
-					  PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGTYPE *psRGXSetRegConfigTypeOUT,
+PVRSRVBridgeRGXSetRegConfigPI(IMG_UINT32 ui32DispatchTableEntry,
+					  PVRSRV_BRIDGE_IN_RGXSETREGCONFIGPI *psRGXSetRegConfigPIIN,
+					  PVRSRV_BRIDGE_OUT_RGXSETREGCONFIGPI *psRGXSetRegConfigPIOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
@@ -81,13 +86,29 @@ PVRSRVBridgeRGXSetRegConfigType(IMG_UINT32 ui32DispatchTableEntry,
 
 
 
-	psRGXSetRegConfigTypeOUT->eError =
-		PVRSRVRGXSetRegConfigTypeKM(psConnection, OSGetDevData(psConnection),
-					psRGXSetRegConfigTypeIN->ui8RegPowerIsland);
+				{
+					/* Look up the address from the handle */
+					psRGXSetRegConfigPIOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXSetRegConfigPIIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXSetRegConfigPIOUT->eError != PVRSRV_OK)
+					{
+						goto RGXSetRegConfigPI_exit;
+					}
+				}
+
+
+	psRGXSetRegConfigPIOUT->eError =
+		PVRSRVRGXSetRegConfigPIKM(
+					hDevNodeInt,
+					psRGXSetRegConfigPIIN->ui8RegPowerIsland);
 
 
 
 
+RGXSetRegConfigPI_exit:
 
 	return 0;
 }
@@ -98,22 +119,38 @@ PVRSRVBridgeRGXAddRegconfig(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXADDREGCONFIG *psRGXAddRegconfigOUT,
 					 CONNECTION_DATA *psConnection)
 {
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
 
 
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXAddRegconfigOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXAddRegconfigIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXAddRegconfigOUT->eError != PVRSRV_OK)
+					{
+						goto RGXAddRegconfig_exit;
+					}
+				}
 
 
 	psRGXAddRegconfigOUT->eError =
-		PVRSRVRGXAddRegConfigKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVRGXAddRegConfigKM(
+					hDevNodeInt,
 					psRGXAddRegconfigIN->ui32RegAddr,
-					psRGXAddRegconfigIN->ui64RegValue,
-					psRGXAddRegconfigIN->ui64RegMask);
+					psRGXAddRegconfigIN->ui64RegValue);
 
 
 
 
+RGXAddRegconfig_exit:
 
 	return 0;
 }
@@ -124,21 +161,36 @@ PVRSRVBridgeRGXClearRegConfig(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXCLEARREGCONFIG *psRGXClearRegConfigOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psRGXClearRegConfigIN);
-
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXClearRegConfigOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXClearRegConfigIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXClearRegConfigOUT->eError != PVRSRV_OK)
+					{
+						goto RGXClearRegConfig_exit;
+					}
+				}
 
 
 	psRGXClearRegConfigOUT->eError =
-		PVRSRVRGXClearRegConfigKM(psConnection, OSGetDevData(psConnection)
-					);
+		PVRSRVRGXClearRegConfigKM(
+					hDevNodeInt);
 
 
 
 
+RGXClearRegConfig_exit:
 
 	return 0;
 }
@@ -149,21 +201,36 @@ PVRSRVBridgeRGXEnableRegConfig(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXENABLEREGCONFIG *psRGXEnableRegConfigOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psRGXEnableRegConfigIN);
-
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXEnableRegConfigOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXEnableRegConfigIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXEnableRegConfigOUT->eError != PVRSRV_OK)
+					{
+						goto RGXEnableRegConfig_exit;
+					}
+				}
 
 
 	psRGXEnableRegConfigOUT->eError =
-		PVRSRVRGXEnableRegConfigKM(psConnection, OSGetDevData(psConnection)
-					);
+		PVRSRVRGXEnableRegConfigKM(
+					hDevNodeInt);
 
 
 
 
+RGXEnableRegConfig_exit:
 
 	return 0;
 }
@@ -174,21 +241,36 @@ PVRSRVBridgeRGXDisableRegConfig(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_RGXDISABLEREGCONFIG *psRGXDisableRegConfigOUT,
 					 CONNECTION_DATA *psConnection)
 {
-
-	PVR_UNREFERENCED_PARAMETER(psRGXDisableRegConfigIN);
-
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
 
 
 
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psRGXDisableRegConfigOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psRGXDisableRegConfigIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psRGXDisableRegConfigOUT->eError != PVRSRV_OK)
+					{
+						goto RGXDisableRegConfig_exit;
+					}
+				}
 
 
 	psRGXDisableRegConfigOUT->eError =
-		PVRSRVRGXDisableRegConfigKM(psConnection, OSGetDevData(psConnection)
-					);
+		PVRSRVRGXDisableRegConfigKM(
+					hDevNodeInt);
 
 
 
 
+RGXDisableRegConfig_exit:
 
 	return 0;
 }
@@ -199,31 +281,35 @@ PVRSRVBridgeRGXDisableRegConfig(IMG_UINT32 ui32DispatchTableEntry,
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitREGCONFIGBridge(void);
-PVRSRV_ERROR DeinitREGCONFIGBridge(void);
+PVRSRV_ERROR InitREGCONFIGBridge(IMG_VOID);
+PVRSRV_ERROR DeinitREGCONFIGBridge(IMG_VOID);
 
 /*
  * Register all REGCONFIG functions with services
  */
-PVRSRV_ERROR InitREGCONFIGBridge(void)
+PVRSRV_ERROR InitREGCONFIGBridge(IMG_VOID)
 {
 
-	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXSETREGCONFIGTYPE, PVRSRVBridgeRGXSetRegConfigType,
-					NULL, bUseLock);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXSETREGCONFIGPI, PVRSRVBridgeRGXSetRegConfigPI,
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXADDREGCONFIG, PVRSRVBridgeRGXAddRegconfig,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXCLEARREGCONFIG, PVRSRVBridgeRGXClearRegConfig,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXENABLEREGCONFIG, PVRSRVBridgeRGXEnableRegConfig,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_REGCONFIG, PVRSRV_BRIDGE_REGCONFIG_RGXDISABLEREGCONFIG, PVRSRVBridgeRGXDisableRegConfig,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -232,7 +318,7 @@ PVRSRV_ERROR InitREGCONFIGBridge(void)
 /*
  * Unregister all regconfig functions with services
  */
-PVRSRV_ERROR DeinitREGCONFIGBridge(void)
+PVRSRV_ERROR DeinitREGCONFIGBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

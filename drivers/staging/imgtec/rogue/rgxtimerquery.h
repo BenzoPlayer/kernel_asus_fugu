@@ -49,8 +49,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "device.h"
 #include "rgxdevice.h"
 
-#include "connection_server.h"
-
 /**************************************************************************/ /*!
 @Function       PVRSRVRGXBeginTimerQuery
 @Description    Opens a new timer query.
@@ -59,8 +57,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @Return         PVRSRV_OK on success.
 */ /***************************************************************************/
 PVRSRV_ERROR
-PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
-                           PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXBeginTimerQueryKM(PVRSRV_DEVICE_NODE * psDeviceNode,
                            IMG_UINT32         ui32QueryId);
 
 
@@ -73,8 +70,7 @@ PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
 @Return         PVRSRV_OK on success.
 */ /***************************************************************************/
 PVRSRV_ERROR
-PVRSRVRGXEndTimerQueryKM(CONNECTION_DATA    * psConnection,
-                         PVRSRV_DEVICE_NODE * psDeviceNode);
+PVRSRVRGXEndTimerQueryKM(PVRSRV_DEVICE_NODE * psDeviceNode);
 
 
 
@@ -91,8 +87,7 @@ PVRSRVRGXEndTimerQueryKM(CONNECTION_DATA    * psConnection,
                 other error code                  otherwise
 */ /***************************************************************************/
 PVRSRV_ERROR
-PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
-                      PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXQueryTimerKM(PVRSRV_DEVICE_NODE * psDeviceNode,
                       IMG_UINT32         ui32QueryId,
                       IMG_UINT64         * pui64StartTime,
                       IMG_UINT64         * pui64EndTime);
@@ -106,8 +101,7 @@ PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
 @Return         PVRSRV_OK on success.
 */ /***************************************************************************/
 PVRSRV_ERROR
-PVRSRVRGXCurrentTime(CONNECTION_DATA    * psConnection,
-                     PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXCurrentTime(PVRSRV_DEVICE_NODE * psDeviceNode,
                      IMG_UINT64         * pui64Time);
 
 
@@ -116,17 +110,17 @@ PVRSRVRGXCurrentTime(CONNECTION_DATA    * psConnection,
 ******************************************************************************/
 
 /* write the timestamp cmd from the helper*/
-void
-RGXWriteTimestampCommand(IMG_PBYTE               * ppui8CmdPtr,
-                         RGXFWIF_CCB_CMD_TYPE    eCmdType,
-                         PRGXFWIF_TIMESTAMP_ADDR pAddr);
+IMG_VOID
+RGXWriteTimestampCommand(IMG_PBYTE            * ppui8CmdPtr,
+                         RGXFWIF_CCB_CMD_TYPE eCmdType,
+                         RGXFWIF_DEV_VIRTADDR pTimestamp);
 
 /* get the relevant data from the Kick to the helper*/
-void
-RGX_GetTimestampCmdHelper(PVRSRV_RGXDEV_INFO      * psDevInfo,
-                          PRGXFWIF_TIMESTAMP_ADDR * ppPreAddr,
-                          PRGXFWIF_TIMESTAMP_ADDR * ppPostAddr,
-                          PRGXFWIF_UFO_ADDR       * ppUpdate);
+IMG_VOID
+RGX_GetTimestampCmdHelper(PVRSRV_RGXDEV_INFO   * psDevInfo,
+                          RGXFWIF_DEV_VIRTADDR * ppPreTimestamp,
+                          RGXFWIF_DEV_VIRTADDR * ppPostTimestamp,
+                          PRGXFWIF_UFO_ADDR    * ppUpdate);
 
 #endif /* _RGX_TIMERQUERIES_H_ */
 

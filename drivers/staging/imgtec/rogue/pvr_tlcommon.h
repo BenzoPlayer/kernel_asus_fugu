@@ -83,8 +83,7 @@ typedef struct _PVRSRVTL_PACKETHDR_
 /* Structure must always be a size multiple of 4 as stream buffer
  * still an array of IMG_UINT32s.
  */
-static_assert((sizeof(PVRSRVTL_PACKETHDR) & 3) == 0,
-			  "sizeof(PVRSRVTL_PACKETHDR) must be a multiple of 4");
+BLD_ASSERT((sizeof(PVRSRVTL_PACKETHDR)&3)==0, pvr_tlcommon_h)
 
 /*! Packet header mask used to extract the type from the uiFlags member.
  * Do not use directly, \see TEST_PACKET_FLAG
@@ -148,7 +147,7 @@ typedef enum _PVRSRVTL_PACKETTYPE_
 
 /*! Returns a IMG_BYTE* pointer to the first byte of data in the packet */
 #define GET_PACKET_DATA_PTR(p)	\
-	((IMG_PBYTE) ( ((size_t)p) + sizeof(PVRSRVTL_PACKETHDR)) )
+	((IMG_PBYTE) ( ((IMG_SIZE_T)p) + sizeof(PVRSRVTL_PACKETHDR)) )
 
 /*! Given a PVRSRVTL_PPACKETHDR address, return the address of the next pack
  *  It is up to the caller to determine if the new address is within the packet

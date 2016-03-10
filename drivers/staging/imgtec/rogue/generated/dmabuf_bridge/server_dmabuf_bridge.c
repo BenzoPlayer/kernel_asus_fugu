@@ -60,6 +60,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
@@ -75,17 +79,16 @@ PVRSRVBridgePhysmemImportDmaBuf(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_PHYSMEMIMPORTDMABUF *psPhysmemImportDmaBufOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	PMR * psPMRPtrInt = NULL;
+	PMR * psPMRPtrInt = IMG_NULL;
 
 
 
 
 
-	PMRLock();
 
 
 	psPhysmemImportDmaBufOUT->eError =
-		PhysmemImportDmaBuf(psConnection, OSGetDevData(psConnection),
+		PhysmemImportDmaBuf(psConnection,
 					psPhysmemImportDmaBufIN->ifd,
 					psPhysmemImportDmaBufIN->uiFlags,
 					&psPMRPtrInt,
@@ -94,15 +97,13 @@ PVRSRVBridgePhysmemImportDmaBuf(IMG_UINT32 ui32DispatchTableEntry,
 	/* Exit early if bridged call fails */
 	if(psPhysmemImportDmaBufOUT->eError != PVRSRV_OK)
 	{
-		PMRUnlock();
 		goto PhysmemImportDmaBuf_exit;
 	}
-	PMRUnlock();
 
 
 	psPhysmemImportDmaBufOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psPhysmemImportDmaBufOUT->hPMRPtr,
-							(void *) psPMRPtrInt,
+							(IMG_VOID *) psPMRPtrInt,
 							PVRSRV_HANDLE_TYPE_PHYSMEM_PMR,
 							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
 							,(PFN_HANDLE_RELEASE)&PMRUnrefPMR);
@@ -127,72 +128,25 @@ PhysmemImportDmaBuf_exit:
 	return 0;
 }
 
-static IMG_INT
-PVRSRVBridgePhysmemExportDmaBuf(IMG_UINT32 ui32DispatchTableEntry,
-					  PVRSRV_BRIDGE_IN_PHYSMEMEXPORTDMABUF *psPhysmemExportDmaBufIN,
-					  PVRSRV_BRIDGE_OUT_PHYSMEMEXPORTDMABUF *psPhysmemExportDmaBufOUT,
-					 CONNECTION_DATA *psConnection)
-{
-	PMR * psPMRInt = NULL;
-
-
-
-
-
-	PMRLock();
-
-
-				{
-					/* Look up the address from the handle */
-					psPhysmemExportDmaBufOUT->eError =
-						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psPMRInt,
-											psPhysmemExportDmaBufIN->hPMR,
-											PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
-					if(psPhysmemExportDmaBufOUT->eError != PVRSRV_OK)
-					{
-						PMRUnlock();
-						goto PhysmemExportDmaBuf_exit;
-					}
-				}
-
-
-	psPhysmemExportDmaBufOUT->eError =
-		PhysmemExportDmaBuf(psConnection, OSGetDevData(psConnection),
-					psPMRInt,
-					&psPhysmemExportDmaBufOUT->iFd);
-	PMRUnlock();
-
-
-
-
-PhysmemExportDmaBuf_exit:
-
-	return 0;
-}
-
 
 
 /* *************************************************************************** 
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitDMABUFBridge(void);
-PVRSRV_ERROR DeinitDMABUFBridge(void);
+PVRSRV_ERROR InitDMABUFBridge(IMG_VOID);
+PVRSRV_ERROR DeinitDMABUFBridge(IMG_VOID);
 
 /*
  * Register all DMABUF functions with services
  */
-PVRSRV_ERROR InitDMABUFBridge(void)
+PVRSRV_ERROR InitDMABUFBridge(IMG_VOID)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_DMABUF, PVRSRV_BRIDGE_DMABUF_PHYSMEMIMPORTDMABUF, PVRSRVBridgePhysmemImportDmaBuf,
-					NULL, bUseLock);
-
-	SetDispatchTableEntry(PVRSRV_BRIDGE_DMABUF, PVRSRV_BRIDGE_DMABUF_PHYSMEMEXPORTDMABUF, PVRSRVBridgePhysmemExportDmaBuf,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -201,7 +155,7 @@ PVRSRV_ERROR InitDMABUFBridge(void)
 /*
  * Unregister all dmabuf functions with services
  */
-PVRSRV_ERROR DeinitDMABUFBridge(void)
+PVRSRV_ERROR DeinitDMABUFBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

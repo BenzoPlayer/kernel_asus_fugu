@@ -48,13 +48,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pdump_km.h"
 
 PVRSRV_ERROR
-PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
-                           PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXBeginTimerQueryKM(PVRSRV_DEVICE_NODE * psDeviceNode,
                            IMG_UINT32         ui32QueryId)
 {
 	PVRSRV_RGXDEV_INFO * psDevInfo = (PVRSRV_RGXDEV_INFO *)psDeviceNode->pvDevice;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 
 	if (ui32QueryId >= RGX_MAX_TIMER_QUERIES)
 	{
@@ -65,8 +62,8 @@ PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
 	psDevInfo->bSaveEnd   = IMG_TRUE;
 
 	/* clear the stamps, in case there is no Kick */
-	psDevInfo->pui64StartTimeById[ui32QueryId] = 0UL;
-	psDevInfo->pui64EndTimeById[ui32QueryId]   = 0UL;
+	psDevInfo->pasStartTimeById[ui32QueryId].ui64Timestamp = 0UL;
+	psDevInfo->pasEndTimeById[ui32QueryId].ui64Timestamp   = 0UL;
 
 	/* save of the active query index */
 	psDevInfo->ui32ActiveQueryId = ui32QueryId;
@@ -76,13 +73,10 @@ PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
 
 
 PVRSRV_ERROR
-PVRSRVRGXEndTimerQueryKM(CONNECTION_DATA    * psConnection,
-                         PVRSRV_DEVICE_NODE * psDeviceNode)
+PVRSRVRGXEndTimerQueryKM(PVRSRV_DEVICE_NODE * psDeviceNode)
 {
 	PVRSRV_RGXDEV_INFO * psDevInfo = (PVRSRV_RGXDEV_INFO *)psDeviceNode->pvDevice;
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	
 	/* clear off the flags set by Begin(). Note that _START_TIME is
 	 * probably already cleared by Kick()
 	 */
@@ -94,8 +88,7 @@ PVRSRVRGXEndTimerQueryKM(CONNECTION_DATA    * psConnection,
 
 
 PVRSRV_ERROR
-PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
-                      PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXQueryTimerKM(PVRSRV_DEVICE_NODE * psDeviceNode,
                       IMG_UINT32         ui32QueryId,
                       IMG_UINT64         * pui64StartTime,
                       IMG_UINT64         * pui64EndTime)
@@ -104,8 +97,6 @@ PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
 	IMG_UINT32         ui32Scheduled;
 	IMG_UINT32         ui32Completed;
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	
 	if (ui32QueryId >= RGX_MAX_TIMER_QUERIES)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
@@ -120,8 +111,34 @@ PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
 	 */
 	if (ui32Completed >= ui32Scheduled)
 	{
-		* pui64StartTime = psDevInfo->pui64StartTimeById[ui32QueryId];
-		* pui64EndTime   = psDevInfo->pui64EndTimeById[ui32QueryId];
+		RGXFWIF_TIMESTAMP * psTimestamp;
+		RGXFWIF_TIME_CORR * psTimeCorr;
+		IMG_UINT64        ui64CRTimeDiff;
+
+		psTimestamp = &psDevInfo->pasStartTimeById[ui32QueryId];
+
+		/* If the start time is 0 then don't attempt to compute the absolute
+		 * timestamp, it could end up with a division by zero.
+		 * Not necessary to repeat the check on the end time, when we enter
+		 * this case the time has been updated by the Firmware.
+		 */
+		if(psTimestamp->ui64Timestamp == 0)
+		{
+			* pui64StartTime = 0;
+			* pui64EndTime = 0;
+			return PVRSRV_OK;
+		}
+
+		psTimeCorr       = &psTimestamp->sTimeCorr;
+		ui64CRTimeDiff   = psTimestamp->ui64Timestamp - psTimeCorr->ui64CRTimeStamp;
+		* pui64StartTime = psTimeCorr->ui64OSTimeStamp +
+		                   RGXFWIF_GET_DELTA_OSTIME_NS(ui64CRTimeDiff, psTimeCorr->ui32CRDeltaToOSDeltaKNs);
+
+		psTimestamp      = &psDevInfo->pasEndTimeById[ui32QueryId];
+		psTimeCorr       = &psTimestamp->sTimeCorr;
+		ui64CRTimeDiff   = psTimestamp->ui64Timestamp - psTimeCorr->ui64CRTimeStamp;
+		* pui64EndTime   = psTimeCorr->ui64OSTimeStamp +
+		                   RGXFWIF_GET_DELTA_OSTIME_NS(ui64CRTimeDiff, psTimeCorr->ui32CRDeltaToOSDeltaKNs);
 
 		return PVRSRV_OK;
 	}
@@ -133,11 +150,9 @@ PVRSRVRGXQueryTimerKM(CONNECTION_DATA    * psConnection,
 
 
 PVRSRV_ERROR
-PVRSRVRGXCurrentTime(CONNECTION_DATA    * psConnection,
-                     PVRSRV_DEVICE_NODE * psDeviceNode,
+PVRSRVRGXCurrentTime(PVRSRV_DEVICE_NODE * psDeviceNode,
                      IMG_UINT64         * pui64Time)
 {
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 
 	*pui64Time = OSClockns64();
@@ -151,10 +166,10 @@ PVRSRVRGXCurrentTime(CONNECTION_DATA    * psConnection,
  NOT BRIDGED/EXPORTED FUNCS
 ******************************************************************************/
 /* writes a time stamp command in the client CCB */
-void
-RGXWriteTimestampCommand(IMG_PBYTE               * ppbyPtr,
-                         RGXFWIF_CCB_CMD_TYPE    eCmdType,
-                         PRGXFWIF_TIMESTAMP_ADDR pAddr)
+IMG_VOID
+RGXWriteTimestampCommand(IMG_PBYTE            * ppbyPtr,
+                         RGXFWIF_CCB_CMD_TYPE eCmdType,
+                         RGXFWIF_DEV_VIRTADDR pTimestamp)
 {
 	RGXFWIF_CCB_CMD_HEADER * psHeader;
 
@@ -168,43 +183,43 @@ RGXWriteTimestampCommand(IMG_PBYTE               * ppbyPtr,
 
 	(*ppbyPtr) += sizeof(RGXFWIF_CCB_CMD_HEADER);
 
-	(*(PRGXFWIF_TIMESTAMP_ADDR*)*ppbyPtr) = pAddr;
+	(*(RGXFWIF_DEV_VIRTADDR*)*ppbyPtr) = pTimestamp;
 
 	(*ppbyPtr) += psHeader->ui32CmdSize;
 }
 
 
-void
-RGX_GetTimestampCmdHelper(PVRSRV_RGXDEV_INFO      * psDevInfo,
-                          PRGXFWIF_TIMESTAMP_ADDR * ppPreAddr,
-                          PRGXFWIF_TIMESTAMP_ADDR * ppPostAddr,
-                          PRGXFWIF_UFO_ADDR       * ppUpdate)
+IMG_VOID
+RGX_GetTimestampCmdHelper(PVRSRV_RGXDEV_INFO   * psDevInfo,
+                          RGXFWIF_DEV_VIRTADDR * ppPreTimestamp,
+                          RGXFWIF_DEV_VIRTADDR * ppPostTimestamp,
+                          PRGXFWIF_UFO_ADDR    * ppUpdate)
 {
-	if (ppPreAddr != NULL)
+	if (ppPreTimestamp != IMG_NULL)
 	{
 		if (psDevInfo->bSaveStart)
 		{
 			/* drop the SaveStart on the first Kick */
 			psDevInfo->bSaveStart = IMG_FALSE;
 
-			RGXSetFirmwareAddress(ppPreAddr,
+			RGXSetFirmwareAddress(ppPreTimestamp,
 			                      psDevInfo->psStartTimeMemDesc,
-			                      sizeof(IMG_UINT64) * psDevInfo->ui32ActiveQueryId,
+			                      sizeof(RGXFWIF_TIMESTAMP) * psDevInfo->ui32ActiveQueryId,
 			                      RFW_FWADDR_NOREF_FLAG);
 		}
 		else
 		{
-			ppPreAddr->ui32Addr = 0;
+			ppPreTimestamp->ui32Addr = 0;
 		}
 	}
 
-	if (ppPostAddr != NULL && ppUpdate != NULL)
+	if (ppPostTimestamp != IMG_NULL && ppUpdate != IMG_NULL)
 	{
 		if (psDevInfo->bSaveEnd)
 		{
-			RGXSetFirmwareAddress(ppPostAddr,
+			RGXSetFirmwareAddress(ppPostTimestamp,
 			                      psDevInfo->psEndTimeMemDesc,
-			                      sizeof(IMG_UINT64) * psDevInfo->ui32ActiveQueryId,
+			                      sizeof(RGXFWIF_TIMESTAMP) * psDevInfo->ui32ActiveQueryId,
 			                      RFW_FWADDR_NOREF_FLAG);
 
 			psDevInfo->aui32ScheduledOnId[psDevInfo->ui32ActiveQueryId]++;
@@ -216,8 +231,8 @@ RGX_GetTimestampCmdHelper(PVRSRV_RGXDEV_INFO      * psDevInfo,
 		}
 		else
 		{
-			ppUpdate->ui32Addr   = 0;
-			ppPostAddr->ui32Addr = 0;
+			ppUpdate->ui32Addr        = 0;
+			ppPostTimestamp->ui32Addr = 0;
 		}
 	}
 }

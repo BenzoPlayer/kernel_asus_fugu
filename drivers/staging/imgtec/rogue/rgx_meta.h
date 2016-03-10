@@ -49,8 +49,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 #include "img_defs.h"
-#include "km/rgxdefs_km.h"
-
 
 /************************************************************************
 * META registers and MACROS 
@@ -81,6 +79,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define META_CR_PERF_ICORE1						(0x0480FFD8)
 #define META_CR_PERF_ICORE_DCACHEMISS			(0x8)
 
+typedef enum
+{
+	META_PERF_CONF_NONE = 0,
+	META_PERF_CONF_ICACHE = 1,
+	META_PERF_CONF_DCACHE = 2,
+	META_PERF_CONF_POLLS = 3,
+	META_PERF_CONF_CUSTOM_TIMER = 4
+} META_PERF_CONF;
+
 #define META_CR_PERF_COUNT(CTRL, THR)			((META_CR_PERF_COUNT_CTRL_##CTRL << META_CR_PERF_COUNT_CTRL_SHIFT) | \
 												 (THR << META_CR_PERF_COUNT_THR_SHIFT))
 
@@ -93,11 +100,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define META_CR_TXUXXRXRQ_RX_S       			(4)
 #define META_CR_TXUXXRXRQ_UXX_S      			(0)
 
-#define META_CR_TXUIN_ID						(0x0)			/* Internal ctrl regs */
-#define META_CR_TXUD0_ID						(0x1)			/* Data unit regs */
-#define META_CR_TXUD1_ID						(0x2)			/* Data unit regs */
 #define META_CR_TXUA0_ID						(0x3)			/* Address unit regs */
-#define META_CR_TXUA1_ID						(0x4)			/* Address unit regs */
 #define META_CR_TXUPC_ID						(0x5)			/* PC registers */
 
 /* Macros to calculate register access values */
@@ -119,21 +122,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define	META_CR_COREREG_ENABLE			(0x0000000)
 #define	META_CR_COREREG_STATUS			(0x0000010)
 #define	META_CR_COREREG_DEFR			(0x00000A0)
-#define	META_CR_COREREG_PRIVEXT			(0x00000E8)
 
 #define	META_CR_T0ENABLE_OFFSET			(META_CR_CTRLREG_BASE(0) + META_CR_COREREG_ENABLE)
 #define	META_CR_T0STATUS_OFFSET			(META_CR_CTRLREG_BASE(0) + META_CR_COREREG_STATUS)
 #define	META_CR_T0DEFR_OFFSET			(META_CR_CTRLREG_BASE(0) + META_CR_COREREG_DEFR)
-#define	META_CR_T0PRIVEXT_OFFSET		(META_CR_CTRLREG_BASE(0) + META_CR_COREREG_PRIVEXT)
 
 #define	META_CR_T1ENABLE_OFFSET			(META_CR_CTRLREG_BASE(1) + META_CR_COREREG_ENABLE)
 #define	META_CR_T1STATUS_OFFSET			(META_CR_CTRLREG_BASE(1) + META_CR_COREREG_STATUS)
 #define	META_CR_T1DEFR_OFFSET			(META_CR_CTRLREG_BASE(1) + META_CR_COREREG_DEFR)
-#define	META_CR_T1PRIVEXT_OFFSET		(META_CR_CTRLREG_BASE(1) + META_CR_COREREG_PRIVEXT)
 
 #define META_CR_TXENABLE_ENABLE_BIT		(0x00000001)   /* Set if running */
-#define META_CR_TXSTATUS_PRIV			(0x00020000)
-#define META_CR_TXPRIVEXT_MINIM			(0x00000080)
+#define META_CR_TXSTATUS_PRIV			(0x00020000)   
 
 #define META_MEM_GLOBAL_RANGE_BIT				(0x80000000)
 
@@ -227,7 +226,7 @@ typedef struct
 /* Direct map regions mapping (8-10) */
 #define RGXFW_SEGMMU_DMAP_ID_START			(8)
 #define RGXFW_SEGMMU_DMAP_ADDR_START		(0x06000000U)
-#define RGXFW_SEGMMU_DMAP_ADDR_META			(0x06000000U)
+#define RGXFW_SEGMMU_DMAP_ADDR_META			(0x86000000U)
 #define RGXFW_SEGMMU_DMAP_SIZE				(8*1024*1024) /* 8 MB */
 
 /* Direct map region 11 used for mapping GPU memory */
@@ -296,49 +295,27 @@ typedef struct
 /* Bootloader configuration offset is in dwords (512 bytes) */
 #define RGXFW_BOOTLDR_CONF_OFFSET	(0x80)
 
-
-/* Firmware to host interrupts defines */
-#define RGXFW_CR_IRQ_STATUS           RGX_CR_META_SP_MSLVIRQSTATUS
-#define RGXFW_CR_IRQ_STATUS_EVENT_EN  RGX_CR_META_SP_MSLVIRQSTATUS_TRIGVECT2_EN
-#define RGXFW_CR_IRQ_CLEAR            RGX_CR_META_SP_MSLVIRQSTATUS
-#define RGXFW_CR_IRQ_CLEAR_MASK       RGX_CR_META_SP_MSLVIRQSTATUS_TRIGVECT2_CLRMSK
-
-
 /************************************************************************
 * RGX META Stack
 ************************************************************************/
-#define RGX_META_STACK_SIZE  (0x1000)
+#define RGX_META_STACK_SIZE  (0xC00)
 
 /************************************************************************
 * RGX META Core memory
 ************************************************************************/
 #define RGX_META_COREMEM_BSS_SIZE    (0xA00)
-
-#if defined(RGX_FEATURE_META_DMA)
-	#define RGX_META_COREMEM_CCBBUF_SIZE (0x2A0)
-	#define RGX_META_COREMEM_DATA_SIZE   (RGX_META_COREMEM_CCBBUF_SIZE + RGX_META_COREMEM_BSS_SIZE + RGX_META_STACK_SIZE)
-#else
-	#define RGX_META_COREMEM_DATA_SIZE   (RGX_META_COREMEM_BSS_SIZE + RGX_META_STACK_SIZE)
-#endif
-
+#define RGX_META_COREMEM_DATA_SIZE   (RGX_META_COREMEM_BSS_SIZE + RGX_META_STACK_SIZE)
 #define RGX_META_COREMEM_CODE_SIZE   (RGX_META_COREMEM_SIZE - RGX_META_COREMEM_DATA_SIZE)
-
 /* code and data both map to the same physical memory */
 #define RGX_META_COREMEM_CODE_ADDR   (0x80000000)
 #define RGX_META_COREMEM_DATA_ADDR   (0x82000000)
+#define RGX_META_COREMEM_STACK_ADDR  (RGX_META_COREMEM_DATA_ADDR)
+#define RGX_META_COREMEM_BSS_ADDR    (RGX_META_COREMEM_STACK_ADDR + RGX_META_STACK_SIZE)
 /* because data and code share the same memory, base address for code is offset by the data */
 #define RGX_META_COREMEM_CODE_BADDR  (RGX_META_COREMEM_CODE_ADDR + RGX_META_COREMEM_DATA_SIZE)
 
-#define RGX_META_COREMEM_STACK_ADDR  (RGX_META_COREMEM_DATA_ADDR)
-#define RGX_META_COREMEM_BSS_ADDR    (RGX_META_COREMEM_STACK_ADDR + RGX_META_STACK_SIZE)
-
-#if defined(RGX_FEATURE_META_DMA)
-	#define RGX_META_COREMEM_CCBBUF_ADDR (RGX_META_COREMEM_BSS_ADDR + RGX_META_COREMEM_BSS_SIZE)
-#endif
-
 #define RGX_META_IS_COREMEM_CODE(A)  (((A) >= RGX_META_COREMEM_CODE_BADDR) && ((A) < (RGX_META_COREMEM_CODE_ADDR + RGX_META_COREMEM_SIZE)))
 #define RGX_META_IS_COREMEM_DATA(A)  (((A) >= RGX_META_COREMEM_DATA_ADDR) && ((A) < (RGX_META_COREMEM_DATA_ADDR + RGX_META_COREMEM_DATA_SIZE)))
-
 
 /************************************************************************
 * 2nd thread
@@ -365,20 +342,6 @@ typedef struct
 #else
 #error "Unknown META ID"
 #endif
-
-#define FW_CORE_ID_VALUE	    RGX_CR_META_CORE_ID_VALUE
-#define RGXFW_PROCESSOR             "META"
-
-
-typedef enum
-{
-	FW_PERF_CONF_NONE = 0,
-	FW_PERF_CONF_ICACHE = 1,
-	FW_PERF_CONF_DCACHE = 2,
-	FW_PERF_CONF_POLLS = 3,
-	FW_PERF_CONF_CUSTOM_TIMER = 4
-} FW_PERF_CONF;
-
 
 #endif /*  __RGX_META_H__ */
 

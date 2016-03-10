@@ -142,7 +142,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef union
 {
 	/* native pointer type for UM to write to */
-	void *pvPtr;
+	IMG_VOID *pvPtr;
 	/* the pointer written by a 32-bit client */
 	IMG_UINT32 ui32Ptr;
 	/* force the union width */
@@ -159,7 +159,7 @@ typedef union
 
 #if defined(CONFIG_COMPAT)
 #define WIDEPTR_GET_PTR(p, bCompat) (bCompat ? \
-					(void *) (uintptr_t) (p).ui32Ptr : \
+					(IMG_VOID *) (IMG_UINTPTR_T) (p).ui32Ptr : \
 					(p).pvPtr)
 #else
 #define WIDEPTR_GET_PTR(p, bCompat) (p).pvPtr
@@ -245,12 +245,12 @@ typedef struct _DBGKM_SERVICE_TABLE_
 {
 	IMG_UINT32 ui32Size;
 	IMG_BOOL	(IMG_CALLCONV *pfnCreateStream)			(IMG_CHAR * pszName,IMG_UINT32 ui32Flags,IMG_UINT32 ui32Pages, IMG_HANDLE* phInit, IMG_HANDLE* phMain, IMG_HANDLE* phDeinit);
-	void		(IMG_CALLCONV *pfnDestroyStream)		(IMG_HANDLE hInit, IMG_HANDLE hMain, IMG_HANDLE hDeinit);
+	IMG_VOID 	(IMG_CALLCONV *pfnDestroyStream)		(IMG_HANDLE hInit, IMG_HANDLE hMain, IMG_HANDLE hDeinit);
 	IMG_UINT32	(IMG_CALLCONV *pfnDBGDrivWrite2)		(PDBG_STREAM psStream, IMG_UINT8 *pui8InBuf,IMG_UINT32 ui32InBuffSize);
-	void		(IMG_CALLCONV *pfnSetMarker)			(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
-	void		(IMG_CALLCONV *pfnWaitForEvent)			(DBG_EVENT eEvent);
+	IMG_VOID 	(IMG_CALLCONV *pfnSetMarker)			(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
+	IMG_VOID 	(IMG_CALLCONV *pfnWaitForEvent)			(DBG_EVENT eEvent);
 	IMG_UINT32  (IMG_CALLCONV *pfnGetCtrlState)			(PDBG_STREAM psStream, IMG_UINT32 ui32StateID);
-	void		(IMG_CALLCONV *pfnSetFrame)				(IMG_UINT32 ui32Frame);
+	IMG_VOID 	(IMG_CALLCONV *pfnSetFrame)				(IMG_UINT32 ui32Frame);
 } DBGKM_SERVICE_TABLE, *PDBGKM_SERVICE_TABLE;
 
 #if defined(_MSC_VER) 

@@ -53,7 +53,7 @@ typedef struct _PDUMP_PHYSMEM_INFO_T_ PDUMP_PHYSMEM_INFO_T;
 
 #if defined(PDUMP)
 extern PVRSRV_ERROR
-PDumpMalloc(const IMG_CHAR *pszDevSpace,
+PDumpPMRMalloc(const IMG_CHAR *pszDevSpace,
                const IMG_CHAR *pszSymbolicAddress,
                IMG_UINT64 ui64Size,
                /* alignment is alignment of start of buffer _and_
@@ -63,7 +63,7 @@ PDumpMalloc(const IMG_CHAR *pszDevSpace,
                IMG_BOOL bForcePersistent,
                IMG_HANDLE *phHandlePtr);
 
-IMG_INTERNAL void
+IMG_INTERNAL IMG_VOID
 PDumpPMRMallocPMR(const PMR *psPMR,
                   IMG_DEVMEM_SIZE_T uiSize,
                   IMG_DEVMEM_ALIGN_T uiBlockSize,
@@ -71,14 +71,14 @@ PDumpPMRMallocPMR(const PMR *psPMR,
                   IMG_HANDLE *phPDumpAllocInfoPtr);
 
 extern
-PVRSRV_ERROR PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle);
+PVRSRV_ERROR PDumpPMRFree(IMG_HANDLE hPDumpAllocationInfoHandle);
 #else	/* PDUMP */
 
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(PVRSRVSyncPrimPDumpPolKM)
 #endif
 static INLINE PVRSRV_ERROR
-PDumpMalloc(const IMG_CHAR *pszDevSpace,
+PDumpPMRMalloc(const IMG_CHAR *pszDevSpace,
                const IMG_CHAR *pszSymbolicAddress,
                IMG_UINT64 ui64Size,
                IMG_DEVMEM_ALIGN_T uiAlign,
@@ -95,7 +95,7 @@ PDumpMalloc(const IMG_CHAR *pszDevSpace,
 	return PVRSRV_OK;
 }
 
-static INLINE void
+static INLINE IMG_VOID
 PDumpPMRMallocPMR(const PMR *psPMR,
                   IMG_DEVMEM_SIZE_T uiSize,
                   IMG_DEVMEM_ALIGN_T uiBlockSize,
@@ -113,7 +113,7 @@ PDumpPMRMallocPMR(const PMR *psPMR,
 #pragma inline(PVRSRVSyncPrimPDumpPolKM)
 #endif
 static INLINE PVRSRV_ERROR
-PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
+PDumpPMRFree(IMG_HANDLE hPDumpAllocationInfoHandle)
 {
 	PVR_UNREFERENCED_PARAMETER(hPDumpAllocationInfoHandle);
 	return PVRSRV_OK;
@@ -125,14 +125,14 @@ PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
 
 #if defined(PDUMP)
 #define PDUMP_PHYSMEM_MALLOC_OSPAGES(pszPDumpMemDevName, ui32SerialNum, ui32Size, ui32Align, phHandlePtr) \
-    PDumpMalloc(pszPDumpMemDevName, PMR_OSALLOCPAGES_PREFIX, ui32SerialNum, ui32Size, ui32Align, phHandlePtr)
+    PDumpPMRMalloc(pszPDumpMemDevName, PMR_OSALLOCPAGES_PREFIX, ui32SerialNum, ui32Size, ui32Align, phHandlePtr)
 #define PDUMP_PHYSMEM_FREE_OSPAGES(hHandle) \
-    PDumpFree(hHandle)
+    PDumpPMRFree(hHandle)
 #else
 #define PDUMP_PHYSMEM_MALLOC_OSPAGES(pszPDumpMemDevName, ui32SerialNum, ui32Size, ui32Align, phHandlePtr) \
-    ((void)(*phHandlePtr=NULL))
+    ((IMG_VOID)(*phHandlePtr=IMG_NULL))
 #define PDUMP_PHYSMEM_FREE_OSPAGES(hHandle) \
-    ((void)(0))
+    ((IMG_VOID)(0))
 #endif // defined(PDUMP)
 
 extern PVRSRV_ERROR
@@ -203,10 +203,10 @@ PDumpPMRCBP(const IMG_CHAR *pszMemspaceName,
  */
 extern PVRSRV_ERROR
 PDumpWriteBuffer(IMG_UINT8 *pcBuffer,
-                 size_t uiNumBytes,
+                 IMG_SIZE_T uiNumBytes,
                  PDUMP_FLAGS_T uiPDumpFlags,
                  IMG_CHAR *pszFilenameOut,
-                 size_t uiFilenameBufSz,
+                 IMG_SIZE_T uiFilenameBufSz,
                  PDUMP_FILEOFFSET_T *puiOffsetOut);
 
 #endif /* #ifndef SRVSRV_PDUMP_PHYSMEM_H */

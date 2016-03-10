@@ -59,13 +59,11 @@ extern "C" {
 
 /*! Macro to test structure size alignment */
 #define RGX_FW_STRUCT_SIZE_ASSERT(_a)	\
-	static_assert((sizeof(_a) & RGX_FW_ALIGNMENT_LSB) == 0,	\
-				  "Size of " #_a " is not properly aligned")
+	BLD_ASSERT((sizeof(_a)&RGX_FW_ALIGNMENT_LSB)==0, _a##struct_size)
 
 /*! Macro to test structure member alignment */
 #define RGX_FW_STRUCT_OFFSET_ASSERT(_a, _b)	\
-	static_assert((offsetof(_a, _b) & RGX_FW_ALIGNMENT_LSB) == 0,	\
-				  "Offset of " #_a "." #_b " is not properly aligned")
+	BLD_ASSERT((offsetof(_a, _b)&RGX_FW_ALIGNMENT_LSB)==0, _a##struct_offset)
 
 
 /*! The number of performance counters in each layout block */

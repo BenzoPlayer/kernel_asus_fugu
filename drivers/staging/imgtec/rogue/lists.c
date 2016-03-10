@@ -79,10 +79,10 @@ IMPLEMENT_LIST_REMOVE(PVRSRV_POWER_DEV)
                                               no need to check the device class.
                                 eDevClass     Device class, ONLY present if
                                               bIgnoreClass was IMG_FALSE.
-@Return         The pointer to the device node if it matchs, NULL
+@Return         The pointer to the device node if it matchs, IMG_NULL
                 otherwise.
 */ /**************************************************************************/
-void* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va)
+IMG_VOID* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va)
 {
 	IMG_UINT32 ui32DevIndex;
 	IMG_BOOL bIgnoreClass;
@@ -107,7 +107,7 @@ void* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va)
 	{
 		return psDeviceNode;
 	}
-	return NULL;
+	return IMG_NULL;
 }
 
 /*!
@@ -116,9 +116,9 @@ void* MatchDeviceKM_AnyVaCb(PVRSRV_DEVICE_NODE* psDeviceNode, va_list va)
 @Description    Matches a power device with its device index.
 @Input          va               Variable argument list
                 ui32DeviceIndex  Device index
-@Return         The pointer to the device it matched, NULL otherwise.
+@Return         The pointer to the device it matched, IMG_NULL otherwise.
 ******************************************************************************/
-void* MatchPowerDeviceIndex_AnyVaCb(PVRSRV_POWER_DEV *psPowerDev, va_list va)
+IMG_VOID* MatchPowerDeviceIndex_AnyVaCb(PVRSRV_POWER_DEV *psPowerDev, va_list va)
 {
 	IMG_UINT32 ui32DeviceIndex;
 
@@ -130,6 +130,6 @@ void* MatchPowerDeviceIndex_AnyVaCb(PVRSRV_POWER_DEV *psPowerDev, va_list va)
 	}
 	else
 	{
-		return NULL;
+		return IMG_NULL;
 	}
 }

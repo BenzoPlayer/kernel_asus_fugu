@@ -52,22 +52,17 @@ extern "C" {
 
 #include "common_rgxinit_bridge.h"
 #include "common_rgxta3d_bridge.h"
-#if defined(RGX_FEATURE_COMPUTE)
 #include "common_rgxcmp_bridge.h"
-#endif
 #include "common_rgxtq_bridge.h"
 #include "common_breakpoint_bridge.h"
 #include "common_debugmisc_bridge.h"
-#if defined(PDUMP)
 #include "common_rgxpdump_bridge.h"
-#endif
 #include "common_rgxhwperf_bridge.h"
 #if defined(RGX_FEATURE_RAY_TRACING)
 #include "common_rgxray_bridge.h"
 #endif
 #include "common_regconfig_bridge.h"
 #include "common_timerquery_bridge.h"
-#include "common_rgxkicksync_bridge.h"
 
 /* 
  * Bridge Cmd Ids
@@ -97,13 +92,8 @@ extern "C" {
 
 /* 129: RGX Compute interface functions */
 #define PVRSRV_BRIDGE_RGXCMP                     129UL
-#if defined(RGX_FEATURE_COMPUTE)
-#	define PVRSRV_BRIDGE_RGXCMP_DISPATCH_FIRST   (PVRSRV_BRIDGE_RGXTQ_DISPATCH_LAST + 1)
-#	define PVRSRV_BRIDGE_RGXCMP_DISPATCH_LAST    (PVRSRV_BRIDGE_RGXCMP_DISPATCH_FIRST + PVRSRV_BRIDGE_RGXCMP_CMD_LAST)
-#else
-#	define PVRSRV_BRIDGE_RGXCMP_DISPATCH_FIRST   0
-#	define PVRSRV_BRIDGE_RGXCMP_DISPATCH_LAST    (PVRSRV_BRIDGE_RGXTQ_DISPATCH_LAST)
-#endif
+#define PVRSRV_BRIDGE_RGXCMP_DISPATCH_FIRST   (PVRSRV_BRIDGE_RGXTQ_DISPATCH_LAST + 1)
+#define PVRSRV_BRIDGE_RGXCMP_DISPATCH_LAST    (PVRSRV_BRIDGE_RGXCMP_DISPATCH_FIRST + PVRSRV_BRIDGE_RGXCMP_CMD_LAST)
 
 /* 130: RGX Initialisation interface functions */
 #define PVRSRV_BRIDGE_RGXINIT                    130UL
@@ -127,13 +117,8 @@ extern "C" {
 
 /* 134: RGX PDump interface functions */
 #define PVRSRV_BRIDGE_RGXPDUMP                   134UL
-#if defined(PDUMP)
 #define PVRSRV_BRIDGE_RGXPDUMP_DISPATCH_FIRST    (PVRSRV_BRIDGE_DEBUGMISC_DISPATCH_LAST +1)
 #define PVRSRV_BRIDGE_RGXPDUMP_DISPATCH_LAST     (PVRSRV_BRIDGE_RGXPDUMP_DISPATCH_FIRST + PVRSRV_BRIDGE_RGXPDUMP_CMD_LAST)
-#else
-#define PVRSRV_BRIDGE_RGXPDUMP_DISPATCH_FIRST    0
-#define PVRSRV_BRIDGE_RGXPDUMP_DISPATCH_LAST     (PVRSRV_BRIDGE_DEBUGMISC_DISPATCH_LAST)
-#endif
 
 /* 135: RGX HWPerf interface functions */
 #define PVRSRV_BRIDGE_RGXHWPERF                  135UL
@@ -160,14 +145,8 @@ extern "C" {
 #define PVRSRV_BRIDGE_TIMERQUERY_DISPATCH_FIRST  (PVRSRV_BRIDGE_REGCONFIG_DISPATCH_LAST + 1)
 #define PVRSRV_BRIDGE_TIMERQUERY_DISPATCH_LAST   (PVRSRV_BRIDGE_TIMERQUERY_DISPATCH_FIRST + PVRSRV_BRIDGE_TIMERQUERY_CMD_LAST)
 
-/* 139: RGX kicksync interface */
-#define PVRSRV_BRIDGE_RGXKICKSYNC                139UL
-#define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST (PVRSRV_BRIDGE_TIMERQUERY_DISPATCH_LAST + 1)
-#define PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_LAST  (PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST + PVRSRV_BRIDGE_RGXKICKSYNC_CMD_LAST)
-
-
-#define PVRSRV_BRIDGE_RGX_LAST                   (PVRSRV_BRIDGE_RGXKICKSYNC)
-#define PVRSRV_BRIDGE_RGX_DISPATCH_LAST          (PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_LAST)
+#define PVRSRV_BRIDGE_RGX_LAST                   (PVRSRV_BRIDGE_TIMERQUERY)
+#define PVRSRV_BRIDGE_RGX_DISPATCH_LAST          (PVRSRV_BRIDGE_TIMERQUERY_DISPATCH_LAST)
 
 #if defined (__cplusplus)
 }

@@ -125,13 +125,13 @@ static struct file_operations dbgdrv_fops =
  * it now needs a mutex to protect it from multiple simultaneous reads in 
  * the future.
  */
-static IMG_CHAR*  g_outTmpBuf = NULL;
+static IMG_CHAR*  g_outTmpBuf = IMG_NULL;
 static IMG_UINT32 g_outTmpBufSize = 64*PAGE_SIZE;
-static void*      g_pvOutTmpBufMutex = NULL;
+static void*      g_pvOutTmpBufMutex = IMG_NULL;
 
-void DBGDrvGetServiceTable(void **fn_table);
+IMG_VOID DBGDrvGetServiceTable(IMG_VOID **fn_table);
 
-void DBGDrvGetServiceTable(void **fn_table)
+IMG_VOID DBGDrvGetServiceTable(IMG_VOID **fn_table)
 {
 	extern DBGKM_SERVICE_TABLE g_sDBGKMServices;
 
@@ -147,7 +147,7 @@ void cleanup_module(void)
 	if (g_outTmpBuf)
 	{
 		vfree(g_outTmpBuf);
-		g_outTmpBuf = NULL;
+		g_outTmpBuf = IMG_NULL;
 	}
 
 #if !defined(SUPPORT_DRM)
@@ -178,13 +178,13 @@ int init_module(void)
 #endif
 
 	/* Init API mutex */
-	if ((g_pvAPIMutex=HostCreateMutex()) == NULL)
+	if ((g_pvAPIMutex=HostCreateMutex()) == IMG_NULL)
 	{
 		return -ENOMEM;
 	}
 
 	/* Init TmpBuf mutex */
-	if ((g_pvOutTmpBufMutex=HostCreateMutex()) == NULL)
+	if ((g_pvOutTmpBufMutex=HostCreateMutex()) == IMG_NULL)
 	{
 		return -ENOMEM;
 	}
@@ -243,12 +243,12 @@ ErrDestroyClass:
 #endif /* !defined(SUPPORT_DRM) */
 }
 
-static IMG_INT dbgdrv_ioctl_work(void *arg, IMG_BOOL bCompat)
+static IMG_INT dbgdrv_ioctl_work(IMG_VOID *arg, IMG_BOOL bCompat)
 {
 	IOCTL_PACKAGE *pIP = (IOCTL_PACKAGE *) arg;
 	char *buffer, *in, *out;
 	unsigned int cmd;
-	void *pBufferIn, *pBufferOut;
+	IMG_VOID *pBufferIn, *pBufferOut;
 
 	if ((pIP->ui32InBufferSize > (PAGE_SIZE >> 1) ) || (pIP->ui32OutBufferSize > (PAGE_SIZE >> 1)))
 	{
@@ -282,7 +282,7 @@ static IMG_INT dbgdrv_ioctl_work(void *arg, IMG_BOOL bCompat)
 		IMG_UINT32 *pui32BytesCopied = (IMG_UINT32 *)out;
 		DBG_OUT_READ *psReadOutParams = (DBG_OUT_READ *)out;
 		DBG_IN_READ *psReadInParams = (DBG_IN_READ *)in;
-		void *pvOutBuffer;
+		IMG_VOID *pvOutBuffer;
 		PDBG_STREAM psStream;
 
 		psStream = SID2PStream(psReadInParams->hStream);
@@ -294,7 +294,7 @@ static IMG_INT dbgdrv_ioctl_work(void *arg, IMG_BOOL bCompat)
 		/* Serialise IOCTL Read op access to the singular output buffer */
 		HostAquireMutex(g_pvOutTmpBufMutex);
 
-		if ((g_outTmpBuf == NULL) || (psReadInParams->ui32OutBufferSize > g_outTmpBufSize))
+		if ((g_outTmpBuf == IMG_NULL) || (psReadInParams->ui32OutBufferSize > g_outTmpBufSize))
 		{
 			if (psReadInParams->ui32OutBufferSize > g_outTmpBufSize)
 			{
@@ -342,30 +342,30 @@ static IMG_INT dbgdrv_ioctl_work(void *arg, IMG_BOOL bCompat)
 		goto init_failed;
 	}
 
-	HostPageablePageFree((void *)buffer);
+	HostPageablePageFree((IMG_VOID *)buffer);
 	return 0;
 
 init_failed:
-	HostPageablePageFree((void *)buffer);
+	HostPageablePageFree((IMG_VOID *)buffer);
 	return -EFAULT;
 }
 
 #if defined(SUPPORT_DRM)
-int dbgdrv_ioctl(struct drm_device *dev, void *arg, struct drm_file *pFile)
+int dbgdrv_ioctl(struct drm_device *dev, IMG_VOID *arg, struct drm_file *pFile)
 #else
 long dbgdrv_ioctl(struct file *file, unsigned int ioctlCmd, unsigned long arg)
 #endif
 {
-	return dbgdrv_ioctl_work((void *) arg, IMG_FALSE);
+	return dbgdrv_ioctl_work((IMG_VOID *) arg, IMG_FALSE);
 }
 
 #if defined(SUPPORT_DRM)
-int dbgdrv_ioctl_compat(struct drm_device *dev, void *arg, struct drm_file *pFile)
+int dbgdrv_ioctl_compat(struct drm_device *dev, IMG_VOID *arg, struct drm_file *pFile)
 #else
 long dbgdrv_ioctl_compat(struct file *file, unsigned int ioctlCmd, unsigned long arg)
 #endif
 {
-	return dbgdrv_ioctl_work((void *) arg, IMG_TRUE);
+	return dbgdrv_ioctl_work((IMG_VOID *) arg, IMG_TRUE);
 }
 
 

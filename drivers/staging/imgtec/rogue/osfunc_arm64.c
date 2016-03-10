@@ -48,7 +48,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "osfunc.h"
 #include "pvr_debug.h"
-#include "module_common.h"
 
 #if defined(CONFIG_OUTER_CACHE)
   /* If you encounter a 64-bit ARM system with an outer cache, you'll need
@@ -58,65 +57,60 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#error "CONFIG_OUTER_CACHE not supported on arm64."
 #endif
 
-PVRSRV_ERROR OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
+
+static void per_cpu_cache_flush(void *arg)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
-
-	switch(uiCacheOp)
-	{
-		case PVRSRV_CACHE_OP_CLEAN:
-		case PVRSRV_CACHE_OP_FLUSH:
-		case PVRSRV_CACHE_OP_INVALIDATE:
-			eError = PVRSRV_ERROR_NOT_IMPLEMENTED;
-			break;
-
-		case PVRSRV_CACHE_OP_NONE:
-			break;
-
-		default:
-			PVR_DPF((PVR_DBG_ERROR,
-					"%s: Global cache operation type %d is invalid",
-					__FUNCTION__, uiCacheOp));
-			eError = PVRSRV_ERROR_INVALID_PARAMS;
-			PVR_ASSERT(0);
-			break;
-	}
-
-	return eError;
+	PVR_UNREFERENCED_PARAMETER(arg);
+	flush_cache_all();
 }
 
-void OSFlushCPUCacheRangeKM(void *pvVirtStart,
-							void *pvVirtEnd,
+void OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
+{
+	switch(uiCacheOp)
+	{
+		/* Fall-through */
+		case PVRSRV_CACHE_OP_CLEAN:
+					/* No full (inner) cache clean op */
+					on_each_cpu(per_cpu_cache_flush, NULL, 1);
+					break;
+
+		case PVRSRV_CACHE_OP_FLUSH:
+					on_each_cpu(per_cpu_cache_flush, NULL, 1);
+					break;
+
+		case PVRSRV_CACHE_OP_NONE:
+					break;
+
+		default:
+					PVR_DPF((PVR_DBG_ERROR,
+					"%s: Invalid cache operation type %d",
+					__FUNCTION__, uiCacheOp));
+					PVR_ASSERT(0);
+					break;
+	}
+}
+
+void OSFlushCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+							IMG_PVOID pvVirtEnd,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
-
 	dma_ops->sync_single_for_device(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
 	dma_ops->sync_single_for_cpu(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
 }
 
-void OSCleanCPUCacheRangeKM(void *pvVirtStart,
-							void *pvVirtEnd,
+void OSCleanCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+							IMG_PVOID pvVirtEnd,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
-
 	dma_ops->sync_single_for_device(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
 }
 
-void OSInvalidateCPUCacheRangeKM(void *pvVirtStart,
-								 void *pvVirtEnd,
+void OSInvalidateCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+								 IMG_PVOID pvVirtEnd,
 								 IMG_CPU_PHYADDR sCPUPhysStart,
 								 IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(&gpsPVRLDMDev->dev);
-
 	dma_ops->sync_single_for_cpu(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
-}
-
-void OSUserModeAccessToPerfCountersEn(void)
-{
-	/* FIXME: implement similarly to __arm__ */
 }

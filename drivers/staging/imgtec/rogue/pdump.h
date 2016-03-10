@@ -42,7 +42,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _SERVICES_PDUMP_H_
 
 #include "img_types.h"
-#include "services_km.h"
 
 typedef IMG_UINT32 PDUMP_FLAGS_T;
 
@@ -51,8 +50,8 @@ typedef IMG_UINT32 PDUMP_FLAGS_T;
 
 #define PDUMP_FLAGS_POWER		0x08000000UL /*<! Output this entry even when a power transition is ongoing */
 
-#define PDUMP_FLAGS_CONTINUOUS		PVRSRV_PDUMP_FLAGS_CONTINUOUS /*<! Defined in serviceS_km.h */
-
+#define PDUMP_FLAGS_CONTINUOUS		0x40000000UL /*<! Output this entry always regardless of framed capture range,
+                                                      used by client applications being dumped. */
 #define PDUMP_FLAGS_PERSISTENT		0x80000000UL /*<! Output this entry always regardless of app and range,
                                                       used by persistent processes e.g. compositor, window mgr etc/ */
 
@@ -70,9 +69,8 @@ typedef IMG_UINT32 PDUMP_FILEOFFSET_T;
 #define PDUMP_CHANNEL_SCRIPT	1
 #define PDUMP_NUM_CHANNELS      2
 
-#define PDUMP_PARAM_0_FILE_NAME     "%%0%%.prm"      /*!< Initial Param filename used in PDump capture */
-#define PDUMP_PARAM_N_FILE_NAME     "%%0%%_%02u.prm" /*!< Param filename used when PRM file split */
-#define PDUMP_PARAM_MAX_FILE_NAME   32               /*!< Max Size of parameter name used in out2.txt */
+#define PDUMP_PARAM_0_FILE_NAME "%%0%%.prm"
+#define PDUMP_PARAM_N_FILE_NAME "%%0%%_%02u.prm"
 
 
 #endif /* _SERVICES_PDUMP_H_ */

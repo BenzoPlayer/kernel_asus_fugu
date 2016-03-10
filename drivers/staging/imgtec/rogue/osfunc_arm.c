@@ -64,50 +64,44 @@ static void per_cpu_cache_flush(void *arg)
 	flush_cache_all();
 }
 
-PVRSRV_ERROR OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
+void OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
 {
-	PVRSRV_ERROR eError = PVRSRV_OK;
-
 	switch(uiCacheOp)
 	{
 		/* Fall-through */
 		case PVRSRV_CACHE_OP_CLEAN:
-			/* No full (inner) cache clean op */
-			ON_EACH_CPU(per_cpu_cache_flush, NULL, 1);
+					/* No full (inner) cache clean op */
+					ON_EACH_CPU(per_cpu_cache_flush, NULL, 1);
 #if defined(CONFIG_OUTER_CACHE)
-			outer_clean_range(0, ULONG_MAX);
+					outer_clean_range(0, ULONG_MAX);
 #endif
-			break;
+					break;
 
-		case PVRSRV_CACHE_OP_INVALIDATE:
 		case PVRSRV_CACHE_OP_FLUSH:
-			ON_EACH_CPU(per_cpu_cache_flush, NULL, 1);
+					ON_EACH_CPU(per_cpu_cache_flush, NULL, 1);
 #if defined(CONFIG_OUTER_CACHE) && \
-(LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-			/* To use the "deferred flush" (not clean) DDK feature you need a kernel
-			 * implementation of outer_flush_all() for ARM CPUs with an outer cache
-			 * controller (e.g. PL310, common with Cortex A9 and later).
-			 *
-			 * Reference DDKs don't require this functionality, as they will only
-			 * clean the cache, never flush (clean+invalidate) it.
-			 */
-			outer_flush_all();
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+					/* To use the "deferred flush" (not clean) DDK feature you need a kernel
+					 * implementation of outer_flush_all() for ARM CPUs with an outer cache
+					 * controller (e.g. PL310, common with Cortex A9 and later).
+					 *
+					 * Reference DDKs don't require this functionality, as they will only
+					 * clean the cache, never flush (clean+invalidate) it.
+					 */
+					outer_flush_all();
 #endif
-			break;
+					break;
 
 		case PVRSRV_CACHE_OP_NONE:
-			break;
+					break;
 
 		default:
-			PVR_DPF((PVR_DBG_ERROR,
-					"%s: Global cache operation type %d is invalid",
+					PVR_DPF((PVR_DBG_ERROR,
+					"%s: Invalid cache operation type %d",
 					__FUNCTION__, uiCacheOp));
-			eError = PVRSRV_ERROR_INVALID_PARAMS;
-			PVR_ASSERT(0);
-			break;
+					PVR_ASSERT(0);
+					break;
 	}
-
-	return eError;
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34))
@@ -117,8 +111,8 @@ static inline size_t pvr_dmac_range_len(const void *pvStart, const void *pvEnd)
 }
 #endif
 
-void OSFlushCPUCacheRangeKM(void *pvVirtStart,
-							void *pvVirtEnd,
+void OSFlushCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+							IMG_PVOID pvVirtEnd,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
@@ -134,8 +128,8 @@ void OSFlushCPUCacheRangeKM(void *pvVirtStart,
 #endif	/* (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)) */
 }
 
-void OSCleanCPUCacheRangeKM(void *pvVirtStart,
-							void *pvVirtEnd,
+void OSCleanCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+							IMG_PVOID pvVirtEnd,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
@@ -154,8 +148,8 @@ void OSCleanCPUCacheRangeKM(void *pvVirtStart,
 #endif	/* (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)) */
 }
 
-void OSInvalidateCPUCacheRangeKM(void *pvVirtStart,
-								 void *pvVirtEnd,
+void OSInvalidateCPUCacheRangeKM(IMG_PVOID pvVirtStart,
+								 IMG_PVOID pvVirtEnd,
 								 IMG_CPU_PHYADDR sCPUPhysStart,
 								 IMG_CPU_PHYADDR sCPUPhysEnd)
 {
@@ -176,19 +170,4 @@ void OSInvalidateCPUCacheRangeKM(void *pvVirtStart,
 	outer_inv_range(sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr);
 #endif
 #endif	/* (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)) */
-}
-
-/* User Enable Register */
-#define PMUSERENR_EN      0x00000001 /* enable user access to the counters */
-
-static void per_cpu_perf_counter_user_access_en(void *data)
-{
-	PVR_UNREFERENCED_PARAMETER(data);
-	/* Enable user-mode access to counters. */
-	asm volatile("mcr p15, 0, %0, c9, c14, 0" :: "r"(PMUSERENR_EN));
-}
-
-void OSUserModeAccessToPerfCountersEn(void)
-{
-	ON_EACH_CPU(per_cpu_perf_counter_user_access_en, NULL, 1);
 }

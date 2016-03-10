@@ -139,7 +139,7 @@ extern "C" {
 
 #else /* defined(LINUX) && defined(__KERNEL__) */
 
-IMG_IMPORT void IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
+IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 													   IMG_UINT32 ui32Line,
 													   const IMG_CHAR *pszAssertion)
 #if defined(__GNUC__)
@@ -196,7 +196,7 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
     #if defined(__KLOCWORK__) 
         #define PVR_ASSERT(EXPR) do { if (!(EXPR)) abort(); } while (0)
     #else
-        #define PVR_ASSERT(EXPR) (void)(EXPR) /*!< Null Implementation of PVR_ASSERT (does nothing) */
+        #define PVR_ASSERT(EXPR) (IMG_VOID)(EXPR) /*!< Null Implementation of PVR_ASSERT (does nothing) */
     #endif
 
     #define PVR_DBG_BREAK    /*!< Null Implementation of PVR_DBG_BREAK (does nothing) */
@@ -275,12 +275,6 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 		MSC_SUPPRESS_4127\
 		} while (0)
 
-	#define PVR_LOGR_IF_NOMEM(_expr, _call) do \
-		{ if (_expr == NULL) { \
-			PVR_DPF((PVR_DBG_ERROR, "%s() failed (PVRSRV_ERROR_OUT_OF_MEMORY) in %s()", _call, __func__)); \
-			return (PVRSRV_ERROR_OUT_OF_MEMORY); }\
-		MSC_SUPPRESS_4127\
-		} while (0)
 
 	#define PVR_LOGR_IF_ERROR(_rc, _call) do \
 		{ if (_rc != PVRSRV_OK) { \
@@ -323,13 +317,13 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVDebugAssertFail(const IMG_CHAR *pszFile,
 		MSC_SUPPRESS_4127\
 		} while (0)
 
-IMG_IMPORT void IMG_CALLCONV PVRSRVDebugPrintf(IMG_UINT32 ui32DebugLevel,
+IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVDebugPrintf(IMG_UINT32 ui32DebugLevel,
 												   const IMG_CHAR *pszFileName,
 												   IMG_UINT32 ui32Line,
 												   const IMG_CHAR *pszFormat,
 												   ...) IMG_FORMAT_PRINTF(4, 5);
 
-IMG_IMPORT void IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
+IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 
 #else  /* defined(PVRSRV_NEED_PVR_DPF) */
 
@@ -337,8 +331,6 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 
 	#define PVR_LOG_ERROR(_rc, _call) (void)(_rc)
 	#define PVR_LOG_IF_ERROR(_rc, _call) (void)(_rc)
-
-	#define PVR_LOGR_IF_NOMEM(_expr, _call) do { if (_expr == NULL) { return (PVRSRV_ERROR_OUT_OF_MEMORY); } MSC_SUPPRESS_4127 } while (0)
 	#define PVR_LOGR_IF_ERROR(_rc, _call) do { if (_rc != PVRSRV_OK) { return (_rc); } MSC_SUPPRESS_4127 } while(0)
 	#define PVR_LOGRN_IF_ERROR(_rc, _call) do { if (_rc != PVRSRV_OK) { return; } MSC_SUPPRESS_4127 } while(0)
 	#define PVR_LOGG_IF_ERROR(_rc, _call, _go) do { if (_rc != PVRSRV_OK) { goto _go; } MSC_SUPPRESS_4127 } while(0)
@@ -400,7 +392,7 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVDebugPrintfDumpCCB(void);
 	/* Empty string implementation that is -O0 build friendly */
 	#define PVR_TRACE_EMPTY_LINE()	PVR_TRACE(("%s", ""))
 
-IMG_IMPORT void IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
+IMG_IMPORT IMG_VOID IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
 	IMG_FORMAT_PRINTF(1, 2);
 
 #else /* defined(PVRSRV_NEED_PVR_TRACE) */
@@ -427,11 +419,11 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(TRUNCATE_64BITS_TO_SIZE_T)
 #endif
-	INLINE static size_t TRUNCATE_64BITS_TO_SIZE_T(IMG_UINT64 uiInput)
+	INLINE static IMG_SIZE_T TRUNCATE_64BITS_TO_SIZE_T(IMG_UINT64 uiInput)
 	{
-		 size_t uiTruncated;
+		 IMG_SIZE_T uiTruncated;
 
-		 uiTruncated = (size_t)uiInput;
+		 uiTruncated = (IMG_SIZE_T)uiInput;
 		 PVR_ASSERT(uiInput == uiTruncated);
 		 return uiTruncated;
 	}
@@ -440,7 +432,7 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(TRUNCATE_SIZE_T_TO_32BITS)
 #endif
-	INLINE static IMG_UINT32 TRUNCATE_SIZE_T_TO_32BITS(size_t uiInput)
+	INLINE static IMG_UINT32 TRUNCATE_SIZE_T_TO_32BITS(IMG_SIZE_T uiInput)
 	{
 		 IMG_UINT32 uiTruncated;
 
@@ -452,7 +444,7 @@ IMG_IMPORT void IMG_CALLCONV PVRSRVTrace(const IMG_CHAR* pszFormat, ... )
 
 #else /* defined(PVRSRV_NEED_PVR_ASSERT) */
 	#define TRUNCATE_64BITS_TO_32BITS(expr) ((IMG_UINT32)(expr))
-	#define TRUNCATE_64BITS_TO_SIZE_T(expr) ((size_t)(expr))
+	#define TRUNCATE_64BITS_TO_SIZE_T(expr) ((IMG_SIZE_T)(expr))
 	#define TRUNCATE_SIZE_T_TO_32BITS(expr) ((IMG_UINT32)(expr))
 #endif /* defined(PVRSRV_NEED_PVR_ASSERT) */
 

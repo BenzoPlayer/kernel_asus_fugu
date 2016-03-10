@@ -57,6 +57,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <asm/hardirq.h>
 #include <linux/timer.h>
 #include <linux/capability.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 
 #include "img_types.h"
@@ -114,7 +115,7 @@ PVRSRV_ERROR LinuxEventObjectListCreate(IMG_HANDLE *phEventObjectList)
 	PVRSRV_LINUX_EVENT_OBJECT_LIST *psEvenObjectList;
 
 	psEvenObjectList = OSAllocMem(sizeof(PVRSRV_LINUX_EVENT_OBJECT_LIST));
-	if (psEvenObjectList == NULL)
+	if (psEvenObjectList == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "LinuxEventObjectCreate: failed to allocate memory for event list"));
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -221,7 +222,7 @@ PVRSRV_ERROR LinuxEventObjectAdd(IMG_HANDLE hOSEventObjectList, IMG_HANDLE *phOS
 
 	/* allocate completion variable */
 	psLinuxEventObject = OSAllocMem(sizeof(PVRSRV_LINUX_EVENT_OBJECT));
-	if (psLinuxEventObject == NULL)
+	if (psLinuxEventObject == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "LinuxEventObjectAdd: failed to allocate memory "));
 		return PVRSRV_ERROR_OUT_OF_MEMORY;

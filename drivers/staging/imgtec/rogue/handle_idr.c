@@ -55,8 +55,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ID_VALUE_MIN	1
 #define ID_VALUE_MAX	INT_MAX
 
-#define	ID_TO_HANDLE(i) ((IMG_HANDLE)(uintptr_t)(i))
-#define	HANDLE_TO_ID(h) ((IMG_INT)(uintptr_t)(h))
+#define	ID_TO_HANDLE(i) ((IMG_HANDLE)(IMG_UINTPTR_T)(i))
+#define	HANDLE_TO_ID(h) ((IMG_INT)(IMG_UINTPTR_T)(h))
 
 struct _HANDLE_IMPL_BASE_
 {
@@ -106,9 +106,9 @@ static PVRSRV_ERROR AcquireHandle(HANDLE_IMPL_BASE *psBase,
 	int id;
 	int result;
 
-	PVR_ASSERT(psBase != NULL);
-	PVR_ASSERT(phHandle != NULL);
-	PVR_ASSERT(pvData != NULL);
+	PVR_ASSERT(psBase != IMG_NULL);
+	PVR_ASSERT(phHandle != IMG_NULL);
+	PVR_ASSERT(pvData != IMG_NULL);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
 	idr_preload(GFP_KERNEL);
@@ -189,7 +189,7 @@ static PVRSRV_ERROR ReleaseHandle(HANDLE_IMPL_BASE *psBase,
 		psBase->ui32TotalHandCount--;
 	}
 
-	if (pvData == NULL)
+	if (pvData == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Handle out of range (%u > %u)", 
 			 __FUNCTION__, id, psBase->ui32TotalHandCount));
@@ -356,7 +356,7 @@ static PVRSRV_ERROR CreateHandleBase(HANDLE_IMPL_BASE **ppsBase)
 	PVR_ASSERT(ppsBase);
 
 	psBase = OSAllocZMem(sizeof(*psBase));
-	if (psBase == NULL)
+	if (psBase == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Couldn't allocate generic handle base", __FUNCTION__));
 
@@ -432,7 +432,7 @@ PVRSRV_ERROR PVRSRVHandleGetFuncTable(HANDLE_IMPL_FUNCTAB const **ppsFuncs)
 		return PVRSRV_ERROR_RESOURCE_UNAVAILABLE;
 	}
 
-	if (ppsFuncs == NULL)
+	if (ppsFuncs == IMG_NULL)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}

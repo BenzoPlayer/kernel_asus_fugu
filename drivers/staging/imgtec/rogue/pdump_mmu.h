@@ -80,46 +80,36 @@ typedef struct _PDUMP_MMU_ATTRIB_HEAP_
 
 typedef struct _PDUMP_MMU_ATTRIB_
 {
+    /* FIXME: would these be better as pointers rather than copies? */
     struct _PDUMP_MMU_ATTRIB_DEVICE_ sDevice;
     struct _PDUMP_MMU_ATTRIB_CONTEXT_ sContext;
     struct _PDUMP_MMU_ATTRIB_HEAP_ sHeap;
 } PDUMP_MMU_ATTRIB;
 
 #if defined(PDUMP)
-	extern PVRSRV_ERROR PDumpMMUMalloc(const IMG_CHAR			*pszPDumpDevName,
-                                           MMU_LEVEL 				eMMULevel,
-                                           IMG_DEV_PHYADDR			*psDevPAddr,
-                                           IMG_UINT32				ui32Size,
-                                           IMG_UINT32				ui32Align,
-                                           PDUMP_MMU_TYPE          eMMUType);
+    extern PVRSRV_ERROR PDumpMMUMalloc(const IMG_CHAR			*pszPDumpDevName,
+                                       MMU_LEVEL				eMMULevel,
+                                       IMG_DEV_PHYADDR			*psDevPAddr,
+                                       IMG_UINT32				ui32Size,
+                                       IMG_UINT32				ui32Align);
 
     extern PVRSRV_ERROR PDumpMMUFree(const IMG_CHAR				*pszPDumpDevName,
                                      MMU_LEVEL					eMMULevel,
-                                     IMG_DEV_PHYADDR			        *psDevPAddr,
-                                     PDUMP_MMU_TYPE             eMMUType);
+                                     IMG_DEV_PHYADDR			*psDevPAddr);
 
     extern PVRSRV_ERROR PDumpMMUMalloc2(const IMG_CHAR			*pszPDumpDevName,
                                         const IMG_CHAR			*pszTableType,/* PAGE_CATALOGUE, PAGE_DIRECTORY, PAGE_TABLE */
                                         const IMG_CHAR 			*pszSymbolicAddr,
-                                        IMG_UINT32			ui32Size,
-                                        IMG_UINT32			ui32Align);
+                                        IMG_UINT32				ui32Size,
+                                        IMG_UINT32				ui32Align);
 
     extern PVRSRV_ERROR PDumpMMUFree2(const IMG_CHAR			*pszPDumpDevName,
                                       const IMG_CHAR			*pszTableType,/* PAGE_CATALOGUE, PAGE_DIRECTORY, PAGE_TABLE */
                                       const IMG_CHAR 			*pszSymbolicAddr);
 
-
-	extern PVRSRV_ERROR PDumpPTBaseObjectToMem64(const IMG_CHAR *pszPDumpDevName,
-                                                     PMR *psPMRDest,
-                                                     IMG_DEVMEM_OFFSET_T uiLogicalOffsetSource,
-                                                     IMG_DEVMEM_OFFSET_T uiLogicalOffsetDest,
-                                                     IMG_UINT32 ui32Flags,
-                                                     MMU_LEVEL eMMULevel,
-                                                     IMG_UINT64 ui64PxSymAddr);
-
     extern PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
     								   const IMG_CHAR *pszPDumpDevName,
-                                       void *pvPxMem,
+                                       IMG_VOID *pvPxMem,
                                        IMG_DEV_PHYADDR sPxDevPAddr,
                                        IMG_UINT32 uiFirstEntry,
                                        IMG_UINT32 uiNumEntries,
@@ -131,10 +121,7 @@ typedef struct _PDUMP_MMU_ATTRIB_
                                        IMG_UINT32 uiAddrShift,
                                        IMG_UINT64 uiAddrMask,
                                        IMG_UINT64 uiPxEProtMask,
-                                       IMG_UINT64 uiDataValidEnable,
-                                       IMG_UINT32 ui32Flags,
-                                       PDUMP_MMU_TYPE eMMUType);
-
+                                       IMG_UINT32 ui32Flags);
 
     extern PVRSRV_ERROR PDumpMMUAllocMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
                                                 IMG_DEV_PHYADDR sPCDevPAddr,
@@ -149,21 +136,22 @@ typedef struct _PDUMP_MMU_ATTRIB_
 												IMG_UINT32 uiRegAddr,
 												const IMG_CHAR *pszPDumpPCSymbolicName);
 
+	/* FIXME: split to separate file... (debatable whether this is anything to do with MMU) */
 extern PVRSRV_ERROR
 PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
-            IMG_UINT32 uiPDumpMMUCtx,
-            IMG_DEV_VIRTADDR sDevAddrStart,
-            IMG_DEVMEM_SIZE_T uiSize,
-            const IMG_CHAR *pszFilename,
-            IMG_UINT32 uiFileOffset,
-            IMG_UINT32 ui32PDumpFlags);
+               IMG_UINT32 uiPDumpMMUCtx,
+               IMG_DEV_VIRTADDR sDevAddrStart,
+               IMG_DEVMEM_SIZE_T uiSize,
+               const IMG_CHAR *pszFilename,
+               IMG_UINT32 uiFileOffset,
+			   IMG_UINT32 ui32PDumpFlags);
 
 	#define PDUMP_MMU_MALLOC_DP(pszPDumpMemDevName, aszSymbolicAddr, ui32Size, ui32Align) \
-		PDumpMMUMalloc2(pszPDumpMemDevName, "DATA_PAGE", aszSymbolicAddr, ui32Size, ui32Align)
+        PDumpMMUMalloc2(pszPDumpMemDevName, "DATA_PAGE", aszSymbolicAddr, ui32Size, ui32Align)
     #define PDUMP_MMU_FREE_DP(pszPDumpMemDevName, aszSymbolicAddr) \
         PDumpMMUFree2(pszPDumpMemDevName, "DATA_PAGE", aszSymbolicAddr)
 
-	#define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID) \
+    #define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID) \
         PDumpMMUAllocMMUContext(pszPDumpMemDevName,                     \
                                 sPCDevPAddr,                            \
                                 eMMUType,								\
@@ -174,13 +162,13 @@ PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
 #else
 
 	#define PDUMP_MMU_MALLOC_DP(pszPDumpMemDevName, pszDevPAddr, ui32Size, ui32Align) \
-        ((void)0)
+        ((IMG_VOID)0)
     #define PDUMP_MMU_FREE_DP(pszPDumpMemDevName, psDevPAddr) \
-        ((void)0)
-	#define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID) \
-        ((void)0)
+        ((IMG_VOID)0)
+    #define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, puiPDumpCtxID) \
+        ((IMG_VOID)0)
     #define PDUMP_MMU_FREE_MMUCONTEXT(pszPDumpMemDevName, uiPDumpCtxID) \
-        ((void)0)
+        ((IMG_VOID)0)
 
 #endif // defined(PDUMP)
 

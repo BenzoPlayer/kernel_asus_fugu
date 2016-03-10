@@ -51,19 +51,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pdump_km.h"
 #include "pvrsrv.h"
 
-PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
-                                      PVRSRV_DEVICE_NODE * psDeviceNode,
-                                      IMG_HANDLE           hMemCtxPrivData,
-                                      RGXFWIF_DM           eFWDataMaster,
-                                      IMG_UINT32           ui32BPAddr,
-                                      IMG_UINT32           ui32HandlerAddr,
-                                      IMG_UINT32           ui32DataMaster)
+PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+					IMG_HANDLE		hMemCtxPrivData,
+					RGXFWIF_DM		eFWDataMaster,
+					IMG_UINT32		ui32BPAddr,
+					IMG_UINT32		ui32HandlerAddr,
+					IMG_UINT32		ui32DataMaster)
 {
 	DEVMEM_MEMDESC		*psFWMemContextMemDesc = RGXGetFWMemDescFromMemoryContextHandle(hMemCtxPrivData);
 	PVRSRV_ERROR 		eError = PVRSRV_OK;
 	RGXFWIF_KCCB_CMD 	sBPCmd;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	
 	if (psDeviceNode->psDevConfig->bBPSet == IMG_TRUE)
 		return PVRSRV_ERROR_BP_ALREADY_SET;
@@ -105,16 +102,13 @@ PVRSRV_ERROR PVRSRVRGXSetBreakpointKM(CONNECTION_DATA    * psConnection,
 	return eError;
 }
 
-PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(CONNECTION_DATA    * psConnection,
-                                        PVRSRV_DEVICE_NODE * psDeviceNode,
-                                        IMG_HANDLE           hMemCtxPrivData)
+PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+					IMG_HANDLE		hMemCtxPrivData)
 {
 	DEVMEM_MEMDESC		*psFWMemContextMemDesc = RGXGetFWMemDescFromMemoryContextHandle(hMemCtxPrivData);
 	PVRSRV_ERROR 		eError = PVRSRV_OK;
 	RGXFWIF_KCCB_CMD 	sBPCmd;
 	RGXFWIF_DM			eDataMaster = psDeviceNode->psDevConfig->eBPDM;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	
 	sBPCmd.eCmdType = RGXFWIF_KCCB_CMD_BP;
 	sBPCmd.uCmdData.sBPData.ui32BPAddr = 0;
@@ -151,17 +145,14 @@ PVRSRV_ERROR PVRSRVRGXClearBreakpointKM(CONNECTION_DATA    * psConnection,
 	return eError;
 }
 
-PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(CONNECTION_DATA    * psConnection,
-                                         PVRSRV_DEVICE_NODE * psDeviceNode,
-                                         IMG_HANDLE           hMemCtxPrivData)
+PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+					IMG_HANDLE		hMemCtxPrivData)
 {
 	DEVMEM_MEMDESC		*psFWMemContextMemDesc = RGXGetFWMemDescFromMemoryContextHandle(hMemCtxPrivData);
 	PVRSRV_ERROR 		eError = PVRSRV_OK;
 	RGXFWIF_KCCB_CMD 	sBPCmd;
 	RGXFWIF_DM			eDataMaster = psDeviceNode->psDevConfig->eBPDM;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-
+	
 	if (psDeviceNode->psDevConfig->bBPSet == IMG_FALSE)
 		return PVRSRV_ERROR_BP_NOT_SET;
 	
@@ -196,16 +187,13 @@ PVRSRV_ERROR PVRSRVRGXEnableBreakpointKM(CONNECTION_DATA    * psConnection,
 	return eError;
 }
 
-PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(CONNECTION_DATA    * psConnection,
-                                          PVRSRV_DEVICE_NODE * psDeviceNode,
-                                          IMG_HANDLE           hMemCtxPrivData)
+PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+					IMG_HANDLE		hMemCtxPrivData)
 {
 	DEVMEM_MEMDESC		*psFWMemContextMemDesc = RGXGetFWMemDescFromMemoryContextHandle(hMemCtxPrivData);
 	PVRSRV_ERROR 		eError = PVRSRV_OK;
 	RGXFWIF_KCCB_CMD 	sBPCmd;
 	RGXFWIF_DM			eDataMaster = psDeviceNode->psDevConfig->eBPDM;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	
 	if (psDeviceNode->psDevConfig->bBPSet == IMG_FALSE)
 		return PVRSRV_ERROR_BP_NOT_SET;
@@ -241,15 +229,12 @@ PVRSRV_ERROR PVRSRVRGXDisableBreakpointKM(CONNECTION_DATA    * psConnection,
 	return eError;
 }
 
-PVRSRV_ERROR PVRSRVRGXOverallocateBPRegistersKM(CONNECTION_DATA    * psConnection,
-                                                PVRSRV_DEVICE_NODE * psDeviceNode,
-                                                IMG_UINT32           ui32TempRegs,
-                                                IMG_UINT32           ui32SharedRegs)
+PVRSRV_ERROR PVRSRVRGXOverallocateBPRegistersKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+					IMG_UINT32		ui32TempRegs,
+					IMG_UINT32		ui32SharedRegs)
 {
 	PVRSRV_ERROR 		eError = PVRSRV_OK;
 	RGXFWIF_KCCB_CMD 	sBPCmd;
-
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	
 	sBPCmd.eCmdType = RGXFWIF_KCCB_CMD_BP;
 	sBPCmd.uCmdData.sBPData.ui32Flags = RGXFWIF_BPDATA_FLAGS_REGS;

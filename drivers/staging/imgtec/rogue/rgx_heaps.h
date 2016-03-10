@@ -62,13 +62,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_HWBRN37200_HEAP_ID					9				/*!< RGX HWBRN37200 */
 #define RGX_DOPPLER_HEAP_ID						10				/*!< Doppler Heap ID */
 #define RGX_DOPPLER_OVERFLOW_HEAP_ID			11				/*!< Doppler Overflow Heap ID */
-#define RGX_SIGNALS_HEAP_ID	                                12              /*!< Signals Heap ID */
-#if (RGXFW_NUM_OS  == 1)
-#define RGX_MAX_HEAP_ID     	(RGX_SIGNALS_HEAP_ID + 1)		/*!< Max Valid Heap ID */
-#else
-#define RGX_GUEST_FIRMWARE_HEAP_ID				13				/*!< Additional OSIDs Firmware */
-#define RGX_MAX_HEAP_ID     	(RGX_GUEST_FIRMWARE_HEAP_ID + RGXFW_NUM_OS)	/*!< Max Valid Heap ID */
-#endif
+
+/* FIXME: work out what this ought to be.  In the old days it was
+   typically bigger than it needed to be.  Is the correct thing
+   "max + 1" ?? */
+#define RGX_MAX_HEAP_ID     	(RGX_DOPPLER_OVERFLOW_HEAP_ID + 1)		/*!< Max Valid Heap ID */
+
 /*
   Identify heaps by their names
 */
@@ -81,9 +80,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGX_BIF_TILING_HEAP_3_IDENT	    "BIF Tiling Heap 3"	    /*!< RGX BIF Tiling Heap 3 identifier */
 #define RGX_BIF_TILING_HEAP_4_IDENT	    "BIF Tiling Heap 4"	    /*!< RGX BIF Tiling Heap 4 identifier */
 #define RGX_DOPPLER_HEAP_IDENT			"Doppler"				/*!< Doppler Heap Identifier */
-#define RGX_DOPPLER_OVERFLOW_HEAP_IDENT	"Doppler Overflow"		/*!< Doppler Heap Identifier */
-#define RGX_SIGNALS_HEAP_IDENT	        "Signals"		        /*!< Signals Heap Identifier */
-#define RGX_VISTEST_HEAP_IDENT			"VisTest"				/*!< VisTest heap */
+#define RGX_DOPPLER_OVERFLOW_HEAP_IDENT	"Doppler Overflow"				/*!< Doppler Heap Identifier */
 
 /* BIF tiling heaps have specific buffer requirements based on their XStride
  * configuration. This is detailed in the BIF tiling documentation and ensures

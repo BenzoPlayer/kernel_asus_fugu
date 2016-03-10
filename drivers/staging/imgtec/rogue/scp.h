@@ -51,8 +51,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _SCP_CONTEXT_ SCP_CONTEXT;	/*!< Opaque handle to a software command processor context */
 
-typedef IMG_BOOL (*SCPReady)(void *pvReadyData);
-typedef void (*SCPDo)(void *pvReadyData, void *pvCompleteData);
+typedef IMG_BOOL (*SCPReady)(IMG_PVOID pvReadyData);
+typedef IMG_VOID (*SCPDo)(IMG_PVOID pvReadyData, IMG_PVOID pvCompleteData);
 
 /*************************************************************************/ /*!
 @Function       SCPCreate
@@ -118,10 +118,10 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psSCPContext,
 										  IMG_INT32 i32AcquireFenceFd,
 										  SCPReady pfnCommandReady,
 										  SCPDo pfnCommandDo,
-										  size_t ui32ReadyDataByteSize,
-										  size_t ui32CompleteDataByteSize,
-										  void **ppvReadyData,
-										  void **ppvCompleteData,
+										  IMG_SIZE_T ui32ReadyDataByteSize,
+										  IMG_SIZE_T ui32CompleteDataByteSize,
+										  IMG_PVOID *ppvReadyData,
+										  IMG_PVOID *ppvCompleteData,
 										  IMG_INT32 *pi32ReleaseFenceFd);
 
 /*************************************************************************/ /*!
@@ -168,7 +168,7 @@ PVRSRV_ERROR SCPRun(SCP_CONTEXT *psContext);
 */
 /*****************************************************************************/
 IMG_IMPORT
-void SCPCommandComplete(SCP_CONTEXT *psContext);
+IMG_VOID SCPCommandComplete(SCP_CONTEXT *psContext);
 
 /*************************************************************************/ /*!
 @Function       SCPFlush
@@ -209,7 +209,7 @@ IMG_BOOL SCPHasPendingCommand(SCP_CONTEXT *psContext);
 */
 /*****************************************************************************/
 IMG_EXPORT
-void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext);
+IMG_VOID IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext);
 
 /*************************************************************************/ /*!
 @Function       SCPDestroy
@@ -222,7 +222,7 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext);
 */
 /*****************************************************************************/
 IMG_IMPORT
-void IMG_CALLCONV SCPDestroy(SCP_CONTEXT *psContext);
+IMG_VOID IMG_CALLCONV SCPDestroy(SCP_CONTEXT *psContext);
 
 
 #endif /* SCP_H */

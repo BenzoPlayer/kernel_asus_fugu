@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 typedef enum {
     PVRSRV_MEM_ALLOC_TYPE_KMALLOC,				/* memory allocated by kmalloc() */
-    PVRSRV_MEM_ALLOC_TYPE_VMALLOC,				/* memory allocated by vmalloc() */
+    PVRSRV_MEM_ALLOC_TYPE_VMALLOC,				/* memory allocated by kmalloc() */
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_PAGES_PT_UMA,	/* pages allocated from UMA to hold page table information */
     PVRSRV_MEM_ALLOC_TYPE_VMAP_PT_UMA,			/* ALLOC_PAGES_PT_UMA mapped to kernel address space */
     PVRSRV_MEM_ALLOC_TYPE_ALLOC_PAGES_PT_LMA,	/* pages allocated from LMA to hold page table information */
@@ -78,95 +78,91 @@ typedef enum {
 /*
  * Functions for managing the processes recorded...
  */
-PVRSRV_ERROR  PVRSRVStatsInitialise(void);
+PVRSRV_ERROR  PVRSRVStatsInitialise(IMG_VOID);
 
-void  PVRSRVStatsDestroy(void);
+IMG_VOID  PVRSRVStatsDestroy(IMG_VOID);
 
 PVRSRV_ERROR  PVRSRVStatsRegisterProcess(IMG_HANDLE* phProcessStats);
 
-void  PVRSRVStatsDeregisterProcess(IMG_HANDLE hProcessStats);
+IMG_VOID  PVRSRVStatsDeregisterProcess(IMG_HANDLE hProcessStats);
 
 #define MAX_POWER_STAT_ENTRIES		51
 
 /*
  * Functions for recording the statistics...
  */
-void  PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-								   void *pvCpuVAddr,
-								   IMG_CPU_PHYADDR sCpuPAddr,
-								   size_t uiBytes,
-								   void *pvPrivateData);
+IMG_VOID  PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+                                       IMG_VOID *pvCpuVAddr,
+                                       IMG_CPU_PHYADDR sCpuPAddr,
+                                       IMG_SIZE_T uiBytes,
+                                       IMG_PVOID pvPrivateData);
 
-#if defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS) && defined(DEBUG)
-void  _PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-									void *pvCpuVAddr,
-									IMG_CPU_PHYADDR sCpuPAddr,
-									size_t uiBytes,
-									void *pvPrivateData,
-									void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine);
-#endif
-void  PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-									  IMG_UINT64 ui64Key);
+IMG_VOID  PVRSRVStatsRemoveMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+										  IMG_UINT64 ui64Key);
 
-void PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-								 size_t uiBytes);
+IMG_VOID PVRSRVStatsIncrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+        							IMG_SIZE_T uiBytes);
 /*
  * Increases the memory stat for eAllocType. Tracks the allocation size value
  * by inserting a value into a hash table with uiCpuVAddr as key.
  * Pair with PVRSRVStatsDecrMemAllocStatAndUntrack().
  */
-void PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-										 size_t uiBytes,
-										 IMG_UINT64 uiCpuVAddr);
+IMG_VOID PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+        							IMG_SIZE_T uiBytes,
+        							IMG_UINT64 uiCpuVAddr);
 
-void PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
-								 size_t uiBytes);
-
-void PVRSRVStatsDecrMemKAllocStat(size_t uiBytes,
-        						  IMG_PID decrPID);
+IMG_VOID PVRSRVStatsDecrMemAllocStat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+        							IMG_SIZE_T uiBytes);
 
 /*
  * Decrease the memory stat for eAllocType. Takes the allocation size value from the
  * hash table with uiCpuVAddr as key. Pair with PVRSRVStatsIncrMemAllocStatAndTrack().
  */
-void PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
+IMG_VOID PVRSRVStatsDecrMemAllocStatAndUntrack(PVRSRV_MEM_ALLOC_TYPE eAllocType,
         							IMG_UINT64 uiCpuVAddr);
 
-void
-PVRSRVStatsIncrMemAllocPoolStat(size_t uiBytes);
+IMG_VOID
+PVRSRVStatsIncrMemAllocPoolStat(IMG_SIZE_T uiBytes);
 
-void
-PVRSRVStatsDecrMemAllocPoolStat(size_t uiBytes);
+IMG_VOID
+PVRSRVStatsDecrMemAllocPoolStat(IMG_SIZE_T uiBytes);
 
-void  PVRSRVStatsUpdateRenderContextStats(IMG_UINT32 ui32TotalNumPartialRenders,
-										  IMG_UINT32 ui32TotalNumOutOfMemory,
-										  IMG_UINT32 ui32TotalTAStores,
-										  IMG_UINT32 ui32Total3DStores,
-										  IMG_UINT32 ui32TotalSHStores,
-										  IMG_UINT32 ui32TotalCDMStores,
-										  IMG_PID owner);
+IMG_VOID  PVRSRVStatsUpdateRenderContextStats(IMG_UINT32 ui32TotalNumPartialRenders,
+                                              IMG_UINT32 ui32TotalNumOutOfMemory,
+                                              IMG_UINT32 ui32TotalTAStores,
+                                              IMG_UINT32 ui32Total3DStores,
+                                              IMG_UINT32 ui32TotalSHStores,
+                                              IMG_UINT32 ui32TotalCDMStores,
+                                              IMG_PID owner);
 
-void  PVRSRVStatsUpdateZSBufferStats(IMG_UINT32 ui32NumReqByApp,
-									 IMG_UINT32 ui32NumReqByFW,
-									 IMG_PID owner);
+IMG_VOID  PVRSRVStatsUpdateZSBufferStats(IMG_UINT32 ui32NumReqByApp,
+                                         IMG_UINT32 ui32NumReqByFW,
+                                         IMG_PID owner);
 
-void  PVRSRVStatsUpdateFreelistStats(IMG_UINT32 ui32NumGrowReqByApp,
-									 IMG_UINT32 ui32NumGrowReqByFW,
-									 IMG_UINT32 ui32InitFLPages,
-									 IMG_UINT32 ui32NumHighPages,
-									 IMG_PID	ownerPid);
+IMG_VOID  PVRSRVStatsUpdateFreelistStats(IMG_UINT32 ui32NumGrowReqByApp,
+                                         IMG_UINT32 ui32NumGrowReqByFW,
+                                         IMG_UINT32 ui32InitFLPages,
+                                         IMG_UINT32 ui32NumHighPages,
+                                         IMG_PID	ownerPid);
 
 
-/* Update pre/post power transition timing statistics */
-void InsertPowerTimeStatistic(IMG_UINT64 ui64SysStartTime, IMG_UINT64 ui64SysEndTime,
-                              IMG_UINT64 ui64DevStartTime, IMG_UINT64 ui64DevEndTime,
-                              IMG_BOOL bForced, IMG_BOOL bPowerOn, IMG_BOOL bPrePower);
+typedef enum
+{
+    PVRSRV_POWER_ENTRY_TYPE_PRE,
+    PVRSRV_POWER_ENTRY_TYPE_POST
+} PVRSRV_POWER_ENTRY_TYPE;
 
-void InsertPowerTimeStatisticExtraPre(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64Stoptimer);
-void InsertPowerTimeStatisticExtraPost(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64StopTimer);
+IMG_VOID InsertPowerTimeStatistic(PVRSRV_POWER_ENTRY_TYPE bType,
+								IMG_INT32 ui32CurrentState, IMG_INT32 ui32NextState,
+                                IMG_UINT64 ui64SysStartTime, IMG_UINT64 ui64SysEndTime,
+								IMG_UINT64 ui64DevStartTime, IMG_UINT64 ui64DevEndTime,
+								IMG_BOOL bForced);
 
-void SetFirmwareStartTime(IMG_UINT32 ui32TimeStamp);
+IMG_VOID InsertPowerTimeStatisticExtraPre(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64Stoptimer);
+IMG_VOID InsertPowerTimeStatisticExtraPost(IMG_UINT64 ui64StartTimer, IMG_UINT64 ui64StopTimer);
 
-void SetFirmwareHandshakeIdleTime(IMG_UINT64 ui64Duration);
+IMG_VOID SetFirmwareStartTime(IMG_UINT32 ui32TimeStamp);
+
+IMG_VOID SetFirmwareHandshakeIdleTime(IMG_UINT64 ui64Duration);
 
 #endif /* __PROCESS_STATS_H__ */

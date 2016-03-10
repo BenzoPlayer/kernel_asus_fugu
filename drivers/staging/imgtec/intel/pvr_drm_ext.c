@@ -46,7 +46,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_defs.h"
 #include "lock.h"
 #include "pvr_drm_ext.h"
-#include "pvr_drm_shared.h"
 #include "pvrsrv_interface.h"
 #include "pvr_bridge.h"
 #include "srvkm.h"
@@ -64,11 +63,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_DRM_SRVKM_CMD       DRM_PVR_RESERVED1
 #define PVR_DRM_IS_MASTER_CMD   DRM_PVR_RESERVED4
 #define PVR_DRM_DBGDRV_CMD      DRM_PVR_RESERVED6
-
-#if (PVR_DRM_SRVKM_CMD != DRM_PVR_SRVKM_CMD) ||	\
-	(PVR_DRM_DBGDRV_CMD != DRM_PVR_DBGDRV_CMD)
-#error Mismatch in IOCTL numbers
-#endif
 
 #define PVR_DRM_SRVKM_IOCTL \
 	DRM_IOW(DRM_COMMAND_BASE + PVR_DRM_SRVKM_CMD, PVRSRV_BRIDGE_PACKAGE)
@@ -100,7 +94,7 @@ static struct drm_ioctl_desc pvr_ioctls[] = {
 	{PVR_DRM_SRVKM_IOCTL, DRM_UNLOCKED, PVRSRV_BridgeDispatchKM, PVR_DRM_SRVKM_IOCTL},
 	{PVR_DRM_IS_MASTER_IOCTL, DRM_MASTER, PVRDRMIsMaster, PVR_DRM_IS_MASTER_IOCTL},
 #if defined(PDUMP)
-	{PVR_DRM_DBGDRV_IOCTL, 0, dbgdrv_ioctl, PVR_DRM_DBGDRV_IOCTL}
+	{PVR_DRM_DBGDRV_IOCTL, 0, dbgdrv_ioctl. PVR_DRM_DBGDRV_IOCTL}
 #endif
 };
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0)) */
@@ -350,5 +344,5 @@ int PVRSRVInterrupt(struct drm_device* dev)
 
 int PVRSRVMMap(struct file *pFile, struct vm_area_struct *ps_vma)
 {
-	return PVRSRV_MMap(pFile, ps_vma);
+	return MMapPMR(pFile, ps_vma);
 }

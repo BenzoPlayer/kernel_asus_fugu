@@ -72,8 +72,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Defines/Constants
  */
 
-#define PVR_CONNECT_NO_FLAGS   0x00U
-#define NO_ACQUIRE             0xffffffffU
+#define PVR_CONNECT_NO_FLAGS 	0x00U
+#define NO_ACQUIRE 				0xffffffffU
+#define DIRECT_BRIDGE_HANDLE	((IMG_HANDLE)0xDEADBEEFU)
 
 /* User-side stream descriptor structure.
  */
@@ -83,6 +84,7 @@ typedef struct _TL_STREAM_DESC_
 	IMG_HANDLE		hServerSD;
 
 	/* Stream data buffer variables */
+	DEVMEM_EXPORTCOOKIE		sExportCookie;
 	DEVMEM_MEMDESC*			psUMmemDesc;
 	IMG_PBYTE				pBaseAddr;
 
@@ -97,6 +99,39 @@ typedef struct _TL_STREAM_DESC_
 } TL_STREAM_DESC, *PTL_STREAM_DESC;
 
 
+/* Used in direct connections only */
+IMG_INTERNAL
+PVRSRV_ERROR TLClientConnect(IMG_HANDLE* phSrvHandle)
+{
+	/* Check the caller provided valid pointer*/
+	if(!phSrvHandle)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "TLClientConnect: Null connection handle"));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	*phSrvHandle = DIRECT_BRIDGE_HANDLE;
+
+	return PVRSRV_OK;
+
+
+}
+
+
+/* Used in direct connections only */
+IMG_INTERNAL
+PVRSRV_ERROR IMG_CALLCONV TLClientDisconnect(IMG_HANDLE hSrvHandle)
+{
+	if (hSrvHandle != (IMG_HANDLE)0xDEADBEEF)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "TLClientDisconnect: Invalid connection handle"));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	return PVRSRV_OK;
+}
+
+
 IMG_INTERNAL
 PVRSRV_ERROR TLClientOpenStream(IMG_HANDLE hSrvHandle,
 		IMG_PCHAR    pszName,
@@ -105,9 +140,7 @@ PVRSRV_ERROR TLClientOpenStream(IMG_HANDLE hSrvHandle,
 {
 	PVRSRV_ERROR 				eError = PVRSRV_OK;
 	TL_STREAM_DESC* 			psSD = 0;
-	IMG_HANDLE hTLPMR;
-	IMG_HANDLE hTLImportHandle;
-	IMG_DEVMEM_SIZE_T uiImportSize;
+	DEVMEM_SERVER_EXPORTCOOKIE 	hServerExportCookie;
 
 	PVR_ASSERT(hSrvHandle);
 	PVR_ASSERT(pszName);
@@ -128,7 +161,7 @@ PVRSRV_ERROR TLClientOpenStream(IMG_HANDLE hSrvHandle,
 	/* Send open stream request to kernel server to get stream handle and
 	 * buffer cookie so we can get access to the buffer in this process. */
 	eError = BridgeTLOpenStream(hSrvHandle, pszName, ui32Mode,
-										&psSD->hServerSD, &hTLPMR);
+										&psSD->hServerSD, &hServerExportCookie);
 	if (eError != PVRSRV_OK)
 	{
 	    if ((ui32Mode & PVRSRV_STREAM_FLAG_OPEN_WAIT) &&
@@ -140,27 +173,20 @@ PVRSRV_ERROR TLClientOpenStream(IMG_HANDLE hSrvHandle,
 	}
 
 	/* Convert server export cookie into a cookie for use by this client */
-	eError = DevmemMakeLocalImportHandle(hSrvHandle,
-										hTLPMR, &hTLImportHandle);
-	PVR_LOGG_IF_ERROR(eError, "DevmemMakeLocalImportHandle", e2);
+	eError = DevmemMakeServerExportClientExport(hSrvHandle,
+									hServerExportCookie, &psSD->sExportCookie);
+	PVR_LOGG_IF_ERROR(eError, "DevmemMakeServerExportClientExport", e2);
 
 	/* Now convert client cookie into a client handle on the buffer's
 	 * physical memory region */
-	eError = DevmemLocalImport(hSrvHandle,
-	                           hTLImportHandle,
-	                           PVRSRV_MEMALLOCFLAG_CPU_READABLE,
-	                           &psSD->psUMmemDesc,
-	                           &uiImportSize);
+	eError = DevmemImport(hSrvHandle, &psSD->sExportCookie,
+						PVRSRV_MEMALLOCFLAG_CPU_READABLE, &psSD->psUMmemDesc);
 	PVR_LOGG_IF_ERROR(eError, "DevmemImport", e3);
 
 	/* Now map the memory into the virtual address space of this process. */
-	eError = DevmemAcquireCpuVirtAddr(psSD->psUMmemDesc, (void **)
+	eError = DevmemAcquireCpuVirtAddr(psSD->psUMmemDesc, (IMG_PVOID *)
 															&psSD->pBaseAddr);
 	PVR_LOGG_IF_ERROR(eError, "DevmemAcquireCpuVirtAddr", e4);
-
-	/* Ignore error, not much that can be done */
-	(void) DevmemUnmakeLocalImportHandle(hSrvHandle,
-			hTLImportHandle);
 
 	/* Return client descriptor handle to caller */
 	*phSD = psSD;
@@ -170,8 +196,8 @@ PVRSRV_ERROR TLClientOpenStream(IMG_HANDLE hSrvHandle,
 e4:
 	DevmemFree(psSD->psUMmemDesc);
 e3:
-	(void) DevmemUnmakeLocalImportHandle(hSrvHandle,
-				&hTLImportHandle);
+	(void) DevmemUnmakeServerExportClientExport(hSrvHandle,
+				&psSD->sExportCookie);
 /* Clean up post stream open */
 e2:
 	BridgeTLCloseStream(hSrvHandle, psSD->hServerSD);
@@ -215,6 +241,11 @@ PVRSRV_ERROR TLClientCloseStream(IMG_HANDLE hSrvHandle,
 	DevmemReleaseCpuVirtAddr(psSD->psUMmemDesc);
 
 	DevmemFree(psSD->psUMmemDesc);
+
+	/* Ignore error, not much that can be done */
+	(void) DevmemUnmakeServerExportClientExport(hSrvHandle,
+			&psSD->sExportCookie);
+
 
 	/* Send close to server to clean up kernel mode resources for this
 	 * handle and release the memory. */

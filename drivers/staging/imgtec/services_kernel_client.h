@@ -83,7 +83,6 @@ struct PVRSRV_CLIENT_SYNC_PRIM_OP;
 
 #endif /* __pvrsrv_defined_struct_enum__ */
 
-struct _PVRSRV_DEVICE_NODE_;
 struct SYNC_PRIM_CONTEXT;
 
 /* pvrsrv.h */
@@ -118,7 +117,7 @@ enum PVRSRV_ERROR ReleaseGlobalEventObjectServer(void *hGlobalEventObject);
 
 /* sync.h */
 
-enum PVRSRV_ERROR SyncPrimContextCreate(struct _PVRSRV_DEVICE_NODE_ *psDevConnection,
+enum PVRSRV_ERROR SyncPrimContextCreate(void *hBridge, void *hDeviceNode,
 	struct SYNC_PRIM_CONTEXT **phSyncPrimContext);
 void SyncPrimContextDestroy(struct SYNC_PRIM_CONTEXT *hSyncPrimContext);
 
@@ -142,8 +141,6 @@ static inline enum PVRSRV_ERROR __printf(1, 2) PDumpComment(char *fmt, ...)
 
 void OSAcquireBridgeLock(void);
 void OSReleaseBridgeLock(void);
-void PMRLock(void);
-void PMRUnlock(void);
 enum PVRSRV_ERROR OSEventObjectWait(void *hOSEventKM);
 enum PVRSRV_ERROR OSEventObjectOpen(void *hEventObject, void **phOSEventKM);
 enum PVRSRV_ERROR OSEventObjectClose(void *hOSEventKM);

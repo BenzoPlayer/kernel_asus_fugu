@@ -54,7 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 IMG_EXPORT PVRSRV_ERROR
 PVRSRVDebugMiscSLCSetBypassStateKM(
-	CONNECTION_DATA * psConnection,
 	PVRSRV_DEVICE_NODE *psDeviceNode,
 	IMG_UINT32  uiFlags,
 	IMG_BOOL bSetBypassed)
@@ -62,8 +61,6 @@ PVRSRVDebugMiscSLCSetBypassStateKM(
 	RGXFWIF_KCCB_CMD  sSLCBPCtlCmd;
 	PVRSRV_ERROR  eError = PVRSRV_OK;
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	
 	sSLCBPCtlCmd.eCmdType = RGXFWIF_KCCB_CMD_SLCBPCTL;
 	sSLCBPCtlCmd.uCmdData.sSLCBPCtlData.bSetBypassed = bSetBypassed;
 	sSLCBPCtlCmd.uCmdData.sSLCBPCtlData.uiFlags = uiFlags;
@@ -92,72 +89,40 @@ PVRSRVDebugMiscSLCSetBypassStateKM(
 
 IMG_EXPORT PVRSRV_ERROR
 PVRSRVRGXDebugMiscSetFWLogKM(
-	CONNECTION_DATA * psConnection,
 	PVRSRV_DEVICE_NODE *psDeviceNode,
 	IMG_UINT32  ui32RGXFWLogType)
 {
-	RGXFWIF_KCCB_CMD sLogTypeUpdateCmd;
-	PVRSRV_ERROR eError = PVRSRV_OK;
 	PVRSRV_RGXDEV_INFO* psDevInfo = psDeviceNode->pvDevice;
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	
 	/* check log type is valid */
 	if (ui32RGXFWLogType & ~RGXFWIF_LOG_TYPE_MASK)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-#if defined(PVRSRV_GPUVIRT_GUESTDRV)
-	/* Guest drivers do not support tracebuf */
-	PVR_UNREFERENCED_PARAMETER(psDevInfo);
-	PVR_UNREFERENCED_PARAMETER(sLogTypeUpdateCmd);
-	eError = PVRSRV_ERROR_NOT_IMPLEMENTED;
-#else
 	/* set the new log type */
 	psDevInfo->psRGXFWIfTraceBuf->ui32LogType = ui32RGXFWLogType;
 
-	/* Allocate firmware trace buffer resource(s) if not already done */
-	if (RGXTraceBufferIsInitRequired(psDevInfo))
-	{
-		RGXTraceBufferInitOnDemandResources(psDevInfo);
-	}
+	return PVRSRV_OK;
 
-	/* Ask the FW to update its cached version of logType value */
-	sLogTypeUpdateCmd.eCmdType = RGXFWIF_KCCB_CMD_LOGTYPE_UPDATE;
-	eError = RGXScheduleCommand(psDevInfo,
-	                            RGXFWIF_DM_GP,
-	                            &sLogTypeUpdateCmd,
-	                            sizeof(sLogTypeUpdateCmd),
-	                            IMG_TRUE);
-	if(eError != PVRSRV_OK)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: RGXScheduleCommandfailed. Error:%u", __FUNCTION__, eError));
-	}
-	else
-	{
-		/* Wait for the LogType value to be updated */
-		eError = RGXWaitForFWOp(psDevInfo, RGXFWIF_DM_GP, psDeviceNode->psSyncPrim, IMG_TRUE);
-		if (eError != PVRSRV_OK)
-		{
-			PVR_DPF((PVR_DBG_ERROR,"%s: Waiting for value aborted with error (%u)", __FUNCTION__, eError));
-		}
-	}
-#endif
+}
 
-	return eError;
+static IMG_BOOL
+_RGXDumpFreeListPageList(PDLLIST_NODE psNode, IMG_PVOID pvCallbackData)
+{
+	RGX_FREELIST *psFreeList = IMG_CONTAINER_OF(psNode, RGX_FREELIST, sNode);
+
+	RGXDumpFreeListPageList(psFreeList);
+
+	return IMG_TRUE;
 }
 
 IMG_EXPORT PVRSRV_ERROR
 PVRSRVRGXDebugMiscDumpFreelistPageListKM(
-	CONNECTION_DATA * psConnection,	
 	PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	PVRSRV_RGXDEV_INFO* psDevInfo = psDeviceNode->pvDevice;
-	DLLIST_NODE *psNode, *psNext;
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	
 	if (dllist_is_empty(&psDevInfo->sFreeListHead))
 	{
 		return PVRSRV_OK;
@@ -166,11 +131,7 @@ PVRSRVRGXDebugMiscDumpFreelistPageListKM(
 	PVR_LOG(("---------------[ Begin Freelist Page List Dump ]------------------"));
 
 	OSLockAcquire(psDevInfo->hLockFreeList);
-	dllist_foreach_node(&psDevInfo->sFreeListHead, psNode, psNext)
-	{
-		RGX_FREELIST *psFreeList = IMG_CONTAINER_OF(psNode, RGX_FREELIST, sNode);
-		RGXDumpFreeListPageList(psFreeList);
-	}
+	dllist_foreach_node(&psDevInfo->sFreeListHead, _RGXDumpFreeListPageList, IMG_NULL);
 	OSLockRelease(psDevInfo->hLockFreeList);
 
 	PVR_LOG(("----------------[ End Freelist Page List Dump ]-------------------"));

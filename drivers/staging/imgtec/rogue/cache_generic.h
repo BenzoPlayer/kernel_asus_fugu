@@ -46,11 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "cache_external.h"
 #include "device.h"
 #include "pvrsrv_error.h"
-#include "pmr.h"
 
-PVRSRV_ERROR CacheOpQueue(PMR *psPMR,
-						  IMG_DEVMEM_OFFSET_T uiOffset,
-						  IMG_DEVMEM_SIZE_T uiSize,
-						  PVRSRV_CACHE_OP uiCacheOp);
+PVRSRV_ERROR CacheOpQueue(PVRSRV_CACHE_OP uiCacheOp);
 
 #endif	/* _CACHE_GENERIC_H_ */

@@ -62,8 +62,8 @@ typedef struct _CONNECTION_DATA_
 	struct _SYNC_CONNECTION_DATA_	*psSyncConnectionData;
 	struct _PDUMP_CONNECTION_DATA_	*psPDumpConnectionData;
 
-	/* Holds the client flags supplied at connection time */
-	IMG_UINT32			ui32ClientFlags;
+	/* True if the process is the initialisation server. */
+	IMG_BOOL			bInitProcess;
 
 	/*
 	 * OS specific data can be stored via this handle.
@@ -74,7 +74,7 @@ typedef struct _CONNECTION_DATA_
 
 	IMG_PID				pid;
 
-	void				*hSecureData;
+	IMG_PVOID			hSecureData;
 
 	IMG_HANDLE			hProcessStats;
 
@@ -86,10 +86,8 @@ typedef struct _CONNECTION_DATA_
 	struct _CONNECTION_DATA_	*psNext;
 } CONNECTION_DATA;
 
-#include "osconnection_server.h"
-
-PVRSRV_ERROR PVRSRVConnectionConnect(void **ppvPrivData, void *pvOSData);
-void PVRSRVConnectionDisconnect(void *pvPrivData);
+PVRSRV_ERROR PVRSRVConnectionConnect(IMG_PVOID *ppvPrivData, IMG_PVOID pvOSData);
+void PVRSRVConnectionDisconnect(IMG_PVOID pvPrivData);
 
 PVRSRV_ERROR PVRSRVConnectionInit(void);
 PVRSRV_ERROR PVRSRVConnectionDeInit(void);
@@ -102,17 +100,8 @@ IMG_PID PVRSRVGetPurgeConnectionPid(void);
 static INLINE
 IMG_HANDLE PVRSRVConnectionPrivateData(CONNECTION_DATA *psConnection)
 {
-	return (psConnection != NULL) ? psConnection->hOsPrivateData : NULL;
+	return (psConnection != IMG_NULL) ? psConnection->hOsPrivateData : IMG_NULL;
 }
 
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(PVRSRVGetDevData)
-#endif
-static INLINE
-PVRSRV_DEVICE_NODE * PVRSRVGetDevData(CONNECTION_DATA *psConnection)
-{
-	return OSGetDevData(psConnection);
-}
 
 #endif /* !defined(_CONNECTION_SERVER_H_) */

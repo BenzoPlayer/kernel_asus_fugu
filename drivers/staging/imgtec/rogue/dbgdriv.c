@@ -89,7 +89,7 @@ typedef struct _DBG_STREAM_
 	struct _DBG_STREAM_* psInitStream;
 	struct _DBG_STREAM_* psDeinitStream;
 	IMG_UINT32 ui32Flags;			/*!< flags (see DEBUG_FLAGS) */
-	void *pvBase;
+	IMG_PVOID  pvBase;
 	IMG_UINT32 ui32Size;
 	IMG_UINT32 ui32RPtr;
 	IMG_UINT32 ui32WPtr;
@@ -102,7 +102,7 @@ typedef struct _DBG_STREAM_
 } DBG_STREAM;
 
 /* Check 4xDBG_STREAM will fit in one page */
-static_assert((sizeof(DBG_STREAM) * 4) < HOST_PAGESIZE, "DBG_STREAM is too large");
+BLD_ASSERT(sizeof(DBG_STREAM)<<2<HOST_PAGESIZE,dbgdriv_c)
 
 /******************************************************************************
  Global variables
@@ -114,7 +114,7 @@ static PDBG_STREAM          g_psStreamList = 0;
  * threads (from pvrsrvkm via the ExtDBG API) entering the debug driver core
  * and changing the state of share data at the same time.
  */
-void *                      g_pvAPIMutex=NULL;
+IMG_VOID *                  g_pvAPIMutex=IMG_NULL;
 
 static IMG_UINT32			g_PDumpCurrentFrameNo = 0;
 
@@ -136,23 +136,23 @@ DBGKM_SERVICE_TABLE g_sDBGKMServices =
 ***************************************************************************/
 
 IMG_BOOL   IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName, IMG_UINT32 ui32Flags, IMG_UINT32 ui32Pages, IMG_HANDLE* phInit, IMG_HANDLE* phMain, IMG_HANDLE* phDeinit);
-void   IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit);
-void * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream);
+IMG_VOID   IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit);
+IMG_VOID * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream);
 IMG_UINT32 IMG_CALLCONV DBGDrivRead(PDBG_STREAM psStream, IMG_UINT32 ui32BufID, IMG_UINT32 ui32OutBufferSize,IMG_UINT8 *pui8OutBuf);
-void   IMG_CALLCONV DBGDrivSetCaptureMode(PDBG_STREAM psStream,IMG_UINT32 ui32Mode,IMG_UINT32 ui32Start,IMG_UINT32 ui32Stop,IMG_UINT32 ui32SampleRate);
+IMG_VOID   IMG_CALLCONV DBGDrivSetCaptureMode(PDBG_STREAM psStream,IMG_UINT32 ui32Mode,IMG_UINT32 ui32Start,IMG_UINT32 ui32Stop,IMG_UINT32 ui32SampleRate);
 IMG_UINT32 IMG_CALLCONV DBGDrivWrite2(PDBG_STREAM psStream,IMG_UINT8 *pui8InBuf,IMG_UINT32 ui32InBuffSize);
-void   IMG_CALLCONV DBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
+IMG_VOID   IMG_CALLCONV DBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker);
 IMG_UINT32 IMG_CALLCONV DBGDrivGetMarker(PDBG_STREAM psStream);
-void   IMG_CALLCONV DBGDrivWaitForEvent(DBG_EVENT eEvent);
+IMG_VOID   IMG_CALLCONV DBGDrivWaitForEvent(DBG_EVENT eEvent);
 IMG_UINT32 IMG_CALLCONV DBGDrivGetCtrlState(PDBG_STREAM psStream, IMG_UINT32 ui32StateID);
 IMG_UINT32 IMG_CALLCONV DBGDrivGetFrame(void);
-void   IMG_CALLCONV DBGDrivSetFrame(IMG_UINT32 ui32Frame);
-void   DestroyAllStreams(void);
+IMG_VOID   IMG_CALLCONV DBGDrivSetFrame(IMG_UINT32 ui32Frame);
+IMG_VOID   DestroyAllStreams(IMG_VOID);
 
 /* Static function declarations */
 static IMG_UINT32 SpaceInStream(PDBG_STREAM psStream);
 static IMG_BOOL ExpandStreamBuffer(PDBG_STREAM psStream, IMG_UINT32 ui32NewSize);
-static void InvalidateAllStreams(void);
+static IMG_VOID InvalidateAllStreams(IMG_VOID);
 
 
 /*****************************************************************************
@@ -180,7 +180,7 @@ IMG_BOOL IMG_CALLCONV ExtDBGDrivCreateStream(IMG_CHAR *pszName, IMG_UINT32 ui32F
 /*!
  @name	ExtDBGDrivDestroyStream
  */
-void IMG_CALLCONV ExtDBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit)
+IMG_VOID IMG_CALLCONV ExtDBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit)
 {
 	/* Aquire API Mutex */
 	HostAquireMutex(g_pvAPIMutex);
@@ -196,15 +196,15 @@ void IMG_CALLCONV ExtDBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG
 /*!
  @name	ExtDBGDrivFindStream
  */
-void * IMG_CALLCONV ExtDBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
+IMG_VOID * IMG_CALLCONV ExtDBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
 {
-	void *	pvRet;
+	IMG_VOID *	pvRet;
 
 	/* Aquire API Mutex */
 	HostAquireMutex(g_pvAPIMutex);
 
 	pvRet=DBGDrivFindStream(pszName, bResetStream);
-	if (pvRet == NULL)
+	if (pvRet == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "ExtDBGDrivFindStream: Stream not found"));
 	}
@@ -255,7 +255,7 @@ IMG_UINT32 IMG_CALLCONV ExtDBGDrivWrite2(PDBG_STREAM psStream,IMG_UINT8 * pui8In
 /*!
  @name	ExtDBGDrivSetMarker
  */
-void IMG_CALLCONV ExtDBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker)
+IMG_VOID IMG_CALLCONV ExtDBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker)
 {
 	/* Aquire API Mutex */
 	HostAquireMutex(g_pvAPIMutex);
@@ -289,7 +289,7 @@ IMG_UINT32 IMG_CALLCONV ExtDBGDrivGetMarker(PDBG_STREAM psStream)
 /*!
  @name	ExtDBGDrivWaitForEvent
  */
-void IMG_CALLCONV ExtDBGDrivWaitForEvent(DBG_EVENT eEvent)
+IMG_VOID IMG_CALLCONV ExtDBGDrivWaitForEvent(DBG_EVENT eEvent)
 {
 #if defined(SUPPORT_DBGDRV_EVENT_OBJECTS)
 	DBGDrivWaitForEvent(eEvent);
@@ -338,7 +338,7 @@ IMG_UINT32 IMG_CALLCONV ExtDBGDrivGetFrame(void)
 /*!
  @name	ExtDBGDrivGetCtrlState
  */
-void IMG_CALLCONV ExtDBGDrivSetFrame(IMG_UINT32 ui32Frame)
+IMG_VOID IMG_CALLCONV ExtDBGDrivSetFrame(IMG_UINT32 ui32Frame)
 {
 	/* Aquire API Mutex */
 	HostAquireMutex(g_pvAPIMutex);
@@ -499,7 +499,7 @@ static IMG_BOOL StreamValidForWrite(PDBG_STREAM psStream)
  @param		ui32InBuffSize - size of input
  @return	none
 *****************************************************************************/
-static void Write(PDBG_STREAM psStream,IMG_PUINT8 pui8Data,IMG_UINT32 ui32InBuffSize)
+static IMG_VOID Write(PDBG_STREAM psStream,IMG_PUINT8 pui8Data,IMG_UINT32 ui32InBuffSize)
 {
 	/*
 		Split copy into two bits as necessary (if we're allowed to wrap).
@@ -516,13 +516,13 @@ static void Write(PDBG_STREAM psStream,IMG_PUINT8 pui8Data,IMG_UINT32 ui32InBuff
 		IMG_UINT32 ui32B2 = ui32InBuffSize - ui32B1;
 
 		/* Copy first block to current location */
-		HostMemCopy((void *)((uintptr_t)psStream->pvBase + psStream->ui32WPtr),
-				(void *) pui8Data,
+		HostMemCopy((IMG_PVOID)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32WPtr),
+				(IMG_PVOID) pui8Data,
 				ui32B1);
 
 		/* Copy second block to start of buffer */
 		HostMemCopy(psStream->pvBase,
-				(void *)(pui8Data + ui32B1),
+				(IMG_PVOID)(pui8Data + ui32B1),
 				ui32B2);
 
 		/* Set pointer to be the new end point */
@@ -530,8 +530,8 @@ static void Write(PDBG_STREAM psStream,IMG_PUINT8 pui8Data,IMG_UINT32 ui32InBuff
 	}
 	else
 	{	/* Can fit block in single chunk */
-		HostMemCopy((void *)((uintptr_t)psStream->pvBase + psStream->ui32WPtr),
-				(void *) pui8Data,
+		HostMemCopy((IMG_PVOID)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32WPtr),
+				(IMG_PVOID) pui8Data,
 				ui32InBuffSize);
 
 		psStream->ui32WPtr += ui32InBuffSize;
@@ -586,7 +586,8 @@ static IMG_UINT32 WriteExpandingBuffer(PDBG_STREAM psStream,IMG_UINT8 * pui8InBu
 				Find new buffer size, double the current size or increase by 1MB
 			*/
 			ui32NewBufSize = MIN(psStream->ui32Size<<1,psStream->ui32Size+(1<<20));
-			ui32NewBufSize = MIN(ui32NewBufSize, PDUMP_STREAMBUF_MAX_SIZE_MB<<20);
+			ui32NewBufSize = MIN(ui32NewBufSize, (16<<20));
+
 			PVR_DPF((PVR_DBGDRIV_MESSAGE, "Expanding buffer size = %x, new size = %x",
 					psStream->ui32Size, ui32NewBufSize));
 
@@ -657,7 +658,7 @@ static IMG_UINT32 WriteExpandingBuffer(PDBG_STREAM psStream,IMG_UINT8 * pui8InBu
 ******************************************************************************
 *****************************************************************************/
 
-static void DBGDrivSetStreamName(PDBG_STREAM psStream,
+static IMG_VOID DBGDrivSetStreamName(PDBG_STREAM psStream,
 									 IMG_CHAR* pszBase,
 									 IMG_CHAR* pszExt)
 {
@@ -699,10 +700,10 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
                                           IMG_HANDLE* phDeinit)
 {
 	IMG_BOOL            bUseNonPagedMem4Buffers = ((ui32Flags & DEBUG_FLAGS_USE_NONPAGED_MEM) != 0);
-	PDBG_STREAM         psStream = NULL;
-	PDBG_STREAM	        psInitStream = NULL;
-	PDBG_STREAM         psStreamDeinit = NULL;
-	void*           pvBase = NULL;
+	PDBG_STREAM         psStream = IMG_NULL;
+	PDBG_STREAM	        psInitStream = IMG_NULL;
+	PDBG_STREAM         psStreamDeinit = IMG_NULL;
+	IMG_VOID*           pvBase = IMG_NULL;
 
 	/*
 		If we already have a buffer using this name just return
@@ -731,7 +732,7 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
 
 
 	/* Allocate memory for Main buffer */
-	psStream->pvBase = NULL;
+	psStream->pvBase = IMG_NULL;
 	if (bUseNonPagedMem4Buffers)
 	{
 		pvBase = HostNonPageablePageAlloc(ui32Size);
@@ -762,7 +763,7 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
 	PVR_DPF((PVR_DBG_MESSAGE,"DBGDriv: Created stream with deinit name (%s)\n\r", psStream->szName));
 
 	/* Allocate memory for Init buffer */
-	psInitStream->pvBase = NULL;
+	psInitStream->pvBase = IMG_NULL;
 	if (bUseNonPagedMem4Buffers)
 	{
 		pvBase = HostNonPageablePageAlloc(ui32Size);
@@ -779,7 +780,7 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
 	}
 
 	/* Initialise the stream for the Init phase */
-	psInitStream->psNext = psInitStream->psInitStream = psInitStream->psDeinitStream = NULL;
+	psInitStream->psNext = psInitStream->psInitStream = psInitStream->psDeinitStream = IMG_NULL;
 	psInitStream->ui32Flags = ui32Flags;
 	psInitStream->pvBase = pvBase;
 	psInitStream->ui32Size = ui32Size * HOST_PAGESIZE;
@@ -792,7 +793,7 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
 	psStream->psInitStream = psInitStream;
 
 	/* Allocate memory for Deinit buffer */
-	psStreamDeinit->pvBase = NULL;
+	psStreamDeinit->pvBase = IMG_NULL;
 	if (bUseNonPagedMem4Buffers)
 	{
 		pvBase = HostNonPageablePageAlloc(1);
@@ -809,7 +810,7 @@ IMG_BOOL IMG_CALLCONV DBGDrivCreateStream(IMG_CHAR *pszName,
 	}
 
 	/* Initialise the stream for the Deinit phase */
-	psStreamDeinit->psNext = psStreamDeinit->psInitStream = psStreamDeinit->psDeinitStream = NULL;
+	psStreamDeinit->psNext = psStreamDeinit->psInitStream = psStreamDeinit->psDeinitStream = IMG_NULL;
 	psStreamDeinit->pvBase = pvBase;
 	psStreamDeinit->ui32Flags = ui32Flags;
 	psStreamDeinit->ui32Size = HOST_PAGESIZE;
@@ -850,7 +851,7 @@ errCleanup:
 		if (psStreamDeinit) HostPageablePageFree(psStreamDeinit->pvBase);
 	}
 	HostNonPageablePageFree(psStream);
-	psStream = psInitStream = psStreamDeinit = NULL;
+	psStream = psInitStream = psStreamDeinit = IMG_NULL;
 	return IMG_FALSE;
 }
 
@@ -860,7 +861,7 @@ errCleanup:
  @param		psStream - stream to be removed
  @return	none
 *****************************************************************************/
-void IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit)
+IMG_VOID IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HANDLE hDeinit)
 {
 	PDBG_STREAM psStreamInit = (PDBG_STREAM) hInit;
 	PDBG_STREAM psStream = (PDBG_STREAM) hMain;
@@ -926,7 +927,7 @@ void IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HA
 
 	/* Free the shared page used for the three stream tuple */
 	HostNonPageablePageFree(psStream);
-	psStream = psStreamInit = psStreamDeinit = NULL;
+	psStream = psStreamInit = psStreamDeinit = IMG_NULL;
 
 	if (g_psStreamList == 0)
 	{
@@ -943,7 +944,7 @@ void IMG_CALLCONV DBGDrivDestroyStream(IMG_HANDLE hInit,IMG_HANDLE hMain, IMG_HA
  @param		bResetStream - whether to reset the stream, e.g. to end pdump init phase
  @return	none
 *****************************************************************************/
-void * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
+IMG_VOID * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
 {
 	PDBG_STREAM	psStream;
 	PDBG_STREAM	psThis;
@@ -959,7 +960,7 @@ void * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
 	/*
 		Scan buffer names for supplied one.
 	*/
-	for (psThis = g_psStreamList; psThis != NULL; psThis = psThis->psNext)
+	for (psThis = g_psStreamList; psThis != IMG_NULL; psThis = psThis->psNext)
 	{
 		bAreSame = IMG_TRUE;
 		ui32Off = 0;
@@ -1011,10 +1012,10 @@ void * IMG_CALLCONV DBGDrivFindStream(IMG_CHAR * pszName, IMG_BOOL bResetStream)
 				psStream->psInitStream->ui32InitPhaseWOff));
 	}
 
-	return((void *) psStream);
+	return((IMG_VOID *) psStream);
 }
 
-static void IMG_CALLCONV DBGDrivInvalidateStream(PDBG_STREAM psStream)
+static IMG_VOID IMG_CALLCONV DBGDrivInvalidateStream(PDBG_STREAM psStream)
 {
 	IMG_CHAR pszErrorMsg[] = "**OUTOFMEM\n";
 	IMG_UINT32 ui32Space;
@@ -1064,14 +1065,12 @@ static void IMG_CALLCONV DBGDrivInvalidateStream(PDBG_STREAM psStream)
  @brief		invalidate all streams in list
  @return	none
 *****************************************************************************/
-static void InvalidateAllStreams(void)
+static IMG_VOID InvalidateAllStreams(IMG_VOID)
 {
 	PDBG_STREAM psStream = g_psStreamList;
-	while (psStream != NULL)
+	while (psStream != IMG_NULL)
 	{
 		DBGDrivInvalidateStream(psStream);
-		DBGDrivInvalidateStream(psStream->psInitStream);
-		DBGDrivInvalidateStream(psStream->psDeinitStream);
 		psStream = psStream->psNext;
 	}
 	return;
@@ -1194,12 +1193,12 @@ IMG_UINT32 IMG_CALLCONV DBGDrivRead(PDBG_STREAM psMainStream, IMG_UINT32 ui32Buf
 		IMG_UINT32 ui32B2 = ui32Data - ui32B1;
 
 		/* Copy up to end of circular buffer */
-		HostMemCopy((void *) pui8OutBuf,
-				(void *)((uintptr_t)psStream->pvBase + psStream->ui32RPtr),
+		HostMemCopy((IMG_VOID *) pui8OutBuf,
+				(IMG_VOID *)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32RPtr),
 				ui32B1);
 
 		/* Copy from start of circular buffer */
-		HostMemCopy((void *)(pui8OutBuf + ui32B1),
+		HostMemCopy((IMG_VOID *)(pui8OutBuf + ui32B1),
 				psStream->pvBase,
 				ui32B2);
 
@@ -1208,8 +1207,8 @@ IMG_UINT32 IMG_CALLCONV DBGDrivRead(PDBG_STREAM psMainStream, IMG_UINT32 ui32Buf
 	}
 	else
 	{	/* Copy data from wherever */
-		HostMemCopy((void *) pui8OutBuf,
-				(void *)((uintptr_t)psStream->pvBase + psStream->ui32RPtr),
+		HostMemCopy((IMG_VOID *) pui8OutBuf,
+				(IMG_VOID *)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32RPtr),
 				ui32Data);
 
 		/* Update read pointer now that we've copied the data out */
@@ -1232,7 +1231,7 @@ IMG_UINT32 IMG_CALLCONV DBGDrivRead(PDBG_STREAM psMainStream, IMG_UINT32 ui32Buf
  @param		psStream, ui32Marker
  @return	nothing
 *****************************************************************************/
-void IMG_CALLCONV DBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker)
+IMG_VOID IMG_CALLCONV DBGDrivSetMarker(PDBG_STREAM psStream, IMG_UINT32 ui32Marker)
 {
 	/*
 		Validate buffer
@@ -1291,9 +1290,9 @@ IMG_UINT32 IMG_CALLCONV DBGDrivGetMarker(PDBG_STREAM psStream)
  @brief		get jump table for Services driver
  @return	pointer to jump table
 *****************************************************************************/
-void * IMG_CALLCONV DBGDrivGetServiceTable(void)
+IMG_PVOID IMG_CALLCONV DBGDrivGetServiceTable(IMG_VOID)
 {
-	return &g_sDBGKMServices;
+	return((IMG_PVOID)&g_sDBGKMServices);
 }
 
 
@@ -1302,9 +1301,9 @@ void * IMG_CALLCONV DBGDrivGetServiceTable(void)
  @name		DBGDrivWaitForEvent
  @brief		waits for an event
  @param		eEvent - debug driver event
- @return	void
+ @return	IMG_VOID
 *****************************************************************************/
-void IMG_CALLCONV DBGDrivWaitForEvent(DBG_EVENT eEvent)
+IMG_VOID IMG_CALLCONV DBGDrivWaitForEvent(DBG_EVENT eEvent)
 {
 	HostWaitForEvent(eEvent);
 }
@@ -1315,7 +1314,7 @@ void IMG_CALLCONV DBGDrivWaitForEvent(DBG_EVENT eEvent)
 #define PVR_LOG(...)
 #else
 
-extern void PVRSRVDebugPrintf(IMG_UINT32	ui32DebugLevel,
+extern IMG_VOID PVRSRVDebugPrintf(IMG_UINT32	ui32DebugLevel,
 						const IMG_CHAR*	pszFileName,
 						IMG_UINT32	ui32Line,
 						const IMG_CHAR*	pszFormat,
@@ -1389,7 +1388,7 @@ IMG_UINT32 IMG_CALLCONV DBGDrivGetFrame(void)
 	return g_PDumpCurrentFrameNo;
 }
 
-void IMG_CALLCONV DBGDrivSetFrame(IMG_UINT32 ui32Frame)
+IMG_VOID IMG_CALLCONV DBGDrivSetFrame(IMG_UINT32 ui32Frame)
 {
 	g_PDumpCurrentFrameNo = ui32Frame;
 }
@@ -1404,7 +1403,7 @@ void IMG_CALLCONV DBGDrivSetFrame(IMG_UINT32 ui32Frame)
 *****************************************************************************/
 static IMG_BOOL ExpandStreamBuffer(PDBG_STREAM psStream, IMG_UINT32 ui32NewSize)
 {
-	void *	pvNewBuf;
+	IMG_VOID *	pvNewBuf;
 	IMG_UINT32	ui32NewSizeInPages;
 	IMG_UINT32	ui32NewWOffset;
 	IMG_UINT32	ui32NewROffset;
@@ -1437,7 +1436,7 @@ static IMG_BOOL ExpandStreamBuffer(PDBG_STREAM psStream, IMG_UINT32 ui32NewSize)
 		pvNewBuf = HostPageablePageAlloc(ui32NewSizeInPages);
 	}
 
-	if (pvNewBuf == NULL)
+	if (pvNewBuf == IMG_NULL)
 	{
 		return IMG_FALSE;
 	}
@@ -1454,7 +1453,7 @@ static IMG_BOOL ExpandStreamBuffer(PDBG_STREAM psStream, IMG_UINT32 ui32NewSize)
 				No wrapping of data so copy data to start of new buffer 
 			*/
 		HostMemCopy(pvNewBuf,
-					(void *)((uintptr_t)psStream->pvBase + psStream->ui32RPtr),
+					(IMG_VOID *)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32RPtr),
 					psStream->ui32WPtr - psStream->ui32RPtr);
 		}
 		else
@@ -1467,14 +1466,14 @@ static IMG_BOOL ExpandStreamBuffer(PDBG_STREAM psStream, IMG_UINT32 ui32NewSize)
 			ui32FirstCopySize = psStream->ui32Size - psStream->ui32RPtr;
 	
 			HostMemCopy(pvNewBuf,
-					(void *)((uintptr_t)psStream->pvBase + psStream->ui32RPtr),
+					(IMG_VOID *)((IMG_UINTPTR_T)psStream->pvBase + psStream->ui32RPtr),
 					ui32FirstCopySize);
 	
 			/*
 				Now second half 
 			*/
-			HostMemCopy((void *)((uintptr_t)pvNewBuf + ui32FirstCopySize),
-					(void *)(IMG_PBYTE)psStream->pvBase,
+			HostMemCopy((IMG_VOID *)((IMG_UINTPTR_T)pvNewBuf + ui32FirstCopySize),
+					(IMG_VOID *)(IMG_PBYTE)psStream->pvBase,
 					psStream->ui32WPtr);
 		}
 		ui32NewROffset = 0;
@@ -1551,18 +1550,18 @@ static IMG_UINT32 SpaceInStream(PDBG_STREAM psStream)
  @brief		delete all streams in list
  @return	none
 *****************************************************************************/
-void DestroyAllStreams(void)
+IMG_VOID DestroyAllStreams(IMG_VOID)
 {
 	PDBG_STREAM psStream = g_psStreamList;
 	PDBG_STREAM psStreamToFree;
 
-	while (psStream != NULL)
+	while (psStream != IMG_NULL)
 	{
 		psStreamToFree = psStream;
 		psStream = psStream->psNext;
 		DBGDrivDestroyStream(psStreamToFree->psInitStream, psStreamToFree, psStreamToFree->psDeinitStream);
 	}
-	g_psStreamList = NULL;
+	g_psStreamList = IMG_NULL;
 	return;
 }
 

@@ -44,7 +44,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_GPUTRACE_H_
 
 #include "img_types.h"
-#include "rgx_hwperf_km.h"
 
 
 /******************************************************************************
@@ -73,6 +72,7 @@ typedef enum {
 
 
 void PVRGpuTraceClientWork(
+		const IMG_UINT32 ui32Pid,
 		const IMG_UINT32 ui32ExtJobRef,
 		const IMG_UINT32 ui32IntJobRef,
 		const IMG_CHAR* pszKickType);
@@ -80,33 +80,17 @@ void PVRGpuTraceClientWork(
 
 void PVRGpuTraceWorkSwitch(
 		IMG_UINT64 ui64OSTimestamp,
-		const IMG_UINT32 ui32ContextId,
-		const IMG_UINT32 ui32JobId,
+		const IMG_UINT32 ui32Pid,
+		const IMG_UINT32 ui32ExtJobRef,
+		const IMG_UINT32 ui32IntJobRef,
 		const IMG_CHAR* pszWorkType,
 		PVR_GPUTRACE_SWITCH_TYPE eSwType);
 
-void PVRGpuTraceUfo(
-		IMG_UINT64 ui64OSTimestamp,
-		const RGX_HWPERF_UFO_EV eEvType,
-		const IMG_UINT32 ui32ExtJobRef,
-		const IMG_UINT32 ui32CtxId,
-		const IMG_UINT32 ui32JobId,
-		const IMG_UINT32 ui32UFOCount,
-		const RGX_HWPERF_UFO_DATA_ELEMENT *puData);
-
-void PVRGpuTraceEventsLost(
-		const RGX_HWPERF_STREAM_ID eStreamId,
-		const IMG_UINT32 ui32LastOrdinal,
-		const IMG_UINT32 ui32CurrOrdinal);
 
 PVRSRV_ERROR PVRGpuTraceInit(void);
 
 
 void PVRGpuTraceDeInit(void);
 
-/* FTrace events callbacks */
-
-void PVRGpuTraceEnableUfoCallback(void);
-void PVRGpuTraceDisableUfoCallback(void);
 
 #endif /* PVR_GPUTRACE_H_ */

@@ -54,12 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sysinfo.h"
 #include "physheap.h"
 
-#include "connection_server.h"
-
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "virt_validation_defs.h"
-#endif
-
 typedef struct _SYS_DEVICE_ID_TAG
 {
 	IMG_UINT32	uiID;
@@ -67,28 +61,9 @@ typedef struct _SYS_DEVICE_ID_TAG
 
 } SYS_DEVICE_ID;
 
-typedef struct _BUILD_INFO_
-{
-	IMG_UINT32	ui32BuildOptions;
-	IMG_UINT32	ui32BuildVersion;
-	IMG_UINT32	ui32BuildRevision;
-	IMG_UINT32	ui32BuildType;
-#define BUILD_TYPE_DEBUG	0
-#define BUILD_TYPE_RELEASE	1
-	/*The above fields are self explanatory */
-	/* B.V.N.C can be added later if required */
-} BUILD_INFO;
-
-typedef struct _DRIVER_INFO_
-{
-	BUILD_INFO	sUMBuildInfo;
-	BUILD_INFO	sKMBuildInfo;
-	IMG_BOOL	bIsNoMatch;
-}DRIVER_INFO;
 
 typedef struct PVRSRV_DATA_TAG
 {
-	DRIVER_INFO					sDriverInfo;
     IMG_UINT32                  ui32NumDevices;      	   	/*!< number of devices in system */
 	SYS_DEVICE_ID				sDeviceID[SYS_DEVICE_COUNT];
 	PVRSRV_DEVICE_NODE			*apsRegisteredDevNodes[SYS_DEVICE_COUNT];
@@ -131,7 +106,7 @@ typedef struct PVRSRV_DATA_TAG
 
 
 typedef IMG_HANDLE PVRSRV_CMDCOMP_HANDLE;
-typedef void (*PFN_CMDCOMP_NOTIFY) (PVRSRV_CMDCOMP_HANDLE hCmdCompHandle);
+typedef IMG_VOID (*PFN_CMDCOMP_NOTIFY) (PVRSRV_CMDCOMP_HANDLE hCmdCompHandle);
 
 typedef struct PVRSRV_CMDCOMP_NOTIFY_TAG
 {
@@ -148,7 +123,7 @@ typedef struct PVRSRV_CMDCOMP_NOTIFY_TAG
 #define DEBUG_REQUEST_VERBOSITY_MAX	(DEBUG_REQUEST_VERBOSITY_HIGH)
 
 typedef IMG_HANDLE PVRSRV_DBGREQ_HANDLE;
-typedef void (*PFN_DBGREQ_NOTIFY) (PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel);
+typedef IMG_VOID (*PFN_DBGREQ_NOTIFY) (PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel);
 
 typedef struct PVRSRV_DBGREQ_NOTIFY_TAG
 {
@@ -181,12 +156,6 @@ typedef struct PVRSRV_DBGREQ_NOTIFY_TAG
 		}										\
 	} while(0)
 
-#define PVR_DUMP_DRIVER_INFO(x, y)					\
-		PVR_DUMPDEBUG_LOG(("%s info: BuildOptions: 0x%08x BuildVersion: %d.%d BuildRevision: %8d BuildType: %s", (x), \
-								(y).ui32BuildOptions, \
-								PVRVERSION_UNPACK_MAJ((y).ui32BuildVersion), PVRVERSION_UNPACK_MIN((y).ui32BuildVersion), \
-								(y).ui32BuildRevision, \
-								(BUILD_TYPE_DEBUG == (y).ui32BuildType)?"debug":"release"))
 /*!
 *******************************************************************************
 
@@ -209,7 +178,7 @@ extern DUMPDEBUG_PRINTF_FUNC *g_pfnDumpDebugPrintf;
  @Return   PVRSRV_DATA *
 
 ******************************************************************************/
-PVRSRV_DATA *PVRSRVGetPVRSRVData(void);
+PVRSRV_DATA *PVRSRVGetPVRSRVData(IMG_VOID);
 
 IMG_EXPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVEnumerateDevicesKM(IMG_UINT32 *pui32NumDevices,
@@ -229,24 +198,24 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVRegisterExtDevice(PVRSRV_DEVICE_NODE *psDeviceNo
 													IMG_UINT32 *pui32DeviceIndex,
 													IMG_UINT32 ui32PhysHeapID);
 
-void IMG_CALLCONV PVRSRVUnregisterExtDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
+IMG_VOID IMG_CALLCONV PVRSRVUnregisterExtDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
 
 PVRSRV_ERROR IMG_CALLCONV PVRSRVSysPrePowerState(PVRSRV_SYS_POWER_STATE eNewPowerState, IMG_BOOL bForced);
 
 PVRSRV_ERROR IMG_CALLCONV PVRSRVSysPostPowerState(PVRSRV_SYS_POWER_STATE eNewPowerState, IMG_BOOL bForced);
 
-PVRSRV_ERROR LMA_PhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
-							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
+PVRSRV_ERROR LMA_MMUPxAlloc(PVRSRV_DEVICE_NODE *psDevNode, IMG_SIZE_T uiSize,
+							Px_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr);
 
-void LMA_PhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle);
+IMG_VOID LMA_MMUPxFree(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle);
 
-PVRSRV_ERROR LMA_PhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
-							size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
-							void **pvPtr);
+PVRSRV_ERROR LMA_MMUPxMap(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle,
+							IMG_SIZE_T uiSize, IMG_DEV_PHYADDR *psDevPAddr,
+							IMG_VOID **pvPtr);
 
-void LMA_PhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
-					void *pvPtr);
-
+IMG_VOID LMA_MMUPxUnmap(PVRSRV_DEVICE_NODE *psDevNode, Px_HANDLE *psMemHandle,
+						IMG_VOID *pvPtr);
+										
 
 /*!
 ******************************************************************************
@@ -307,7 +276,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVWaitForValueKMAndHoldBridgeLockKM(volatile IMG_U
  @Description	: Dump the system debug info
 
 @Input pfnDumpDebugPrintf : Used to specify the appropriate printf function.
-			     If this argument is NULL, then PVR_LOG() will
+			     If this argument is IMG_NULL, then PVR_LOG() will
 			     be used as the default printing function.
 
 *****************************************************************************/
@@ -321,7 +290,7 @@ PVRSRV_ERROR PVRSRVSystemDebugInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
  @Return : The system name
 *****************************************************************************/
-const IMG_CHAR *PVRSRVGetSystemName(void);
+const IMG_CHAR *PVRSRVGetSystemName(IMG_VOID);
 
 /*!
 *****************************************************************************
@@ -331,7 +300,7 @@ const IMG_CHAR *PVRSRVGetSystemName(void);
 
  @Return : IMG_TRUE if the system has cache snooping
 *****************************************************************************/
-IMG_BOOL PVRSRVSystemHasCacheSnooping(void);
+IMG_BOOL PVRSRVSystemHasCacheSnooping(IMG_VOID);
 
 /*!
 *****************************************************************************
@@ -341,7 +310,7 @@ IMG_BOOL PVRSRVSystemHasCacheSnooping(void);
 
  @Return : IMG_TRUE if the system has CPU cache snooping
 *****************************************************************************/
-IMG_BOOL PVRSRVSystemSnoopingOfCPUCache(void);
+IMG_BOOL PVRSRVSystemSnoopingOfCPUCache(IMG_VOID);
 
 /*!
 *****************************************************************************
@@ -351,7 +320,7 @@ IMG_BOOL PVRSRVSystemSnoopingOfCPUCache(void);
 
  @Return : IMG_TRUE if the system has device cache snooping
 *****************************************************************************/
-IMG_BOOL PVRSRVSystemSnoopingOfDeviceCache(void);
+IMG_BOOL PVRSRVSystemSnoopingOfDeviceCache(IMG_VOID);
 
 /*!
 *****************************************************************************
@@ -360,7 +329,7 @@ IMG_BOOL PVRSRVSystemSnoopingOfDeviceCache(void);
  @Description	: Waits for at least ui32Cycles of the Device clk.
 
 *****************************************************************************/
-void PVRSRVSystemWaitCycles(PVRSRV_DEVICE_CONFIG *psDevConfig, IMG_UINT32 ui32Cycles);
+IMG_VOID PVRSRVSystemWaitCycles(PVRSRV_DEVICE_CONFIG *psDevConfig, IMG_UINT32 ui32Cycles);
 
 
 
@@ -373,13 +342,13 @@ void PVRSRVSystemWaitCycles(PVRSRV_DEVICE_CONFIG *psDevConfig, IMG_UINT32 ui32Cy
 				  event object. 
 
  @Input hCmdCompHandle	: Identify the caller by the handler used when 
-						  registering for cmd complete. NULL calls all
+						  registering for cmd complete. IMG_NULL calls all
 						  the notify functions.
 
 *****************************************************************************/
-void IMG_CALLCONV PVRSRVCheckStatus(PVRSRV_CMDCOMP_HANDLE hCmdCompCallerHandle);
+IMG_VOID IMG_CALLCONV PVRSRVCheckStatus(PVRSRV_CMDCOMP_HANDLE hCmdCompCallerHandle);
 
-PVRSRV_ERROR IMG_CALLCONV PVRSRVKickDevicesKM(void);
+PVRSRV_ERROR IMG_CALLCONV PVRSRVKickDevicesKM(IMG_VOID);
 
 /*!
 *****************************************************************************
@@ -392,8 +361,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVKickDevicesKM(void);
  @Return   PVRSRV_ERROR : PVRSRV_OK on success. Otherwise, a PVRSRV_ error code
 *****************************************************************************
  */
-PVRSRV_ERROR PVRSRVResetHWRLogsKM(CONNECTION_DATA * psConnection,
-                                  PVRSRV_DEVICE_NODE *psDeviceNode);
+PVRSRV_ERROR PVRSRVResetHWRLogsKM(PVRSRV_DEVICE_NODE *psDeviceNode);
 
 /*!
 *****************************************************************************
@@ -434,11 +402,11 @@ PVRSRV_ERROR PVRSRVUnregisterCmdCompleteNotify(IMG_HANDLE hNotify);
  @Input ui32VerbLevel	: The maximum verbosity level to dump
 
  @Input pfnDumpDebugPrintf : Used to specify the appropriate printf function.
-			     If this argument is NULL, then PVR_LOG() will
+			     If this argument is IMG_NULL, then PVR_LOG() will
 			     be used as the default printing function.
 
 *****************************************************************************/
-void IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
+IMG_VOID IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
 /*!
 *****************************************************************************
@@ -541,7 +509,7 @@ PVRSRV_ERROR GetNumBifTilingHeapConfigs(IMG_UINT32 *puiNumHeaps);
 						  for each OSid area
 ***********************************************************************************/
 
-void PopulateLMASubArenas(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
+IMG_VOID PopulateLMASubArenas(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
 #endif
 
 #endif /* PVRSRV_H */

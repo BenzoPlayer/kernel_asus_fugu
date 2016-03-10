@@ -60,6 +60,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvcore.h"
 #include "handle.h"
 
+#if defined (SUPPORT_AUTH)
+#include "osauth.h"
+#endif
+
 #include <linux/slab.h>
 
 
@@ -75,36 +79,48 @@ PVRSRVBridgeAllocSyncPrimitiveBlock(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_ALLOCSYNCPRIMITIVEBLOCK *psAllocSyncPrimitiveBlockOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
-	PMR * pshSyncPMRInt = NULL;
-
-	PVR_UNREFERENCED_PARAMETER(psAllocSyncPrimitiveBlockIN);
-
-
-	psAllocSyncPrimitiveBlockOUT->hSyncHandle = NULL;
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
+	DEVMEM_EXPORTCOOKIE * psExportCookieInt = IMG_NULL;
 
 
-	PMRLock();
+
+	psAllocSyncPrimitiveBlockOUT->hSyncHandle = IMG_NULL;
+
+
+
+
+				{
+					/* Look up the address from the handle */
+					psAllocSyncPrimitiveBlockOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psAllocSyncPrimitiveBlockIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psAllocSyncPrimitiveBlockOUT->eError != PVRSRV_OK)
+					{
+						goto AllocSyncPrimitiveBlock_exit;
+					}
+				}
 
 
 	psAllocSyncPrimitiveBlockOUT->eError =
-		PVRSRVAllocSyncPrimitiveBlockKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVAllocSyncPrimitiveBlockKM(psConnection,
+					hDevNodeInt,
 					&psSyncHandleInt,
 					&psAllocSyncPrimitiveBlockOUT->ui32SyncPrimVAddr,
 					&psAllocSyncPrimitiveBlockOUT->ui32SyncPrimBlockSize,
-					&pshSyncPMRInt);
+					&psExportCookieInt);
 	/* Exit early if bridged call fails */
 	if(psAllocSyncPrimitiveBlockOUT->eError != PVRSRV_OK)
 	{
-		PMRUnlock();
 		goto AllocSyncPrimitiveBlock_exit;
 	}
-	PMRUnlock();
 
 
 	psAllocSyncPrimitiveBlockOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psAllocSyncPrimitiveBlockOUT->hSyncHandle,
-							(void *) psSyncHandleInt,
+							(IMG_VOID *) psSyncHandleInt,
 							PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK,
 							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
 							,(PFN_HANDLE_RELEASE)&PVRSRVFreeSyncPrimitiveBlockKM);
@@ -115,9 +131,9 @@ PVRSRVBridgeAllocSyncPrimitiveBlock(IMG_UINT32 ui32DispatchTableEntry,
 
 
 	psAllocSyncPrimitiveBlockOUT->eError = PVRSRVAllocSubHandle(psConnection->psHandleBase,
-							&psAllocSyncPrimitiveBlockOUT->hhSyncPMR,
-							(void *) pshSyncPMRInt,
-							PVRSRV_HANDLE_TYPE_PMR_LOCAL_EXPORT_HANDLE,
+							&psAllocSyncPrimitiveBlockOUT->hExportCookie,
+							(IMG_VOID *) psExportCookieInt,
+							PVRSRV_HANDLE_TYPE_SERVER_EXPORTCOOKIE,
 							PVRSRV_HANDLE_ALLOC_FLAG_NONE
 							,psAllocSyncPrimitiveBlockOUT->hSyncHandle);
 	if (psAllocSyncPrimitiveBlockOUT->eError != PVRSRV_OK)
@@ -141,7 +157,7 @@ AllocSyncPrimitiveBlock_exit:
 			PVR_ASSERT((eError == PVRSRV_OK) || (eError == PVRSRV_ERROR_RETRY));
 
 			/* Avoid freeing/destroying/releasing the resource a second time below */
-			psSyncHandleInt = NULL;
+			psSyncHandleInt = IMG_NULL;
 		}
 
 
@@ -166,7 +182,6 @@ PVRSRVBridgeFreeSyncPrimitiveBlock(IMG_UINT32 ui32DispatchTableEntry,
 
 
 
-	PMRLock();
 
 
 
@@ -178,11 +193,9 @@ PVRSRVBridgeFreeSyncPrimitiveBlock(IMG_UINT32 ui32DispatchTableEntry,
 	if ((psFreeSyncPrimitiveBlockOUT->eError != PVRSRV_OK) && (psFreeSyncPrimitiveBlockOUT->eError != PVRSRV_ERROR_RETRY))
 	{
 		PVR_ASSERT(0);
-		PMRUnlock();
 		goto FreeSyncPrimitiveBlock_exit;
 	}
 
-	PMRUnlock();
 
 
 FreeSyncPrimitiveBlock_exit:
@@ -196,7 +209,7 @@ PVRSRVBridgeSyncPrimSet(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMSET *psSyncPrimSetOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
 
 
 
@@ -208,7 +221,7 @@ PVRSRVBridgeSyncPrimSet(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimSetOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psSyncPrimSetIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimSetOUT->eError != PVRSRV_OK)
@@ -238,7 +251,7 @@ PVRSRVBridgeServerSyncPrimSet(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SERVERSYNCPRIMSET *psServerSyncPrimSetOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = NULL;
+	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = IMG_NULL;
 
 
 
@@ -250,7 +263,7 @@ PVRSRVBridgeServerSyncPrimSet(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psServerSyncPrimSetOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psServerSyncPrimSetIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psServerSyncPrimSetOUT->eError != PVRSRV_OK)
@@ -311,9 +324,9 @@ PVRSRVBridgeSyncRecordAdd(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCRECORDADD *psSyncRecordAddOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_RECORD_HANDLE pshRecordInt = NULL;
-	SYNC_PRIMITIVE_BLOCK * pshServerSyncPrimBlockInt = NULL;
-	IMG_CHAR *uiClassNameInt = NULL;
+	SYNC_RECORD_HANDLE pshRecordInt = IMG_NULL;
+	SYNC_PRIMITIVE_BLOCK * pshServerSyncPrimBlockInt = IMG_NULL;
+	IMG_CHAR *uiClassNameInt = IMG_NULL;
 
 
 
@@ -330,7 +343,7 @@ PVRSRVBridgeSyncRecordAdd(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncRecordAddIN->puiClassName, psSyncRecordAddIN->ui32ClassNameSize * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncRecordAddIN->puiClassName, psSyncRecordAddIN->ui32ClassNameSize * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiClassNameInt, psSyncRecordAddIN->puiClassName,
 				psSyncRecordAddIN->ui32ClassNameSize * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -345,7 +358,7 @@ PVRSRVBridgeSyncRecordAdd(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncRecordAddOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &pshServerSyncPrimBlockInt,
+											(IMG_VOID **) &pshServerSyncPrimBlockInt,
 											psSyncRecordAddIN->hhServerSyncPrimBlock,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncRecordAddOUT->eError != PVRSRV_OK)
@@ -373,7 +386,7 @@ PVRSRVBridgeSyncRecordAdd(IMG_UINT32 ui32DispatchTableEntry,
 
 	psSyncRecordAddOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psSyncRecordAddOUT->hhRecord,
-							(void *) pshRecordInt,
+							(IMG_VOID *) pshRecordInt,
 							PVRSRV_HANDLE_TYPE_SYNC_RECORD_HANDLE,
 							PVRSRV_HANDLE_ALLOC_FLAG_NONE
 							,(PFN_HANDLE_RELEASE)&PVRSRVSyncRecordRemoveByHandleKM);
@@ -406,8 +419,9 @@ PVRSRVBridgeServerSyncAlloc(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SERVERSYNCALLOC *psServerSyncAllocOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = NULL;
-	IMG_CHAR *uiClassNameInt = NULL;
+	IMG_HANDLE hDevNodeInt = IMG_NULL;
+	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = IMG_NULL;
+	IMG_CHAR *uiClassNameInt = IMG_NULL;
 
 
 
@@ -424,7 +438,7 @@ PVRSRVBridgeServerSyncAlloc(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psServerSyncAllocIN->puiClassName, psServerSyncAllocIN->ui32ClassNameSize * sizeof(IMG_CHAR))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psServerSyncAllocIN->puiClassName, psServerSyncAllocIN->ui32ClassNameSize * sizeof(IMG_CHAR))
 				|| (OSCopyFromUser(NULL, uiClassNameInt, psServerSyncAllocIN->puiClassName,
 				psServerSyncAllocIN->ui32ClassNameSize * sizeof(IMG_CHAR)) != PVRSRV_OK) )
 			{
@@ -433,13 +447,25 @@ PVRSRVBridgeServerSyncAlloc(IMG_UINT32 ui32DispatchTableEntry,
 				goto ServerSyncAlloc_exit;
 			}
 
-#if defined(PDUMP)
-	PMRLock();
-#endif
+
+
+				{
+					/* Look up the address from the handle */
+					psServerSyncAllocOUT->eError =
+						PVRSRVLookupHandle(psConnection->psHandleBase,
+											(IMG_VOID **) &hDevNodeInt,
+											psServerSyncAllocIN->hDevNode,
+											PVRSRV_HANDLE_TYPE_DEV_NODE);
+					if(psServerSyncAllocOUT->eError != PVRSRV_OK)
+					{
+						goto ServerSyncAlloc_exit;
+					}
+				}
 
 
 	psServerSyncAllocOUT->eError =
-		PVRSRVServerSyncAllocKM(psConnection, OSGetDevData(psConnection),
+		PVRSRVServerSyncAllocKM(
+					hDevNodeInt,
 					&psSyncHandleInt,
 					&psServerSyncAllocOUT->ui32SyncPrimVAddr,
 					psServerSyncAllocIN->ui32ClassNameSize,
@@ -447,19 +473,13 @@ PVRSRVBridgeServerSyncAlloc(IMG_UINT32 ui32DispatchTableEntry,
 	/* Exit early if bridged call fails */
 	if(psServerSyncAllocOUT->eError != PVRSRV_OK)
 	{
-#if defined(PDUMP)
-		PMRUnlock();
-#endif
 		goto ServerSyncAlloc_exit;
 	}
-#if defined(PDUMP)
-	PMRUnlock();
-#endif
 
 
 	psServerSyncAllocOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psServerSyncAllocOUT->hSyncHandle,
-							(void *) psSyncHandleInt,
+							(IMG_VOID *) psSyncHandleInt,
 							PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE,
 							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
 							,(PFN_HANDLE_RELEASE)&PVRSRVServerSyncFreeKM);
@@ -524,29 +544,23 @@ PVRSRVBridgeServerSyncQueueHWOp(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SERVERSYNCQUEUEHWOP *psServerSyncQueueHWOpOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = NULL;
+	SERVER_SYNC_PRIMITIVE * psSyncHandleInt = IMG_NULL;
 
 
 
 
 
-#if defined(PDUMP)
-	PMRLock();
-#endif
 
 
 				{
 					/* Look up the address from the handle */
 					psServerSyncQueueHWOpOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psServerSyncQueueHWOpIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psServerSyncQueueHWOpOUT->eError != PVRSRV_OK)
 					{
-#if defined(PDUMP)
-						PMRUnlock();
-#endif
 						goto ServerSyncQueueHWOp_exit;
 					}
 				}
@@ -558,9 +572,6 @@ PVRSRVBridgeServerSyncQueueHWOp(IMG_UINT32 ui32DispatchTableEntry,
 					psServerSyncQueueHWOpIN->bbUpdate,
 					&psServerSyncQueueHWOpOUT->ui32FenceValue,
 					&psServerSyncQueueHWOpOUT->ui32UpdateValue);
-#if defined(PDUMP)
-	PMRUnlock();
-#endif
 
 
 
@@ -576,12 +587,12 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SERVERSYNCGETSTATUS *psServerSyncGetStatusOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_SYNC_PRIMITIVE * *psSyncHandleInt = NULL;
-	IMG_HANDLE *hSyncHandleInt2 = NULL;
-	IMG_UINT32 *pui32UIDInt = NULL;
-	IMG_UINT32 *pui32FWAddrInt = NULL;
-	IMG_UINT32 *pui32CurrentOpInt = NULL;
-	IMG_UINT32 *pui32NextOpInt = NULL;
+	SERVER_SYNC_PRIMITIVE * *psSyncHandleInt = IMG_NULL;
+	IMG_HANDLE *hSyncHandleInt2 = IMG_NULL;
+	IMG_UINT32 *pui32UIDInt = IMG_NULL;
+	IMG_UINT32 *pui32FWAddrInt = IMG_NULL;
+	IMG_UINT32 *pui32CurrentOpInt = IMG_NULL;
+	IMG_UINT32 *pui32NextOpInt = IMG_NULL;
 
 
 	psServerSyncGetStatusOUT->pui32UID = psServerSyncGetStatusIN->pui32UID;
@@ -609,7 +620,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psServerSyncGetStatusIN->phSyncHandle, psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_HANDLE))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psServerSyncGetStatusIN->phSyncHandle, psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_HANDLE))
 				|| (OSCopyFromUser(NULL, hSyncHandleInt2, psServerSyncGetStatusIN->phSyncHandle,
 				psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_HANDLE)) != PVRSRV_OK) )
 			{
@@ -673,7 +684,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psServerSyncGetStatusOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt[i],
+											(IMG_VOID **) &psSyncHandleInt[i],
 											hSyncHandleInt2[i],
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psServerSyncGetStatusOUT->eError != PVRSRV_OK)
@@ -696,7 +707,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 
 
-	if ( !OSAccessOK(PVR_VERIFY_WRITE, (void*) psServerSyncGetStatusOUT->pui32UID, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32)))
+	if ( !OSAccessOK(PVR_VERIFY_WRITE, (IMG_VOID*) psServerSyncGetStatusOUT->pui32UID, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) 
 		|| (OSCopyToUser(NULL, psServerSyncGetStatusOUT->pui32UID, pui32UIDInt,
 		(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) != PVRSRV_OK) )
 	{
@@ -705,7 +716,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 		goto ServerSyncGetStatus_exit;
 	}
 
-	if ( !OSAccessOK(PVR_VERIFY_WRITE, (void*) psServerSyncGetStatusOUT->pui32FWAddr, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32)))
+	if ( !OSAccessOK(PVR_VERIFY_WRITE, (IMG_VOID*) psServerSyncGetStatusOUT->pui32FWAddr, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) 
 		|| (OSCopyToUser(NULL, psServerSyncGetStatusOUT->pui32FWAddr, pui32FWAddrInt,
 		(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) != PVRSRV_OK) )
 	{
@@ -714,7 +725,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 		goto ServerSyncGetStatus_exit;
 	}
 
-	if ( !OSAccessOK(PVR_VERIFY_WRITE, (void*) psServerSyncGetStatusOUT->pui32CurrentOp, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32)))
+	if ( !OSAccessOK(PVR_VERIFY_WRITE, (IMG_VOID*) psServerSyncGetStatusOUT->pui32CurrentOp, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) 
 		|| (OSCopyToUser(NULL, psServerSyncGetStatusOUT->pui32CurrentOp, pui32CurrentOpInt,
 		(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) != PVRSRV_OK) )
 	{
@@ -723,7 +734,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 		goto ServerSyncGetStatus_exit;
 	}
 
-	if ( !OSAccessOK(PVR_VERIFY_WRITE, (void*) psServerSyncGetStatusOUT->pui32NextOp, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32)))
+	if ( !OSAccessOK(PVR_VERIFY_WRITE, (IMG_VOID*) psServerSyncGetStatusOUT->pui32NextOp, (psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) 
 		|| (OSCopyToUser(NULL, psServerSyncGetStatusOUT->pui32NextOp, pui32NextOpInt,
 		(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32))) != PVRSRV_OK) )
 	{
@@ -756,13 +767,13 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMOPCREATE *psSyncPrimOpCreateOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * *psBlockListInt = NULL;
-	IMG_HANDLE *hBlockListInt2 = NULL;
-	IMG_UINT32 *ui32SyncBlockIndexInt = NULL;
-	IMG_UINT32 *ui32IndexInt = NULL;
-	SERVER_SYNC_PRIMITIVE * *psServerSyncInt = NULL;
-	IMG_HANDLE *hServerSyncInt2 = NULL;
-	SERVER_OP_COOKIE * psServerCookieInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * *psBlockListInt = IMG_NULL;
+	IMG_HANDLE *hBlockListInt2 = IMG_NULL;
+	IMG_UINT32 *ui32SyncBlockIndexInt = IMG_NULL;
+	IMG_UINT32 *ui32IndexInt = IMG_NULL;
+	SERVER_SYNC_PRIMITIVE * *psServerSyncInt = IMG_NULL;
+	IMG_HANDLE *hServerSyncInt2 = IMG_NULL;
+	SERVER_OP_COOKIE * psServerCookieInt = IMG_NULL;
 
 
 
@@ -786,7 +797,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpCreateIN->phBlockList, psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(IMG_HANDLE))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpCreateIN->phBlockList, psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(IMG_HANDLE))
 				|| (OSCopyFromUser(NULL, hBlockListInt2, psSyncPrimOpCreateIN->phBlockList,
 				psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(IMG_HANDLE)) != PVRSRV_OK) )
 			{
@@ -806,7 +817,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpCreateIN->pui32SyncBlockIndex, psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpCreateIN->pui32SyncBlockIndex, psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32SyncBlockIndexInt, psSyncPrimOpCreateIN->pui32SyncBlockIndex,
 				psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -826,7 +837,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpCreateIN->pui32Index, psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpCreateIN->pui32Index, psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32IndexInt, psSyncPrimOpCreateIN->pui32Index,
 				psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -853,7 +864,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpCreateIN->phServerSync, psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(IMG_HANDLE))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpCreateIN->phServerSync, psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(IMG_HANDLE))
 				|| (OSCopyFromUser(NULL, hServerSyncInt2, psSyncPrimOpCreateIN->phServerSync,
 				psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(IMG_HANDLE)) != PVRSRV_OK) )
 			{
@@ -873,7 +884,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpCreateOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psBlockListInt[i],
+											(IMG_VOID **) &psBlockListInt[i],
 											hBlockListInt2[i],
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimOpCreateOUT->eError != PVRSRV_OK)
@@ -894,7 +905,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpCreateOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psServerSyncInt[i],
+											(IMG_VOID **) &psServerSyncInt[i],
 											hServerSyncInt2[i],
 											PVRSRV_HANDLE_TYPE_SERVER_SYNC_PRIMITIVE);
 					if(psSyncPrimOpCreateOUT->eError != PVRSRV_OK)
@@ -925,7 +936,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 
 	psSyncPrimOpCreateOUT->eError = PVRSRVAllocHandle(psConnection->psHandleBase,
 							&psSyncPrimOpCreateOUT->hServerCookie,
-							(void *) psServerCookieInt,
+							(IMG_VOID *) psServerCookieInt,
 							PVRSRV_HANDLE_TYPE_SERVER_OP_COOKIE,
 							PVRSRV_HANDLE_ALLOC_FLAG_MULTI
 							,(PFN_HANDLE_RELEASE)&PVRSRVSyncPrimOpDestroyKM);
@@ -968,11 +979,11 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMOPTAKE *psSyncPrimOpTakeOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_OP_COOKIE * psServerCookieInt = NULL;
-	IMG_UINT32 *ui32FlagsInt = NULL;
-	IMG_UINT32 *ui32FenceValueInt = NULL;
-	IMG_UINT32 *ui32UpdateValueInt = NULL;
-	IMG_UINT32 *ui32ServerFlagsInt = NULL;
+	SERVER_OP_COOKIE * psServerCookieInt = IMG_NULL;
+	IMG_UINT32 *ui32FlagsInt = IMG_NULL;
+	IMG_UINT32 *ui32FenceValueInt = IMG_NULL;
+	IMG_UINT32 *ui32UpdateValueInt = IMG_NULL;
+	IMG_UINT32 *ui32ServerFlagsInt = IMG_NULL;
 
 
 
@@ -989,7 +1000,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpTakeIN->pui32Flags, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpTakeIN->pui32Flags, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32FlagsInt, psSyncPrimOpTakeIN->pui32Flags,
 				psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -1009,7 +1020,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpTakeIN->pui32FenceValue, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpTakeIN->pui32FenceValue, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32FenceValueInt, psSyncPrimOpTakeIN->pui32FenceValue,
 				psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -1029,7 +1040,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpTakeIN->pui32UpdateValue, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpTakeIN->pui32UpdateValue, psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32UpdateValueInt, psSyncPrimOpTakeIN->pui32UpdateValue,
 				psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -1049,7 +1060,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 			/* Copy the data over */
-			if ( !OSAccessOK(PVR_VERIFY_READ, (void*) psSyncPrimOpTakeIN->pui32ServerFlags, psSyncPrimOpTakeIN->ui32ServerSyncCount * sizeof(IMG_UINT32))
+			if ( !OSAccessOK(PVR_VERIFY_READ, (IMG_VOID*) psSyncPrimOpTakeIN->pui32ServerFlags, psSyncPrimOpTakeIN->ui32ServerSyncCount * sizeof(IMG_UINT32))
 				|| (OSCopyFromUser(NULL, ui32ServerFlagsInt, psSyncPrimOpTakeIN->pui32ServerFlags,
 				psSyncPrimOpTakeIN->ui32ServerSyncCount * sizeof(IMG_UINT32)) != PVRSRV_OK) )
 			{
@@ -1064,7 +1075,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpTakeOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psServerCookieInt,
+											(IMG_VOID **) &psServerCookieInt,
 											psSyncPrimOpTakeIN->hServerCookie,
 											PVRSRV_HANDLE_TYPE_SERVER_OP_COOKIE);
 					if(psSyncPrimOpTakeOUT->eError != PVRSRV_OK)
@@ -1106,7 +1117,7 @@ PVRSRVBridgeSyncPrimOpReady(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMOPREADY *psSyncPrimOpReadyOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_OP_COOKIE * psServerCookieInt = NULL;
+	SERVER_OP_COOKIE * psServerCookieInt = IMG_NULL;
 
 
 
@@ -1118,7 +1129,7 @@ PVRSRVBridgeSyncPrimOpReady(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpReadyOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psServerCookieInt,
+											(IMG_VOID **) &psServerCookieInt,
 											psSyncPrimOpReadyIN->hServerCookie,
 											PVRSRV_HANDLE_TYPE_SERVER_OP_COOKIE);
 					if(psSyncPrimOpReadyOUT->eError != PVRSRV_OK)
@@ -1147,7 +1158,7 @@ PVRSRVBridgeSyncPrimOpComplete(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMOPCOMPLETE *psSyncPrimOpCompleteOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_OP_COOKIE * psServerCookieInt = NULL;
+	SERVER_OP_COOKIE * psServerCookieInt = IMG_NULL;
 
 
 
@@ -1159,7 +1170,7 @@ PVRSRVBridgeSyncPrimOpComplete(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpCompleteOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psServerCookieInt,
+											(IMG_VOID **) &psServerCookieInt,
 											psSyncPrimOpCompleteIN->hServerCookie,
 											PVRSRV_HANDLE_TYPE_SERVER_OP_COOKIE);
 					if(psSyncPrimOpCompleteOUT->eError != PVRSRV_OK)
@@ -1219,25 +1230,23 @@ PVRSRVBridgeSyncPrimPDump(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMPDUMP *psSyncPrimPDumpOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
 
 
 
 
 
-	PMRLock();
 
 
 				{
 					/* Look up the address from the handle */
 					psSyncPrimPDumpOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psSyncPrimPDumpIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimPDumpOUT->eError != PVRSRV_OK)
 					{
-						PMRUnlock();
 						goto SyncPrimPDump_exit;
 					}
 				}
@@ -1247,7 +1256,6 @@ PVRSRVBridgeSyncPrimPDump(IMG_UINT32 ui32DispatchTableEntry,
 		PVRSRVSyncPrimPDumpKM(
 					psSyncHandleInt,
 					psSyncPrimPDumpIN->ui32Offset);
-	PMRUnlock();
 
 
 
@@ -1263,25 +1271,23 @@ PVRSRVBridgeSyncPrimPDumpValue(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMPDUMPVALUE *psSyncPrimPDumpValueOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
 
 
 
 
 
-	PMRLock();
 
 
 				{
 					/* Look up the address from the handle */
 					psSyncPrimPDumpValueOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psSyncPrimPDumpValueIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimPDumpValueOUT->eError != PVRSRV_OK)
 					{
-						PMRUnlock();
 						goto SyncPrimPDumpValue_exit;
 					}
 				}
@@ -1292,7 +1298,6 @@ PVRSRVBridgeSyncPrimPDumpValue(IMG_UINT32 ui32DispatchTableEntry,
 					psSyncHandleInt,
 					psSyncPrimPDumpValueIN->ui32Offset,
 					psSyncPrimPDumpValueIN->ui32Value);
-	PMRUnlock();
 
 
 
@@ -1308,7 +1313,7 @@ PVRSRVBridgeSyncPrimPDumpPol(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMPDUMPPOL *psSyncPrimPDumpPolOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
 
 
 
@@ -1320,7 +1325,7 @@ PVRSRVBridgeSyncPrimPDumpPol(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimPDumpPolOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psSyncPrimPDumpPolIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimPDumpPolOUT->eError != PVRSRV_OK)
@@ -1353,7 +1358,7 @@ PVRSRVBridgeSyncPrimOpPDumpPol(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMOPPDUMPPOL *psSyncPrimOpPDumpPolOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SERVER_OP_COOKIE * psServerCookieInt = NULL;
+	SERVER_OP_COOKIE * psServerCookieInt = IMG_NULL;
 
 
 
@@ -1365,7 +1370,7 @@ PVRSRVBridgeSyncPrimOpPDumpPol(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimOpPDumpPolOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psServerCookieInt,
+											(IMG_VOID **) &psServerCookieInt,
 											psSyncPrimOpPDumpPolIN->hServerCookie,
 											PVRSRV_HANDLE_TYPE_SERVER_OP_COOKIE);
 					if(psSyncPrimOpPDumpPolOUT->eError != PVRSRV_OK)
@@ -1395,7 +1400,7 @@ PVRSRVBridgeSyncPrimPDumpCBP(IMG_UINT32 ui32DispatchTableEntry,
 					  PVRSRV_BRIDGE_OUT_SYNCPRIMPDUMPCBP *psSyncPrimPDumpCBPOUT,
 					 CONNECTION_DATA *psConnection)
 {
-	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = NULL;
+	SYNC_PRIMITIVE_BLOCK * psSyncHandleInt = IMG_NULL;
 
 
 
@@ -1407,7 +1412,7 @@ PVRSRVBridgeSyncPrimPDumpCBP(IMG_UINT32 ui32DispatchTableEntry,
 					/* Look up the address from the handle */
 					psSyncPrimPDumpCBPOUT->eError =
 						PVRSRVLookupHandle(psConnection->psHandleBase,
-											(void **) &psSyncHandleInt,
+											(IMG_VOID **) &psSyncHandleInt,
 											psSyncPrimPDumpCBPIN->hSyncHandle,
 											PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 					if(psSyncPrimPDumpCBPOUT->eError != PVRSRV_OK)
@@ -1439,76 +1444,95 @@ SyncPrimPDumpCBP_exit:
  * Server bridge dispatch related glue 
  */
 
-static IMG_BOOL bUseLock = IMG_TRUE;
 
-PVRSRV_ERROR InitSYNCBridge(void);
-PVRSRV_ERROR DeinitSYNCBridge(void);
+PVRSRV_ERROR InitSYNCBridge(IMG_VOID);
+PVRSRV_ERROR DeinitSYNCBridge(IMG_VOID);
 
 /*
  * Register all SYNC functions with services
  */
-PVRSRV_ERROR InitSYNCBridge(void)
+PVRSRV_ERROR InitSYNCBridge(IMG_VOID)
 {
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_ALLOCSYNCPRIMITIVEBLOCK, PVRSRVBridgeAllocSyncPrimitiveBlock,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_FREESYNCPRIMITIVEBLOCK, PVRSRVBridgeFreeSyncPrimitiveBlock,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMSET, PVRSRVBridgeSyncPrimSet,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SERVERSYNCPRIMSET, PVRSRVBridgeServerSyncPrimSet,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCRECORDREMOVEBYHANDLE, PVRSRVBridgeSyncRecordRemoveByHandle,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCRECORDADD, PVRSRVBridgeSyncRecordAdd,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SERVERSYNCALLOC, PVRSRVBridgeServerSyncAlloc,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SERVERSYNCFREE, PVRSRVBridgeServerSyncFree,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SERVERSYNCQUEUEHWOP, PVRSRVBridgeServerSyncQueueHWOp,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SERVERSYNCGETSTATUS, PVRSRVBridgeServerSyncGetStatus,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPCREATE, PVRSRVBridgeSyncPrimOpCreate,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPTAKE, PVRSRVBridgeSyncPrimOpTake,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPREADY, PVRSRVBridgeSyncPrimOpReady,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPCOMPLETE, PVRSRVBridgeSyncPrimOpComplete,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPDESTROY, PVRSRVBridgeSyncPrimOpDestroy,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMPDUMP, PVRSRVBridgeSyncPrimPDump,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMPDUMPVALUE, PVRSRVBridgeSyncPrimPDumpValue,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMPDUMPPOL, PVRSRVBridgeSyncPrimPDumpPol,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMOPPDUMPPOL, PVRSRVBridgeSyncPrimOpPDumpPol,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 	SetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_SYNCPRIMPDUMPCBP, PVRSRVBridgeSyncPrimPDumpCBP,
-					NULL, bUseLock);
+					IMG_NULL, IMG_NULL,
+					0, 0);
 
 
 	return PVRSRV_OK;
@@ -1517,7 +1541,7 @@ PVRSRV_ERROR InitSYNCBridge(void)
 /*
  * Unregister all sync functions with services
  */
-PVRSRV_ERROR DeinitSYNCBridge(void)
+PVRSRV_ERROR DeinitSYNCBridge(IMG_VOID)
 {
 	return PVRSRV_OK;
 }

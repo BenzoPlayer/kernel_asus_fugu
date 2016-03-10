@@ -79,9 +79,36 @@ PhysmemNewOSRamBackedPMR(PVRSRV_DEVICE_NODE *psDevNode,
 						 IMG_DEVMEM_SIZE_T uiChunkSize,
 						 IMG_UINT32 ui32NumPhysChunks,
 						 IMG_UINT32 ui32NumVirtChunks,
-						 IMG_UINT32 *pui32MappingTable,
+						 IMG_BOOL *pabMappingTable,
                          IMG_UINT32 uiLog2PageSize,
                          PVRSRV_MEMALLOCFLAGS_T uiFlags,
                          PMR **ppsPMROut);
+
+/*
+ * PhysmemNewTDMetaCodePMR
+ *
+ * This function is used as part of the facility to provide secure META firmware
+ * memory. A default implementation is provided which must be replaced by the SoC
+ * implementor.
+ *
+ * Calling this function will return a PMR for a memory allocation made in "secure
+ * META code memory". It will only be writable by a hypervisor, and when the feature
+ * is enabled on the SoC, the META will only be able to perform instruction reads from
+ * memory that is secured that way.
+ */
+PVRSRV_ERROR
+PhysmemNewTDMetaCodePMR(PVRSRV_DEVICE_NODE *psDevNode,
+                        IMG_DEVMEM_SIZE_T uiSize,
+                        IMG_UINT32 uiLog2PageSize,
+                        PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                        PMR **ppsPMRPtr);
+
+PVRSRV_ERROR
+PhysmemNewTDSecureBufPMR(PVRSRV_DEVICE_NODE *psDevNode,
+                         IMG_DEVMEM_SIZE_T uiSize,
+                         IMG_UINT32 uiLog2PageSize,
+                         PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                         PMR **ppsPMRPtr);
+
 
 #endif /* #ifndef _SRVSRV_PHYSMEM_OSMEM_H_ */

@@ -41,9 +41,6 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
-
-#include <linux/mm_types.h>
-
 #include "img_defs.h"
 #include "pvr_bridge.h"
 #include "connection_server.h"
@@ -52,7 +49,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debugfs.h"
 #include "private_data.h"
 #include "linkage.h"
-#include "pmr.h"
 
 #if defined(SUPPORT_DRM)
 #include <drm/drmP.h>
@@ -66,6 +62,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "srvcore.h"
 #include "common_srvcore_bridge.h"
+#include "cache_defines.h"
 
 #if defined(MODULE_TEST)
 /************************************************************************/
@@ -78,34 +75,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /************************************************************************/
 #endif
 
-/* WARNING!
- * The mmap code has its own mutex, to prevent a possible deadlock,
- * when using gPVRSRVLock.
- * The Linux kernel takes the mm->mmap_sem before calling the mmap
- * entry points (PVRMMap, MMapVOpen, MMapVClose), but the ioctl
- * entry point may take mm->mmap_sem during fault handling, or 
- * before calling get_user_pages.  If gPVRSRVLock was used in the
- * mmap entry points, a deadlock could result, due to the ioctl
- * and mmap code taking the two locks in different orders.
- * As a corollary to this, the mmap entry points must not call
- * any driver code that relies on gPVRSRVLock is held.
- */
-static DEFINE_MUTEX(g_sMMapMutex);
-
 #if defined(DEBUG_BRIDGE_KM)
 static PVR_DEBUGFS_ENTRY_DATA *gpsPVRDebugFSBridgeStatsEntry = NULL;
 static struct seq_operations gsBridgeStatsReadOps;
 #endif
 
 /* These will go when full bridge gen comes in */
-#if defined(PDUMP)
 PVRSRV_ERROR InitPDUMPCTRLBridge(void);
 PVRSRV_ERROR DeinitPDUMPCTRLBridge(void);
-PVRSRV_ERROR InitPDUMPBridge(void);
-PVRSRV_ERROR DeinitPDUMPBridge(void);
-PVRSRV_ERROR InitRGXPDUMPBridge(void);
-PVRSRV_ERROR DeinitRGXPDUMPBridge(void);
-#endif
 #if defined(SUPPORT_DISPLAY_CLASS)
 PVRSRV_ERROR InitDCBridge(void);
 PVRSRV_ERROR DeinitDCBridge(void);
@@ -116,11 +93,12 @@ PVRSRV_ERROR InitCMMBridge(void);
 PVRSRV_ERROR DeinitCMMBridge(void);
 PVRSRV_ERROR InitPDUMPMMBridge(void);
 PVRSRV_ERROR DeinitPDUMPMMBridge(void);
+PVRSRV_ERROR InitPDUMPBridge(void);
+PVRSRV_ERROR DeinitPDUMPBridge(void);
 PVRSRV_ERROR InitSRVCOREBridge(void);
 PVRSRV_ERROR DeinitSRVCOREBridge(void);
 PVRSRV_ERROR InitSYNCBridge(void);
 PVRSRV_ERROR DeinitSYNCBridge(void);
-#if defined(SUPPORT_SERVER_SYNC)
 #if defined(SUPPORT_INSECURE_EXPORT)
 PVRSRV_ERROR InitSYNCEXPORTBridge(void);
 PVRSRV_ERROR DeinitSYNCEXPORTBridge(void);
@@ -129,7 +107,6 @@ PVRSRV_ERROR DeinitSYNCEXPORTBridge(void);
 PVRSRV_ERROR InitSYNCSEXPORTBridge(void);
 PVRSRV_ERROR DeinitSYNCSEXPORTBridge(void);
 #endif
-#endif /* defined(SUPPORT_SERVER_SYNC) */
 #if defined (SUPPORT_RGX)
 PVRSRV_ERROR InitRGXINITBridge(void);
 PVRSRV_ERROR DeinitRGXINITBridge(void);
@@ -143,6 +120,8 @@ PVRSRV_ERROR InitBREAKPOINTBridge(void);
 PVRSRV_ERROR DeinitBREAKPOINTBridge(void);
 PVRSRV_ERROR InitDEBUGMISCBridge(void);
 PVRSRV_ERROR DeinitDEBUGMISCBridge(void);
+PVRSRV_ERROR InitRGXPDUMPBridge(void);
+PVRSRV_ERROR DeinitRGXPDUMPBridge(void);
 PVRSRV_ERROR InitRGXHWPERFBridge(void);
 PVRSRV_ERROR DeinitRGXHWPERFBridge(void);
 #if defined(RGX_FEATURE_RAY_TRACING)
@@ -153,17 +132,15 @@ PVRSRV_ERROR InitREGCONFIGBridge(void);
 PVRSRV_ERROR DeinitREGCONFIGBridge(void);
 PVRSRV_ERROR InitTIMERQUERYBridge(void);
 PVRSRV_ERROR DeinitTIMERQUERYBridge(void);
-PVRSRV_ERROR InitRGXKICKSYNCBridge(void);
-PVRSRV_ERROR DeinitRGXKICKSYNCBridge(void);
 #endif /* SUPPORT_RGX */
+#if (CACHEFLUSH_TYPE == CACHEFLUSH_GENERIC)
 PVRSRV_ERROR InitCACHEGENERICBridge(void);
 PVRSRV_ERROR DeinitCACHEGENERICBridge(void);
+#endif
 #if defined(SUPPORT_SECURE_EXPORT)
 PVRSRV_ERROR InitSMMBridge(void);
 PVRSRV_ERROR DeinitSMMBridge(void);
 #endif
-PVRSRV_ERROR InitHTBUFFERBridge(void);
-PVRSRV_ERROR DeinitHTBUFFERBridge(void);
 PVRSRV_ERROR InitPVRTLBridge(void);
 PVRSRV_ERROR DeinitPVRTLBridge(void);
 #if defined(PVR_RI_DEBUG)
@@ -171,11 +148,13 @@ PVRSRV_ERROR InitRIBridge(void);
 PVRSRV_ERROR DeinitRIBridge(void);
 #endif
 #if defined(SUPPORT_PAGE_FAULT_DEBUG)
-PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(void);
-PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(void);
+PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(IMG_VOID);
+PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(IMG_VOID);
 #endif
+#if defined(SUPPORT_ION)
 PVRSRV_ERROR InitDMABUFBridge(void);
 PVRSRV_ERROR DeinitDMABUFBridge(void);
+#endif
 #if defined(SUPPORT_VALIDATION)
 PVRSRV_ERROR InitVALIDATIONBridge(void);
 #endif
@@ -203,8 +182,6 @@ LinuxBridgeInit(void)
 	}
 #endif
 
-	BridgeDispatchTableStartOffsetsInit();
-
 	eError = InitSRVCOREBridge();
 	if (eError != PVRSRV_OK)
 	{
@@ -217,7 +194,6 @@ LinuxBridgeInit(void)
 		return eError;
 	}
 
-#if defined(SUPPORT_SERVER_SYNC)
 #if defined(SUPPORT_INSECURE_EXPORT)
 	eError = InitSYNCEXPORTBridge();
 	if (eError != PVRSRV_OK)
@@ -232,16 +208,12 @@ LinuxBridgeInit(void)
 		return eError;
 	}
 #endif
-#endif /* defined(SUPPORT_SERVER_SYNC) */
 
-#if defined(PDUMP)
 	eError = InitPDUMPCTRLBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
-
 	eError = InitMMBridge();
 	if (eError != PVRSRV_OK)
 	{
@@ -252,8 +224,6 @@ LinuxBridgeInit(void)
 	{
 		return eError;
 	}
-
-#if defined(PDUMP)
 	eError = InitPDUMPMMBridge();
 	if (eError != PVRSRV_OK)
 	{
@@ -264,13 +234,14 @@ LinuxBridgeInit(void)
 	{
 		return eError;
 	}
-#endif
 
+#if defined(SUPPORT_ION)
 	eError = InitDMABUFBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
+#endif
 
 #if defined(SUPPORT_DISPLAY_CLASS)
 	eError = InitDCBridge();
@@ -280,11 +251,13 @@ LinuxBridgeInit(void)
 	}
 #endif
 
+#if (CACHEFLUSH_TYPE == CACHEFLUSH_GENERIC)
 	eError = InitCACHEGENERICBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
+#endif
 
 #if defined(SUPPORT_SECURE_EXPORT)
 	eError = InitSMMBridge();
@@ -293,12 +266,6 @@ LinuxBridgeInit(void)
 		return eError;
 	}
 #endif
-
-	eError = InitHTBUFFERBridge();
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
 
 	eError = InitPVRTLBridge();
 	if (eError != PVRSRV_OK)
@@ -345,13 +312,11 @@ LinuxBridgeInit(void)
 		return eError;
 	}
 
-#if defined(RGX_FEATURE_COMPUTE)
 	eError = InitRGXCMPBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
 
 	eError = InitRGXINITBridge();
 	if (eError != PVRSRV_OK)
@@ -376,14 +341,12 @@ LinuxBridgeInit(void)
 	{
 		return eError;
 	}
-
-#if defined(PDUMP)
+	
 	eError = InitRGXPDUMPBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
 
 	eError = InitRGXHWPERFBridge();
 	if (eError != PVRSRV_OK)
@@ -411,13 +374,6 @@ LinuxBridgeInit(void)
 		return eError;
 	}
 
-	eError = InitRGXKICKSYNCBridge();
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
-
-
 #endif /* SUPPORT_RGX */
 
 	return eError;
@@ -430,7 +386,8 @@ LinuxBridgeDeInit(void)
 #if defined(DEBUG_BRIDGE_KM)
 	if (gpsPVRDebugFSBridgeStatsEntry != NULL)
 	{
-		PVRDebugFSRemoveEntry(&gpsPVRDebugFSBridgeStatsEntry);
+		PVRDebugFSRemoveEntry(gpsPVRDebugFSBridgeStatsEntry);
+		gpsPVRDebugFSBridgeStatsEntry = NULL;
 	}
 #endif
 
@@ -446,7 +403,6 @@ LinuxBridgeDeInit(void)
 		return eError;
 	}
 
-#if defined(SUPPORT_SERVER_SYNC)
 #if defined(SUPPORT_INSECURE_EXPORT)
 	eError = DeinitSYNCEXPORTBridge();
 	if (eError != PVRSRV_OK)
@@ -461,16 +417,12 @@ LinuxBridgeDeInit(void)
 		return eError;
 	}
 #endif
-#endif /* defined(SUPPORT_SERVER_SYNC) */
 
-#if defined(PDUMP)
 	eError = DeinitPDUMPCTRLBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
-
 	eError = DeinitMMBridge();
 	if (eError != PVRSRV_OK)
 	{
@@ -481,8 +433,6 @@ LinuxBridgeDeInit(void)
 	{
 		return eError;
 	}
-
-#if defined(PDUMP)
 	eError = DeinitPDUMPMMBridge();
 	if (eError != PVRSRV_OK)
 	{
@@ -493,13 +443,14 @@ LinuxBridgeDeInit(void)
 	{
 		return eError;
 	}
-#endif
 
+#if defined(SUPPORT_ION)
 	eError = DeinitDMABUFBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
+#endif
 
 #if defined(PVR_TESTING_UTILS)
 	eError = DeinitTUTILSBridge();
@@ -517,11 +468,13 @@ LinuxBridgeDeInit(void)
 	}
 #endif
 
+#if (CACHEFLUSH_TYPE == CACHEFLUSH_GENERIC)
 	eError = DeinitCACHEGENERICBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
+#endif
 
 #if defined(SUPPORT_SECURE_EXPORT)
 	eError = DeinitSMMBridge();
@@ -530,12 +483,6 @@ LinuxBridgeDeInit(void)
 		return eError;
 	}
 #endif
-
-	eError = DeinitHTBUFFERBridge();
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
 
 	eError = DeinitPVRTLBridge();
 	if (eError != PVRSRV_OK)
@@ -566,13 +513,11 @@ LinuxBridgeDeInit(void)
 		return eError;
 	}
 
-#if defined(RGX_FEATURE_COMPUTE)
 	eError = DeinitRGXCMPBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
 
 	eError = DeinitRGXINITBridge();
 	if (eError != PVRSRV_OK)
@@ -597,14 +542,12 @@ LinuxBridgeDeInit(void)
 	{
 		return eError;
 	}
-
-#if defined(PDUMP)
+	
 	eError = DeinitRGXPDUMPBridge();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;
 	}
-#endif
 
 	eError = DeinitRGXHWPERFBridge();
 	if (eError != PVRSRV_OK)
@@ -631,13 +574,6 @@ LinuxBridgeDeInit(void)
 	{
 		return eError;
 	}
-
-	eError = DeinitRGXKICKSYNCBridge();
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
-
 
 #endif /* SUPPORT_RGX */
 
@@ -689,7 +625,7 @@ static void *BridgeStatsSeqNext(struct seq_file *psSeqFile,
 	}
 
 	/* Now passed the end of the table to indicate stop */
-	return NULL;
+	return IMG_NULL;
 }
 
 static int BridgeStatsSeqShow(struct seq_file *psSeqFile, void *pvData)
@@ -718,7 +654,7 @@ static int BridgeStatsSeqShow(struct seq_file *psSeqFile, void *pvData)
 
 		seq_printf(psSeqFile,
 			   "%3d: %-60s   %-48s   %-10u   %-20u   %-10u\n",
-			   (IMG_UINT32)(((size_t)psEntry-(size_t)g_BridgeDispatchTable)/sizeof(PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY)),
+			   (IMG_UINT32)(((IMG_SIZE_T)psEntry-(IMG_SIZE_T)g_BridgeDispatchTable)/sizeof(PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY)),
 			   psEntry->pszIOCName,
 			   psEntry->pszFunctionName,
 			   psEntry->ui32CallCount,
@@ -744,7 +680,7 @@ int
 PVRSRV_BridgeDispatchKM(struct drm_device unref__ *dev, void *arg, struct drm_file *pDRMFile)
 #else
 long
-PVRSRV_BridgeDispatchKM(struct file *pFile, unsigned int ioctlCmd, unsigned long arg)
+PVRSRV_BridgeDispatchKM(struct file *pFile, unsigned int unref__ ioctlCmd, unsigned long arg)
 #endif
 {
 #if defined(SUPPORT_DRM)
@@ -756,20 +692,15 @@ PVRSRV_BridgeDispatchKM(struct file *pFile, unsigned int ioctlCmd, unsigned long
 	PVRSRV_BRIDGE_PACKAGE *psBridgePackageKM;
 	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pFile);
 
-	if(psConnection == NULL)
+	if(psConnection == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Connection is closed", __FUNCTION__));
 		return -EFAULT;
 	}
 
-	if(OSGetDriverSuspended())
-	{
-		return -EINTR;
-	}
-
 #if defined(SUPPORT_DRM)
 	psBridgePackageKM = (PVRSRV_BRIDGE_PACKAGE *)arg;
-	PVR_ASSERT(psBridgePackageKM != NULL);
+	PVR_ASSERT(psBridgePackageKM != IMG_NULL);
 #else
 
 	psBridgePackageKM = &sBridgePackageKM;
@@ -784,21 +715,16 @@ PVRSRV_BridgeDispatchKM(struct file *pFile, unsigned int ioctlCmd, unsigned long
 		return -EFAULT;
 	}
 	
-	if (OSCopyFromUser(NULL,
+	/* FIXME - Currently the CopyFromUserWrapper which collects stats about
+	 * how much data is shifted to/from userspace isn't available to us
+	 * here. */
+	if (OSCopyFromUser(IMG_NULL,
 					  psBridgePackageKM,
 					  psBridgePackageUM,
 					  sizeof(PVRSRV_BRIDGE_PACKAGE))
 	  != PVRSRV_OK)
 	{
 		return -EFAULT;
-	}
-
-	if (PVRSRV_GET_BRIDGE_ID(ioctlCmd) != psBridgePackageKM->ui32BridgeID ||
-	    psBridgePackageKM->ui32Size != sizeof(PVRSRV_BRIDGE_PACKAGE))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Inconsistent data passed from user space",
-				__FUNCTION__));
-		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 #endif
 
@@ -826,8 +752,8 @@ int
 long
 #endif
 PVRSRV_BridgeCompatDispatchKM(struct file *pFile,
-                              unsigned int ioctlCmd,
-                              unsigned long arg)
+			      unsigned int unref__ ioctlCmd,
+			      unsigned long arg)
 {
 	struct bridge_package_from_32
 	{
@@ -845,19 +771,14 @@ PVRSRV_BridgeCompatDispatchKM(struct file *pFile,
  	struct bridge_package_from_32 * const params_addr = &params;
 	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pFile);
 
-	if(psConnection == NULL)
+	if(psConnection == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Connection is closed", __FUNCTION__));
 		return -EFAULT;
 	}
 
-	if(OSGetDriverSuspended())
-	{
-		return -EINTR;
-	}
-
 	/* make sure there is no padding inserted by compiler */
-	BUILD_BUG_ON(sizeof(struct bridge_package_from_32) != 7 * sizeof(IMG_UINT32));
+	PVR_ASSERT(sizeof(struct bridge_package_from_32) == 7 * sizeof(IMG_UINT32));
 
 	if(!OSAccessOK(PVR_VERIFY_READ, (void *) arg,
 				   sizeof(struct bridge_package_from_32)))
@@ -875,17 +796,7 @@ PVRSRV_BridgeCompatDispatchKM(struct file *pFile,
 		return -EFAULT;
 	}
 
-#if defined(SUPPORT_DRM)
-	if (params_addr->size != sizeof(struct bridge_package_from_32))
-#else
-	if (PVRSRV_GET_BRIDGE_ID(ioctlCmd) != PVRSRV_GET_BRIDGE_ID(params_addr->bridge_id) ||
-	    params_addr->size != sizeof(struct bridge_package_from_32))
-#endif
-	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Inconsistent data passed from user space",
-		        __FUNCTION__));
-		return PVRSRV_ERROR_INVALID_PARAMS;
-	}
+	PVR_ASSERT(params_addr->size == sizeof(struct bridge_package_from_32));
 
 	params_for_64.ui32BridgeID = PVRSRV_GET_BRIDGE_ID(params_addr->bridge_id);
 	params_for_64.ui32FunctionID = params_addr->function_id;
@@ -898,62 +809,3 @@ PVRSRV_BridgeCompatDispatchKM(struct file *pFile,
 	return BridgedDispatchKM(psConnection, &params_for_64);
 }
 #endif /* defined(CONFIG_COMPAT) */
-
-int
-PVRSRV_MMap(struct file *pFile, struct vm_area_struct *ps_vma)
-{
-	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pFile);
-	IMG_HANDLE hSecurePMRHandle = (IMG_HANDLE)((uintptr_t)ps_vma->vm_pgoff);
-	PMR *psPMR;
-	PVRSRV_ERROR eError;
-
-	if(psConnection == NULL)
-	{
-		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
-		return -ENOENT;
-	}
-
-	/*
-	 * The bridge lock used here to protect PVRSRVLookupHandle is replaced
-	 * by a specific lock considering that the handle functions have now
-	 * their own lock. This change was necessary to solve the lockdep issues
-	 * related with the PVRSRV_MMap.
-	 */
-	mutex_lock(&g_sMMapMutex);
-	PMRLock();
-
-	eError = PVRSRVLookupHandle(psConnection->psHandleBase,
-								(void **)&psPMR,
-								hSecurePMRHandle,
-								PVRSRV_HANDLE_TYPE_PHYSMEM_PMR);
-	if (eError != PVRSRV_OK)
-	{
-		goto e0;
-	}
-
-	/* Note: PMRMMapPMR will take a reference on the PMR */
-	eError = PMRMMapPMR(psPMR, ps_vma);
-	if (eError != PVRSRV_OK)
-	{
-		goto e1;
-	}
-
-	PMRUnlock();
-	mutex_unlock(&g_sMMapMutex);
-
-	return 0;
-
-e1:
-	PMRUnrefPMR(psPMR);
-	goto em1;
-e0:
-	PVR_DPF((PVR_DBG_ERROR, "Error in mmap critical section"));
-	PMRUnlock();
-em1:
-	mutex_unlock(&g_sMMapMutex);
-
-	PVR_DPF((PVR_DBG_ERROR, "Unable to translate error %d", eError));
-	PVR_ASSERT(eError != PVRSRV_OK);
-
-	return -ENOENT; // -EAGAIN // or what?
-}

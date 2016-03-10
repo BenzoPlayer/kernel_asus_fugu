@@ -127,8 +127,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgePMRPDumpSaveToFile(IMG_HANDLE hBrid
 								IMG_DEVMEM_OFFSET_T uiOffset,
 								IMG_DEVMEM_SIZE_T uiSize,
 								IMG_UINT32 ui32ArraySize,
-								const IMG_CHAR *puiFileName,
-								IMG_UINT32 ui32uiFileOffset)
+								const IMG_CHAR *puiFileName)
 {
 	PVRSRV_ERROR eError;
 	PMR * psPMRInt;
@@ -142,8 +141,7 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgePMRPDumpSaveToFile(IMG_HANDLE hBrid
 					uiOffset,
 					uiSize,
 					ui32ArraySize,
-					puiFileName,
-					ui32uiFileOffset);
+					puiFileName);
 
 	return eError;
 }

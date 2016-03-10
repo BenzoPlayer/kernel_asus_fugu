@@ -41,10 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <linux/pci.h>
 #include <linux/version.h>
-
-#if defined(CONFIG_MTRR)
 #include <asm/mtrr.h>
-#endif
 
 #include "pci_support.h"
 #include "allocmem.h"
@@ -63,17 +60,17 @@ typedef	struct _PVR_PCI_DEV_TAG
 @Input          eFlags                  Flags
 @Return		PVRSRV_PCI_DEV_HANDLE   Pointer to PCI device handle
 */ /**************************************************************************/
-PVRSRV_PCI_DEV_HANDLE OSPCISetDev(void *pvPCICookie, HOST_PCI_INIT_FLAGS eFlags)
+PVRSRV_PCI_DEV_HANDLE OSPCISetDev(IMG_VOID *pvPCICookie, HOST_PCI_INIT_FLAGS eFlags)
 {
 	int err;
 	IMG_UINT32 i;
 	PVR_PCI_DEV *psPVRPCI;
 
 	psPVRPCI = OSAllocMem(sizeof(*psPVRPCI));
-	if (psPVRPCI == NULL)
+	if (psPVRPCI == IMG_NULL)
 	{
 		printk(KERN_ERR "OSPCISetDev: Couldn't allocate PVR PCI structure\n");
-		return NULL;
+		return IMG_NULL;
 	}
 
 	psPVRPCI->psPCIDev = (struct pci_dev *)pvPCICookie;
@@ -84,7 +81,7 @@ PVRSRV_PCI_DEV_HANDLE OSPCISetDev(void *pvPCICookie, HOST_PCI_INIT_FLAGS eFlags)
 	{
 		printk(KERN_ERR "OSPCISetDev: Couldn't enable device (%d)\n", err);
 		OSFreeMem(psPVRPCI);
-		return NULL;
+		return IMG_NULL;
 	}
 
 	if (psPVRPCI->ePCIFlags & HOST_PCI_INIT_FLAG_BUS_MASTER)	/* PRQA S 3358 */ /* misuse of enums */
@@ -132,10 +129,10 @@ PVRSRV_PCI_DEV_HANDLE OSPCIAcquireDev(IMG_UINT16 ui16VendorID,
 	psPCIDev = pci_get_device(ui16VendorID, ui16DeviceID, NULL);
 	if (psPCIDev == NULL)
 	{
-		return NULL;
+		return IMG_NULL;
 	}
 
-	return OSPCISetDev((void *)psPCIDev, eFlags);
+	return OSPCISetDev((IMG_VOID *)psPCIDev, eFlags);
 }
 
 /*************************************************************************/ /*!
@@ -150,7 +147,7 @@ PVRSRV_ERROR OSPCIDevID(PVRSRV_PCI_DEV_HANDLE hPVRPCI, IMG_UINT16 *pui16DeviceID
 {
 	PVR_PCI_DEV *psPVRPCI = (PVR_PCI_DEV *)hPVRPCI;
 
-	if (pui16DeviceID == NULL)
+	if (pui16DeviceID == IMG_NULL)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
@@ -172,7 +169,7 @@ PVRSRV_ERROR OSPCIIRQ(PVRSRV_PCI_DEV_HANDLE hPVRPCI, IMG_UINT32 *pui32IRQ)
 {
 	PVR_PCI_DEV *psPVRPCI = (PVR_PCI_DEV *)hPVRPCI;
 
-	if (pui32IRQ == NULL)
+	if (pui32IRQ == IMG_NULL)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
@@ -457,7 +454,7 @@ PVRSRV_ERROR OSPCIReleaseDev(PVRSRV_PCI_DEV_HANDLE hPVRPCI)
 
 	pci_disable_device(psPVRPCI->psPCIDev);
 
-	OSFreeMem((void *)psPVRPCI);
+	OSFreeMem((IMG_VOID *)psPVRPCI);
 	/*not nulling pointer, copy on stack*/
 
 	return PVRSRV_OK;
@@ -576,8 +573,6 @@ PVRSRV_ERROR OSPCIResumeDev(PVRSRV_PCI_DEV_HANDLE hPVRPCI)
 	return PVRSRV_OK;
 }
 
-#if defined(CONFIG_MTRR)
-
 /*************************************************************************/ /*!
 @Function       OSPCIClearResourceMTRRs
 @Description    Clear any BIOS-configured MTRRs for a PCI memory region
@@ -593,14 +588,6 @@ PVRSRV_ERROR OSPCIClearResourceMTRRs(PVRSRV_PCI_DEV_HANDLE hPVRPCI, IMG_UINT32 u
 
 	start = pci_resource_start(psPVRPCI->psPCIDev, ui32Index);
 	end = pci_resource_end(psPVRPCI->psPCIDev, ui32Index) + 1;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-	err = arch_phys_wc_add(start, end - start);
-	if (err < 0)
-	{
-		return PVRSRV_ERROR_PCI_CALL_FAILED;
-	}
-#else
 
 	err = mtrr_add(start, end - start, MTRR_TYPE_UNCACHABLE, 0);
 	if (err < 0)
@@ -666,9 +653,6 @@ PVRSRV_ERROR OSPCIClearResourceMTRRs(PVRSRV_PCI_DEV_HANDLE hPVRPCI, IMG_UINT32 u
 			}
 		}
 	}
-#endif
 
 	return PVRSRV_OK;
 }
-
-#endif /* defined(CONFIG_MTRR) */

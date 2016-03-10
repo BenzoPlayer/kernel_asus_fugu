@@ -86,7 +86,7 @@ _IORemapWrapper(IMG_CPU_PHYADDR BasePAddr,
 #endif
 				break;
 		default:
-				return NULL;
+				return IMG_NULL;
 				break;
 	}
 

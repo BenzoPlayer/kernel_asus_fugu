@@ -51,7 +51,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "connection_server.h"
 #include "rgx_fwif_shared.h"
 #include "rgxdebug.h"
-#include "rgxdefs_km.h"
 
 #define MAX_CLIENT_CCB_NAME	30
 
@@ -88,9 +87,9 @@ typedef struct _RGX_CCB_CMD_HELPER_DATA_ {
 	IMG_UINT32				ui32UnfencedUpdateCmdSize;
 
 	/* timestamp commands */
-	PRGXFWIF_TIMESTAMP_ADDR pPreTimestampAddr;
+	RGXFWIF_DEV_VIRTADDR    pPreTimestamp;
 	IMG_UINT32              ui32PreTimeStampCmdSize;
-	PRGXFWIF_TIMESTAMP_ADDR pPostTimestampAddr;
+	RGXFWIF_DEV_VIRTADDR    pPostTimestamp;
 	IMG_UINT32              ui32PostTimeStampCmdSize;
 	PRGXFWIF_UFO_ADDR       pRMWUFOAddr;
 	IMG_UINT32              ui32RMWUFOCmdSize;
@@ -104,89 +103,29 @@ typedef struct _RGX_CCB_CMD_HELPER_DATA_ {
 	IMG_UINT32				ui32ServerUpdateCount;
 	IMG_UINT32				ui32ServerUnfencedUpdateCount;
 
-	/* Job reference fields */
-	IMG_UINT32				ui32ExtJobRef;
-	IMG_UINT32				ui32IntJobRef;
 } RGX_CCB_CMD_HELPER_DATA;
 
 #define PADDING_COMMAND_SIZE	(sizeof(RGXFWIF_CCB_CMD_HEADER))
 
-PVRSRV_ERROR RGXCCBPDumpDrainCCB(RGX_CLIENT_CCB *psClientCCB,
-					IMG_UINT32 ui32PDumpContinuous);
-
-#define RGX_CCB_REQUESTORS(TYPE) \
-	/* for debugging purposes */ TYPE(UNDEF)	\
-	TYPE(TA)	\
-	TYPE(3D)	\
-	TYPE(CDM)	\
-	TYPE(SH)	\
-	TYPE(RS)	\
-	TYPE(TQ_3D)	\
-	TYPE(TQ_2D)	\
-	TYPE(KICKSYNC)	\
-	/* Only used for validating the number of entries in this list */ TYPE(FIXED_COUNT)	\
-	TYPE(FC0)	\
-	TYPE(FC1)	\
-	TYPE(FC2)	\
-	TYPE(FC3)	\
-
-/* Forms an enum constant for each type present in RGX_CCB_REQUESTORS list. The enum is mainly used as
-   an index to the aszCCBRequestors table defined in rgxccb.c. The total number of enums must adhere
-   to the following build assert.
-*/
-typedef enum _RGX_CCB_REQUESTOR_TYPE_
-{
-#define CONSTRUCT_ENUM(req) REQ_TYPE_##req,
-	RGX_CCB_REQUESTORS (CONSTRUCT_ENUM)
-#undef CONSTRUCT_ENUM
-	
-	/* should always be at the end */
-	REQ_TYPE_TOTAL_COUNT,
-} RGX_CCB_REQUESTOR_TYPE;
-
-/*	The number of enum constants in the above table is always equal to those provided in the RGX_CCB_REQUESTORS X macro list.
-	In an event of change in value of DPX_MAX_RAY_CONTEXTS to say 'n', appropriate entry/entries upto FC[n-1] must be added to
-	the RGX_CCB_REQUESTORS list.
-*/
-static_assert(REQ_TYPE_TOTAL_COUNT == REQ_TYPE_FIXED_COUNT + DPX_MAX_RAY_CONTEXTS + 1,
-			  "Mismatch between DPX_MAX_RAY_CONTEXTS and RGX_CCB_REQUESTOR_TYPE enum");
-
-/* Tuple describing the columns of the following table */
-typedef enum _RGX_CCB_REQUESTOR_TUPLE_
-{
-	REQ_RGX_FW_CLIENT_CCB_STRING,          /* Index to comment to be dumped in DevMemAllocs when allocating FirmwareClientCCB for this requestor */
-	REQ_RGX_FW_CLIENT_CCB_CONTROL_STRING,  /* Index to comment to be dumped in DevMemAllocs when allocating FirmwareClientCCBControl for this requestor */
-	REQ_PDUMP_COMMENT,                     /* Index to comment to be dumped in PDUMPs */
-
-	/* should always be at the end */
-	REQ_TUPLE_CARDINALITY,
-} RGX_CCB_REQUESTOR_TUPLE;
-
-/*	Table containing an array of strings for each requestor type in the list of RGX_CCB_REQUESTORS.	In addition to its use in
-	this module (rgxccb.c), this table is also used to access string to be dumped in PDUMP comments, hence, marking it extern for
-	use in other modules.
-*/
-extern IMG_PCHAR aszCCBRequestors[][REQ_TUPLE_CARDINALITY]; 
-
-PVRSRV_ERROR RGXCreateCCB(PVRSRV_RGXDEV_INFO	*psDevInfo,
+PVRSRV_ERROR RGXCreateCCB(PVRSRV_DEVICE_NODE	*psDeviceNode,
 						  IMG_UINT32			ui32CCBSizeLog2,
 						  CONNECTION_DATA		*psConnectionData,
-						  RGX_CCB_REQUESTOR_TYPE	eCCBRequestor,
+						  const IMG_CHAR		*pszName,
 						  RGX_SERVER_COMMON_CONTEXT *psServerCommonContext,
 						  RGX_CLIENT_CCB		**ppsClientCCB,
 						  DEVMEM_MEMDESC 		**ppsClientCCBMemDesc,
 						  DEVMEM_MEMDESC 		**ppsClientCCBCtlMemDesc);
 
-void RGXDestroyCCB(RGX_CLIENT_CCB *psClientCCB);
+IMG_VOID RGXDestroyCCB(RGX_CLIENT_CCB *psClientCCB);
 
 PVRSRV_ERROR RGXAcquireCCB(RGX_CLIENT_CCB *psClientCCB,
 										IMG_UINT32		ui32CmdSize,
-										void			**ppvBufferSpace,
+										IMG_PVOID		*ppvBufferSpace,
 										IMG_BOOL		bPDumpContinuous);
 
-IMG_INTERNAL void RGXReleaseCCB(RGX_CLIENT_CCB *psClientCCB,
-								IMG_UINT32		ui32CmdSize,
-								IMG_BOOL		bPDumpContinuous);
+IMG_INTERNAL IMG_VOID RGXReleaseCCB(RGX_CLIENT_CCB *psClientCCB,
+									IMG_UINT32		ui32CmdSize,
+									IMG_BOOL		bPDumpContinuous);
 
 IMG_UINT32 RGXGetHostWriteOffsetCCB(RGX_CLIENT_CCB *psClientCCB);
 
@@ -202,31 +141,27 @@ PVRSRV_ERROR RGXCmdHelperInitCmdCCB(RGX_CLIENT_CCB          *psClientCCB,
                                     SERVER_SYNC_PRIMITIVE   **pasServerSyncs,
                                     IMG_UINT32              ui32CmdSize,
                                     IMG_UINT8               *pui8DMCmd,
-                                    PRGXFWIF_TIMESTAMP_ADDR *ppPreAddr,
-                                    PRGXFWIF_TIMESTAMP_ADDR *ppPostAddr,
+                                    RGXFWIF_DEV_VIRTADDR    *ppPreTimestamp,
+                                    RGXFWIF_DEV_VIRTADDR    *ppPostTimestamp,
                                     RGXFWIF_DEV_VIRTADDR    *ppRMWUFOAddr,
                                     RGXFWIF_CCB_CMD_TYPE    eType,
-                                    IMG_UINT32              ui32ExtJobRef,
-                                    IMG_UINT32              ui32IntJobRef,
                                     IMG_BOOL                bPDumpContinuous,
                                     IMG_CHAR                *pszCommandName,
                                     RGX_CCB_CMD_HELPER_DATA *psCmdHelperData);
 
 PVRSRV_ERROR RGXCmdHelperAcquireCmdCCB(IMG_UINT32 ui32CmdCount,
-									   RGX_CCB_CMD_HELPER_DATA *asCmdHelperData);
+									   RGX_CCB_CMD_HELPER_DATA *asCmdHelperData,
+									   IMG_BOOL *pbKickRequired);
 
-void RGXCmdHelperReleaseCmdCCB(IMG_UINT32 ui32CmdCount,
-							   RGX_CCB_CMD_HELPER_DATA *asCmdHelperData,
-							   const IMG_CHAR *pcszDMName,
-							   IMG_UINT32 ui32CtxAddr);
+IMG_VOID RGXCmdHelperReleaseCmdCCB(IMG_UINT32 ui32CmdCount,
+								   RGX_CCB_CMD_HELPER_DATA *asCmdHelperData,
+								   const IMG_CHAR *pcszDMName,
+								   IMG_UINT32 ui32CtxAddr);
 
 IMG_UINT32 RGXCmdHelperGetCommandSize(IMG_UINT32 ui32CmdCount,
 								   RGX_CCB_CMD_HELPER_DATA *asCmdHelperData);
 
-void DumpStalledCCBCommand(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext, RGX_CLIENT_CCB  *psCurrentClientCCB, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
-#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING) || defined(PVRSRV_ENABLE_FULL_CCB_DUMP)
-void DumpCCB(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext, RGX_CLIENT_CCB  *psCurrentClientCCB, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
-#endif
+IMG_VOID DumpStalledCCBCommand(PRGXFWIF_FWCOMMONCONTEXT sFWCommonContext, RGX_CLIENT_CCB  *psCurrentClientCCB, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
 PVRSRV_ERROR CheckForStalledCCB(RGX_CLIENT_CCB  *psCurrentClientCCB);
 #endif /* __RGXCCB_H__ */

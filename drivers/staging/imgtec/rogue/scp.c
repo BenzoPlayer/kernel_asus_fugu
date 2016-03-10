@@ -50,8 +50,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "osfunc.h"
 #include "lock.h"
 #include "sync_server.h"
-#include "sync_internal.h"
-#include "rgxhwperf.h"
 
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 
@@ -67,7 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static PVRSRV_ERROR AllocReleaseFence(struct sw_sync_timeline *psTimeline, const char *szName, IMG_UINT32 ui32FenceVal, int *piFenceFd)
 {
-	struct sync_fence *psFence = NULL;
+	struct sync_fence *psFence = IMG_NULL;
 	struct sync_pt *psPt;
 	int iFd = get_unused_fd();
 	PVRSRV_ERROR eError = PVRSRV_OK;
@@ -111,7 +109,7 @@ ErrorPutFd:
 
 struct _SCP_CONTEXT_
 {
-	void				*pvCCB;	            /*!< Pointer to the command circler buffer*/
+	IMG_VOID			*pvCCB;	            /*!< Pointer to the command circler buffer*/
 	volatile IMG_UINT32	ui32DepOffset;      /*!< Dependency offset  */
 	volatile IMG_UINT32	ui32ReadOffset;     /*!< Read offset */
 	volatile IMG_UINT32	ui32WriteOffset;    /*!< Write offset */
@@ -119,7 +117,7 @@ struct _SCP_CONTEXT_
 	IMG_UINT32			psSyncRequesterID;	/*!< Sync requester ID, used when taking sync operations */
 	POS_LOCK			hLock;				/*!< Lock for this structure */
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
-	void                *pvTimeline;
+	IMG_VOID            *pvTimeline;
 	IMG_UINT32          ui32TimelineVal;
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
 };
@@ -150,8 +148,8 @@ typedef struct _SCP_COMMAND_
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
 	SCPReady				pfnReady;           /*!< Pointer to the funtion to check if the command is ready */
 	SCPDo					pfnDo;           	/*!< Pointer to the funtion to call when the command is ready to go */
-	void					*pvReadyData;        /*!< Data to pass into pfnReady */
-	void					*pvCompleteData;     /*!< Data to pass into pfnComplete */
+	IMG_PVOID				pvReadyData;        /*!< Data to pass into pfnReady */
+	IMG_PVOID				pvCompleteData;     /*!< Data to pass into pfnComplete */
 } SCP_COMMAND;
 
 #define GET_CCB_SPACE(WOff, ROff, CCBSize) \
@@ -193,7 +191,7 @@ typedef struct _SCP_COMMAND_
 static
 PVRSRV_ERROR __SCPAlloc(SCP_CONTEXT *psContext,
 						IMG_UINT32 ui32Size,
-						void **ppvBufferSpace)
+						IMG_PVOID *ppvBufferSpace)
 {
 	IMG_UINT32 ui32FreeSpace;
 
@@ -202,7 +200,7 @@ PVRSRV_ERROR __SCPAlloc(SCP_CONTEXT *psContext,
 								  psContext->ui32CCBSize);
 	if (ui32FreeSpace >= ui32Size)
 	{
-		*ppvBufferSpace = (void *)((IMG_UINT8 *)psContext->pvCCB +
+		*ppvBufferSpace = (IMG_PVOID)((IMG_UINT8 *)psContext->pvCCB +
 		                  psContext->ui32WriteOffset);
 		return PVRSRV_OK;
 	}
@@ -230,7 +228,7 @@ PVRSRV_ERROR __SCPAlloc(SCP_CONTEXT *psContext,
 static
 PVRSRV_ERROR _SCPAlloc(SCP_CONTEXT *psContext,
 					   IMG_UINT32 ui32Size,
-					   void **ppvBufferSpace)
+					   IMG_PVOID *ppvBufferSpace)
 {
 	if ((ui32Size + PADDING_COMMAND_SIZE) > psContext->ui32CCBSize)
 	{
@@ -245,7 +243,7 @@ PVRSRV_ERROR _SCPAlloc(SCP_CONTEXT *psContext,
 	if ((psContext->ui32WriteOffset + ui32Size + PADDING_COMMAND_SIZE) > psContext->ui32CCBSize)
 	{
 		SCP_COMMAND *psCommand;
-		void *pvCommand;
+		IMG_PVOID pvCommand;
 		PVRSRV_ERROR eError;
 		IMG_UINT32 ui32Remain = psContext->ui32CCBSize - psContext->ui32WriteOffset;
 
@@ -281,8 +279,8 @@ PVRSRV_ERROR _SCPAlloc(SCP_CONTEXT *psContext,
 */
 /*****************************************************************************/
 static
-void _SCPInsert(SCP_CONTEXT *psContext,
-				IMG_UINT32 ui32Size)
+IMG_VOID _SCPInsert(SCP_CONTEXT *psContext,
+					IMG_UINT32 ui32Size)
 {
 	/*
 	 * Update the write offset.
@@ -301,7 +299,7 @@ static void _SCPDumpFence(const char *psczName, struct sync_fence *psFence)
 	char szVal1[64]  = { '\0' };
 	char szVal2[64]  = { '\0' };
 	char szVal3[132] = { '\0' };
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
+	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = IMG_NULL;
 
 	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
 
@@ -372,7 +370,7 @@ PVRSRV_ERROR _SCPCommandReady(SCP_COMMAND *psCommand)
 
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 	/* Check for the provided acquire fence */
-	if (psCommand->psAcquireFence != NULL)
+	if (psCommand->psAcquireFence != IMG_NULL)
 	{
 		int err = sync_fence_wait(psCommand->psAcquireFence, 0);
 		/* -ETIME means active. In this case we will retry later again. If the
@@ -392,7 +390,7 @@ PVRSRV_ERROR _SCPCommandReady(SCP_COMMAND *psCommand)
 			}
 			/* Put the fence. */
 			sync_fence_put(psCommand->psAcquireFence);
-			psCommand->psAcquireFence = NULL;
+			psCommand->psAcquireFence = IMG_NULL;
 		}
 	}
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
@@ -421,7 +419,7 @@ PVRSRV_ERROR _SCPCommandReady(SCP_COMMAND *psCommand)
 */
 /*****************************************************************************/
 static
-void _SCPCommandDo(SCP_COMMAND *psCommand)
+IMG_VOID _SCPCommandDo(SCP_COMMAND *psCommand)
 {
 	if (psCommand->ui32CmdType == SCP_COMMAND_CALLBACK)
 	{
@@ -439,10 +437,10 @@ void _SCPCommandDo(SCP_COMMAND *psCommand)
 @Return         None
 */
 /*****************************************************************************/
-static void _SCPDumpCommand(SCP_COMMAND *psCommand)
+static IMG_VOID _SCPDumpCommand(SCP_COMMAND *psCommand)
 {
 	IMG_UINT32 i;
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
+	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = IMG_NULL;
 
 	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
 
@@ -454,15 +452,15 @@ static void _SCPDumpCommand(SCP_COMMAND *psCommand)
 		{
 			SCP_SYNC_DATA *psSCPSyncData = &psCommand->pasSCPSyncData[i];
 
-			PVR_ASSERT(psCommand->pasSCPSyncData != NULL);
-			PVR_ASSERT(psSCPSyncData != NULL);
+			PVR_ASSERT(psCommand->pasSCPSyncData != IMG_NULL);
+			PVR_ASSERT(psSCPSyncData != IMG_NULL);
 
 			/*
 				Only dump this sync if there is a fence operation on it
 			*/
 			if (psSCPSyncData->ui32Flags & SCP_SYNC_DATA_FENCE)
 			{
-				PVR_ASSERT(psSCPSyncData->psSync != NULL);
+				PVR_ASSERT(psSCPSyncData->psSync != IMG_NULL);
 				PVR_DUMPDEBUG_LOG(("\t\tFenced on 0x%08x = 0x%08x (?= 0x%08x)",
 						ServerSyncGetFWAddr(psSCPSyncData->psSync),
 						psSCPSyncData->ui32Fence,
@@ -499,7 +497,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPCreate(IMG_UINT32 ui32CCBSizeLog2,
 
 	/* allocate an internal queue info structure */
 	psContext = OSAllocMem(sizeof(SCP_CONTEXT));
-	if (psContext == NULL)
+	if (psContext == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"SCPCreate: Failed to alloc queue struct"));
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -509,7 +507,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPCreate(IMG_UINT32 ui32CCBSizeLog2,
 
 	/* allocate the command queue buffer - allow for overrun */
 	psContext->pvCCB = OSAllocMem(ui32Power2QueueSize);
-	if (psContext->pvCCB == NULL)
+	if (psContext->pvCCB == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"SCPCreate: Failed to alloc queue buffer"));
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -536,7 +534,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPCreate(IMG_UINT32 ui32CCBSizeLog2,
 
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 	psContext->pvTimeline = sw_sync_timeline_create("pvr_scp");
-	if(psContext->pvTimeline == NULL)
+	if(psContext->pvTimeline == IMG_NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"SCPCreate: sw_sync_timeline_create() failed"));
 		goto ErrorExit;
@@ -557,7 +555,7 @@ ErrorExit:
 		if(psContext->pvCCB)
 		{
 			OSFreeMem(psContext->pvCCB);
-			psContext->pvCCB = NULL;
+			psContext->pvCCB = IMG_NULL;
 		}
 
 		OSFreeMem(psContext);
@@ -577,10 +575,10 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psContext,
 										  IMG_INT32 i32AcquireFenceFd,
 										  SCPReady pfnCommandReady,
 										  SCPDo pfnCommandDo,
-										  size_t ui32ReadyDataByteSize,
-										  size_t ui32CompleteDataByteSize,
-										  void **ppvReadyData,
-										  void **ppvCompleteData,
+										  IMG_SIZE_T ui32ReadyDataByteSize,
+										  IMG_SIZE_T ui32CompleteDataByteSize,
+										  IMG_PVOID *ppvReadyData,
+										  IMG_PVOID *ppvCompleteData,
 										  IMG_INT32 *pi32ReleaseFenceFd)
 {
 	PVRSRV_ERROR eError;
@@ -590,8 +588,8 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psContext,
 	IMG_UINT32 i;
 
 	/* Round up the incoming data sizes to be pointer granular */
-	ui32ReadyDataByteSize = (ui32ReadyDataByteSize & (~(sizeof(void *)-1))) + sizeof(void *);
-	ui32CompleteDataByteSize = (ui32CompleteDataByteSize & (~(sizeof(void *)-1))) + sizeof(void *);
+	ui32ReadyDataByteSize = (ui32ReadyDataByteSize & (~(sizeof(IMG_PVOID)-1))) + sizeof(IMG_PVOID);
+	ui32CompleteDataByteSize = (ui32CompleteDataByteSize & (~(sizeof(IMG_PVOID)-1))) + sizeof(IMG_PVOID);
 
 	ui32SyncOpSize = (sizeof(PVRSRV_CLIENT_SYNC_PRIM_OP) * ui32SyncPrimCount);
 
@@ -601,7 +599,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psContext,
 					  ui32ReadyDataByteSize +
 					  ui32CompleteDataByteSize;
 
-	eError = _SCPAlloc(psContext, ui32CommandSize, (void **) &psCommand);
+	eError = _SCPAlloc(psContext, ui32CommandSize, (IMG_VOID **) &psCommand);
 	if(eError != PVRSRV_OK)
 	{
 		SCP_DEBUG_PRINT("%s: Failed to allocate command of size %d for ctx %p (%d)", __FUNCTION__, ui32CommandSize, psContext, eError);
@@ -683,7 +681,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psContext,
 	}
 	else
 	{
-		psCommand->psAcquireFence = NULL;
+		psCommand->psAcquireFence = IMG_NULL;
 	}
 
 	if (pi32ReleaseFenceFd)
@@ -692,7 +690,7 @@ PVRSRV_ERROR IMG_CALLCONV SCPAllocCommand(SCP_CONTEXT *psContext,
 	}
 	else
 	{
-		psCommand->psReleaseFence = NULL;
+		psCommand->psReleaseFence = IMG_NULL;
 	}
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
 
@@ -710,7 +708,7 @@ PVRSRV_ERROR SCPSubmitCommand(SCP_CONTEXT *psContext)
 {
 	SCP_COMMAND *psCommand;
 
-	if (psContext == NULL)
+	if (psContext == IMG_NULL)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
@@ -736,7 +734,7 @@ PVRSRV_ERROR SCPRun(SCP_CONTEXT *psContext)
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
 
-	if (psContext == NULL)
+	if (psContext == IMG_NULL)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
@@ -785,21 +783,17 @@ PVRSRV_ERROR SCPFlush(SCP_CONTEXT *psContext)
 	return PVRSRV_OK;
 }
 
-/* This looks like a reasonable value. Number of traced syncs should
- * not exceed 20. */
-#define MAX_TRACED_UFOS 20
-
 /*
 	SCPCommandComplete
 */
 IMG_EXPORT
-void SCPCommandComplete(SCP_CONTEXT *psContext)
+IMG_VOID SCPCommandComplete(SCP_CONTEXT *psContext)
 {
 	SCP_COMMAND *psCommand;
 	IMG_UINT32 i;
 	IMG_BOOL bContinue = IMG_TRUE;
 
-	if (psContext == NULL)
+	if (psContext == IMG_NULL)
 	{
 		return;
 	}
@@ -817,23 +811,12 @@ void SCPCommandComplete(SCP_CONTEXT *psContext)
 
 		if (psCommand->ui32CmdType == SCP_COMMAND_CALLBACK)
 		{
-			IMG_UINT32 ui32UFOIdx = 0;
-			RGX_HWPERF_UFO_DATA_ELEMENT asSyncData[MAX_TRACED_UFOS];
 			/* Do any fence updates */
 			for (i=0;i<psCommand->ui32SyncCount;i++)
 			{
 				SCP_SYNC_DATA *psSCPSyncData = &psCommand->pasSCPSyncData[i];
 				IMG_BOOL bUpdate = (psSCPSyncData->ui32Flags & SCP_SYNC_DATA_UPDATE);
-
-				if (bUpdate)
-				{
-					PVR_ASSERT(ui32UFOIdx < MAX_TRACED_UFOS);
-					asSyncData[ui32UFOIdx].sUpdate.ui32FWAddr = ServerSyncGetFWAddr(psSCPSyncData->psSync);
-					asSyncData[ui32UFOIdx].sUpdate.ui32OldValue = ServerSyncGetValue(psSCPSyncData->psSync);
-					asSyncData[ui32UFOIdx].sUpdate.ui32NewValue = psSCPSyncData->ui32Update;
-					ui32UFOIdx++;
-				}
-
+	
 				ServerSyncCompleteOp(psSCPSyncData->psSync, bUpdate, psSCPSyncData->ui32Update);
 
 				if (bUpdate)
@@ -842,10 +825,6 @@ void SCPCommandComplete(SCP_CONTEXT *psContext)
 					psSCPSyncData->psSync = NULL; /* Clear psSync as it is no longer referenced. */
 				}
 			}
-			if (ui32UFOIdx > 0)
-			{
-				RGX_HWPERF_HOST_UFO(RGX_HWPERF_UFO_EV_UPDATE, asSyncData, ui32UFOIdx);
-			}
 
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 			if (psCommand->psReleaseFence)
@@ -853,7 +832,7 @@ void SCPCommandComplete(SCP_CONTEXT *psContext)
 				sw_sync_timeline_inc(psContext->pvTimeline, 1);
 				/* Decrease the ref to this fence */
 				sync_fence_put(psCommand->psReleaseFence);
-				psCommand->psReleaseFence = NULL;
+				psCommand->psReleaseFence = IMG_NULL;
 			}
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
 
@@ -878,13 +857,13 @@ IMG_BOOL SCPHasPendingCommand(SCP_CONTEXT *psContext)
 }
 
 IMG_EXPORT
-void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
+IMG_VOID IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 {
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
+	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = IMG_NULL;
 
 	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
 
-	PVR_ASSERT(psContext != NULL);
+	PVR_ASSERT(psContext != IMG_NULL);
 
 	/*
 		Acquire the lock to ensure that the SCP isn't run while
@@ -950,7 +929,7 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 	SCPDestroy
 */
 IMG_EXPORT
-void IMG_CALLCONV SCPDestroy(SCP_CONTEXT *psContext)
+IMG_VOID IMG_CALLCONV SCPDestroy(SCP_CONTEXT *psContext)
 {
 	/*
 		The caller must ensure that they completed all queued operations
@@ -965,8 +944,8 @@ void IMG_CALLCONV SCPDestroy(SCP_CONTEXT *psContext)
 
 	PVRSRVServerSyncRequesterUnregisterKM(psContext->psSyncRequesterID);
 	OSLockDestroy(psContext->hLock);
-	psContext->hLock = NULL;
+	psContext->hLock = IMG_NULL;
 	OSFreeMem(psContext->pvCCB);
-	psContext->pvCCB = NULL;
+	psContext->pvCCB = IMG_NULL;
 	OSFreeMem(psContext);
 }

@@ -51,13 +51,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_types.h"
 #include "pvrsrv_error.h"
 
-typedef struct _PMR_ PMR;
 /* stuff that per-flavour callbacks need to share with pmr.c */
-typedef void *PMR_IMPL_PRIVDATA;
+
+typedef IMG_VOID *PMR_IMPL_PRIVDATA;
 
 typedef PVRSRV_MEMALLOCFLAGS_T PMR_FLAGS_T;
-typedef struct _PMR_MAPPING_TABLE_ PMR_MAPPING_TABLE;
-typedef void *PMR_MMAP_DATA;
 
 typedef struct {
     /*
@@ -76,7 +74,7 @@ typedef struct {
      *
      * The PMR implementation may assume that physical addresses will
      * have been "locked" in this manner before any call is made to
-     * the pfnDevPhysAddr() callback
+     * the SysPhysAddr() callback
      */
     PVRSRV_ERROR (*pfnLockPhysAddresses)(PMR_IMPL_PRIVDATA pvPriv,
                                          IMG_UINT32 uiLog2DevPageSize);
@@ -106,17 +104,13 @@ typedef struct {
 								   IMG_BOOL *pbValid,
                                    IMG_DEV_PHYADDR *psDevAddrPtr);
     /*
-     * Called iteratively to obtain PDump symbolic addresses.  Behaves
-     * just like pfnDevPhysAddr callback, except for returning Symbolic
+     * called iteratively to obtain PDump symbolic addresses.  Behaves
+     * just like SysPhysAddr callback, except for returning Symbolic
      * Addresses.
      *
      * It is optional to override this callback.  The default
      * implementation will construct an address from the PMR type and
-     * serial number.
-     *
-     * If the PMR factory supports unpinning of memory the symbolic
-     * address must not be calculated depending on the physical
-     * addresses of the PMR because it can change!
+     * serial number
      */
     PVRSRV_ERROR (*pfnPDumpSymbolicAddr)(PMR_IMPL_PRIVDATA pvPriv,
                                          IMG_DEVMEM_OFFSET_T uiOffset,
@@ -125,7 +119,7 @@ typedef struct {
                                          IMG_CHAR *pszSymbolicAddr,
                                          IMG_UINT32 ui32SymbolicAddrLen,
                                          IMG_DEVMEM_OFFSET_T *puiNewOffset,
-                                         IMG_DEVMEM_OFFSET_T *puiNextSymName);
+					 IMG_DEVMEM_OFFSET_T *puiNextSymName);
     /*
      * AcquireKernelMappingData()/ReleaseKernelMappingData()
      *
@@ -136,12 +130,12 @@ typedef struct {
      * do so will mean that kernel mappings will not be possible
      */
     PVRSRV_ERROR (*pfnAcquireKernelMappingData)(PMR_IMPL_PRIVDATA pvPriv,
-                                                size_t uiOffset,
-                                                size_t uiSize,
-                                                void **ppvKernelAddressOut,
+                                                IMG_SIZE_T uiOffset,
+                                                IMG_SIZE_T uiSize,
+                                                IMG_VOID **ppvKernelAddressOut,
                                                 IMG_HANDLE *phHandleOut,
                                                 PMR_FLAGS_T ulFlags);
-    void (*pfnReleaseKernelMappingData)(PMR_IMPL_PRIVDATA pvPriv,
+    IMG_VOID (*pfnReleaseKernelMappingData)(PMR_IMPL_PRIVDATA pvPriv,
                                             IMG_HANDLE hHandle);
     /*
      * Read up to uiBufSz bytes from the PMR.
@@ -154,8 +148,8 @@ typedef struct {
     PVRSRV_ERROR (*pfnReadBytes)(PMR_IMPL_PRIVDATA pvPriv,
                                  IMG_DEVMEM_OFFSET_T uiOffset,
                                  IMG_UINT8 *pcBuffer,
-                                 size_t uiBufSz,
-                                 size_t *puiNumBytes);
+                                 IMG_SIZE_T uiBufSz,
+                                 IMG_SIZE_T *puiNumBytes);
 
     /*
      * Write up to uiBufSz bytes into the PMR.
@@ -172,65 +166,8 @@ typedef struct {
     PVRSRV_ERROR (*pfnWriteBytes)(PMR_IMPL_PRIVDATA pvPriv,
                                   IMG_DEVMEM_OFFSET_T uiOffset,
                                   IMG_UINT8 *pcBuffer,
-                                  size_t uiBufSz,
-                                  size_t *puiNumBytes);
-
-    /* Mark the PMR as unpinned so that the OS or whatever is
-     * responsible for the PMR factory can reclaim the physical
-     * memory of it and use it for something else.
-     *
-     * Expected return values:
-     *     - PVRSRV_OK if unpin was successful.
-     *     - PVRSRV_ERROR_NOT_SUPPORTED if unpinning is not supported
-     *       in this PMR factory.
-     *     - ... a different error for all other problems.
-     */
-    PVRSRV_ERROR (*pfnUnpinMem)(PMR_IMPL_PRIVDATA pPriv);
-
-    /* Repins the PMR and checks if the physical memory
-     * was lost, in that case it allocates new pages and returns
-     * an error to indicate what happened.
-     *
-     * Expected return values:
-     *     - PVRSRV_OK if pin was successful.
-     *     - PVRSRV_ERROR_PMR_NEW_MEMORY if pin was successful but
-     *       the content of the physical memory is lost.
-     *     - PVRSRV_ERROR_NOT_SUPPORTED if pinning is not supported
-     *       in this PMR factory.
-     *     - ... a different error for all other problems.
-     * */
-    PVRSRV_ERROR (*pfnPinMem)(PMR_IMPL_PRIVDATA pPriv,
-    							PMR_MAPPING_TABLE *psMappingTable);
-
-    PVRSRV_ERROR (*pfnChangeSparseMem)(PMR_IMPL_PRIVDATA pPriv,
-    								const PMR *psPMR,
-    								IMG_UINT32 ui32AllocPageCount,
-    								IMG_UINT32 *pai32AllocIndices,
-    								IMG_UINT32 ui32FreePageCount,
-    								IMG_UINT32 *pai32FreeIndices,
-    								IMG_UINT32	uiFlags,
-    								IMG_UINT32	*pui32Status);
-
-    PVRSRV_ERROR (*pfnChangeSparseMemCPUMap)(PMR_IMPL_PRIVDATA pPriv,
-    											const PMR *psPMR,
-    											IMG_UINT64 sCpuVAddrBase,
-    											IMG_UINT32	ui32AllocPageCount,
-    											IMG_UINT32	*pai32AllocIndices,
-    											IMG_UINT32	ui32FreePageCount,
-    											IMG_UINT32	*pai32FreeIndices,
-    											IMG_UINT32	*pui32Status);
-
-	/*
-	 * Maps the PMR into a user process address space.
-	 *
-	 * This callback is optional; However, it is strongly recommended
-	 * that an implementation is provided and that it performs any
-	 * necessary reference counting on the PMR. When this is not the
-	 * case a generic implementation is used instead.
-	 */
-	PVRSRV_ERROR (*pfnMMap)(PMR_IMPL_PRIVDATA pPriv,
-				const PMR *psPMR,
-				PMR_MMAP_DATA pMMapData);
+                                  IMG_SIZE_T uiBufSz,
+                                  IMG_SIZE_T *puiNumBytes);
     /*
      * Finalize()
      *

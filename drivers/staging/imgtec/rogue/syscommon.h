@@ -56,29 +56,30 @@ extern "C" {
 #endif
 #include "pvrsrv.h"
 
-
-#define PVRSRV_SYSTEM_CONFIG_APPLY_OFFSET (1 << 0)
-
 PVRSRV_ERROR SysCreateConfigData(PVRSRV_SYSTEM_CONFIG **ppsSysConfig, void *hDevice);
-void SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig);
+IMG_VOID SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig);
 PVRSRV_ERROR SysAcquireSystemData(IMG_HANDLE hSysData);
 PVRSRV_ERROR SysReleaseSystemData(IMG_HANDLE hSysData);
 PVRSRV_ERROR SysDebugInfo(PVRSRV_SYSTEM_CONFIG *psSysConfig, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
-#include "services_km.h"
-void SysSetOSidRegisters(IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
-void SysPrintAndResetFaultStatusRegister(void);
+#include "services.h"
+IMG_VOID SysSetOSidRegisters(IMG_UINT32 aui32OSidMin[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS], IMG_UINT32 aui32OSidMax[GPUVIRT_VALIDATION_NUM_OS][GPUVIRT_VALIDATION_NUM_REGIONS]);
+IMG_VOID SysPrintAndResetFaultStatusRegister(void);
 #endif
 
 #if defined(SUPPORT_SYSTEM_INTERRUPT_HANDLING)
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_UINT32 ui32IRQ,
 				  IMG_CHAR *pszName,
 				  PFN_LISR pfnLISR,
-				  void *pvData,
+				  IMG_PVOID pvData,
 				  IMG_HANDLE *phLISRData);
 
 PVRSRV_ERROR SysUninstallDeviceLISR(IMG_HANDLE hLISRData);
+
+#if defined(SUPPORT_DRM)
+IMG_BOOL SystemISRHandler(IMG_VOID *pvData);
+#endif
 #endif /* defined(SUPPORT_SYSTEM_INTERRUPT_HANDLING) */
 
 
@@ -107,7 +108,7 @@ PVRSRV_ERROR SysUninstallDeviceLISR(IMG_HANDLE hLISRData);
  @Return   register value
 
 ******************************************************************************/
-static inline IMG_UINT32 SysReadHWReg(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset)
+static inline IMG_UINT32 SysReadHWReg(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset)
 {
 	return (IMG_UINT32) readl(pvLinRegBaseAddr + ui32Offset);
 }
@@ -130,7 +131,7 @@ static inline IMG_UINT32 SysReadHWReg(void *pvLinRegBaseAddr, IMG_UINT32 ui32Off
  @Return   none
 
 ******************************************************************************/
-static inline void SysWriteHWReg(void *pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT32 ui32Value)
+static inline IMG_VOID SysWriteHWReg(IMG_PVOID pvLinRegBaseAddr, IMG_UINT32 ui32Offset, IMG_UINT32 ui32Value)
 {
 	writel(ui32Value, pvLinRegBaseAddr + ui32Offset);
 }
@@ -160,29 +161,6 @@ FORCE_INLINE PVRSRV_ERROR SysCheckMemAllocSize(struct _PVRSRV_DEVICE_NODE_ *psDe
 
 	return PVRSRV_OK;
 }
-
-/* Address mask for the physical device addresses.
- * Some systems are limited to 32 bit like TC or Emulator because of the
- * PCI card they are using. */
-typedef enum 
-{
-    SYS_PHYS_ADDRESS_64_BIT = 0xFFFFFFFFFFFFFFFF,
-    SYS_PHYS_ADDRESS_32_BIT = 0xFFFFFFFF
-} SYS_PHYS_ADDRESS_MASK;
-
-/*!
-******************************************************************************
-
- @Function		SysDevicePhysAddressMask
-
- @Description	Function to retrieve a mask for the device physical address. 
-                Often PCI cards like the TC or EMU have restrictions on the 
-                maximum address size.
-
- @Return		The max address value.
-
-******************************************************************************/
-SYS_PHYS_ADDRESS_MASK SysDevicePhysAddressMask(void);
 
 #if defined(__cplusplus)
 }

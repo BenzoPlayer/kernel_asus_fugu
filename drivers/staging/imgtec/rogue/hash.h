@@ -56,39 +56,39 @@ extern "C" {
 
 /*
  * Keys passed to the comparsion function are only guaranteed to
- * be aligned on an uintptr_t boundary.
+ * be aligned on an IMG_UINTPTR_T boundary. 
  */
-typedef IMG_UINT32 HASH_FUNC(size_t uKeySize, void *pKey, IMG_UINT32 uHashTabLen);
-typedef IMG_BOOL HASH_KEY_COMP(size_t uKeySize, void *pKey1, void *pKey2);
+typedef IMG_UINT32 HASH_FUNC(IMG_SIZE_T uKeySize, IMG_VOID *pKey, IMG_UINT32 uHashTabLen);
+typedef IMG_BOOL HASH_KEY_COMP(IMG_SIZE_T uKeySize, IMG_VOID *pKey1, IMG_VOID *pKey2);
 
 typedef struct _HASH_TABLE_ HASH_TABLE;
 
 typedef PVRSRV_ERROR (*HASH_pfnCallback) (
-	uintptr_t k,
-	uintptr_t v
+	IMG_UINTPTR_T k,
+	IMG_UINTPTR_T v
 );
 
 /*************************************************************************/ /*!
 @Function       HASH_Func_Default
 @Description    Hash function intended for hashing keys composed of
-                uintptr_t arrays.
+                IMG_UINTPTR_T arrays.
 @Input          uKeySize     The size of the hash key, in bytes.
 @Input          pKey         A pointer to the key to hash.
 @Input          uHashTabLen  The length of the hash table. 
 @Return         The hash value.
 */ /**************************************************************************/
-IMG_UINT32 HASH_Func_Default (size_t uKeySize, void *pKey, IMG_UINT32 uHashTabLen);
+IMG_UINT32 HASH_Func_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey, IMG_UINT32 uHashTabLen);
 
 /*************************************************************************/ /*!
 @Function       HASH_Key_Comp_Default
-@Description    Compares keys composed of uintptr_t arrays.
+@Description    Compares keys composed of IMG_UINTPTR_T arrays.
 @Input          uKeySize     The size of the hash key, in bytes.
 @Input          pKey1        Pointer to first hash key to compare.
 @Input          pKey2        Pointer to second hash key to compare.
 @Return         IMG_TRUE  - the keys match.
                 IMG_FALSE - the keys don't match.
 */ /**************************************************************************/
-IMG_BOOL HASH_Key_Comp_Default (size_t uKeySize, void *pKey1, void *pKey2);
+IMG_BOOL HASH_Key_Comp_Default (IMG_SIZE_T uKeySize, IMG_VOID *pKey1, IMG_VOID *pKey2);
 
 /*************************************************************************/ /*!
 @Function       HASH_Create_Extended
@@ -102,20 +102,20 @@ IMG_BOOL HASH_Key_Comp_Default (size_t uKeySize, void *pKey1, void *pKey2);
 @Input          uKeySize      The size of the key, in bytes.
 @Input          pfnHashFunc   Pointer to hash function.
 @Input          pfnKeyComp    Pointer to key comparsion function.
-@Return         NULL or hash table handle.
+@Return         IMG_NULL or hash table handle.
 */ /**************************************************************************/
-HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, size_t uKeySize, HASH_FUNC *pfnHashFunc, HASH_KEY_COMP *pfnKeyComp);
+HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, HASH_FUNC *pfnHashFunc, HASH_KEY_COMP *pfnKeyComp);
 
 /*************************************************************************/ /*!
 @Function       HASH_Create
 @Description    Create a self scaling hash table with a key
-                consisting of a single uintptr_t, and using
+                consisting of a single IMG_UINTPTR_T, and using
                 the default hash and key comparison functions.
 @Input          uInitialLen   Initial and minimum length of the
                               hash table, where the length refers to the
                               number of entries in the hash table, not its size
                               in bytes.
-@Return         NULL or hash table handle.
+@Return         IMG_NULL or hash table handle.
 */ /**************************************************************************/
 HASH_TABLE * HASH_Create (IMG_UINT32 uInitialLen);
 
@@ -126,7 +126,7 @@ HASH_TABLE * HASH_Create (IMG_UINT32 uInitialLen);
                 removed before calling this function.
 @Input          pHash         Hash table
 */ /**************************************************************************/
-void HASH_Delete (HASH_TABLE *pHash);
+IMG_VOID HASH_Delete (HASH_TABLE *pHash);
 
 /*************************************************************************/ /*!
 @Function       HASH_Insert_Extended
@@ -138,7 +138,7 @@ void HASH_Delete (HASH_TABLE *pHash);
 @Return         IMG_TRUE  - success
                 IMG_FALSE  - failure
 */ /**************************************************************************/
-IMG_BOOL HASH_Insert_Extended (HASH_TABLE *pHash, void *pKey, uintptr_t v);
+IMG_BOOL HASH_Insert_Extended (HASH_TABLE *pHash, IMG_VOID *pKey, IMG_UINTPTR_T v);
 
 /*************************************************************************/ /*!
 @Function       HASH_Insert
@@ -151,7 +151,7 @@ IMG_BOOL HASH_Insert_Extended (HASH_TABLE *pHash, void *pKey, uintptr_t v);
 @Return         IMG_TRUE - success.
                 IMG_FALSE - failure.
 */ /**************************************************************************/
-IMG_BOOL HASH_Insert (HASH_TABLE *pHash, uintptr_t k, uintptr_t v);
+IMG_BOOL HASH_Insert (HASH_TABLE *pHash, IMG_UINTPTR_T k, IMG_UINTPTR_T v);
 
 /*************************************************************************/ /*!
 @Function       HASH_Remove_Extended
@@ -162,7 +162,7 @@ IMG_BOOL HASH_Insert (HASH_TABLE *pHash, uintptr_t k, uintptr_t v);
 @Return         0 if the key is missing, or the value associated
                 with the key.
 */ /**************************************************************************/
-uintptr_t HASH_Remove_Extended(HASH_TABLE *pHash, void *pKey);
+IMG_UINTPTR_T HASH_Remove_Extended(HASH_TABLE *pHash, IMG_VOID *pKey);
 
 /*************************************************************************/ /*!
 @Function       HASH_Remove
@@ -173,7 +173,7 @@ uintptr_t HASH_Remove_Extended(HASH_TABLE *pHash, void *pKey);
 @Return         0 if the key is missing, or the value associated
                 with the key.
 */ /**************************************************************************/
-uintptr_t HASH_Remove (HASH_TABLE *pHash, uintptr_t k);
+IMG_UINTPTR_T HASH_Remove (HASH_TABLE *pHash, IMG_UINTPTR_T k);
 
 /*************************************************************************/ /*!
 @Function       HASH_Retrieve_Extended
@@ -184,7 +184,7 @@ uintptr_t HASH_Remove (HASH_TABLE *pHash, uintptr_t k);
 @Return         0 if the key is missing, or the value associated with
                 the key.
 */ /**************************************************************************/
-uintptr_t HASH_Retrieve_Extended (HASH_TABLE *pHash, void *pKey);
+IMG_UINTPTR_T HASH_Retrieve_Extended (HASH_TABLE *pHash, IMG_VOID *pKey);
 
 /*************************************************************************/ /*!
 @Function       HASH_Retrieve
@@ -195,7 +195,7 @@ uintptr_t HASH_Retrieve_Extended (HASH_TABLE *pHash, void *pKey);
 @Return         0 if the key is missing, or the value associated with
                 the key.
 */ /**************************************************************************/
-uintptr_t HASH_Retrieve (HASH_TABLE *pHash, uintptr_t k);
+IMG_UINTPTR_T HASH_Retrieve (HASH_TABLE *pHash, IMG_UINTPTR_T k);
 
 /*************************************************************************/ /*!
 @Function       HASH_Iterate
@@ -213,7 +213,7 @@ PVRSRV_ERROR HASH_Iterate(HASH_TABLE *pHash, HASH_pfnCallback pfnCallback);
 @Description    Dump out some information about a hash table.
 @Input          pHash         The hash table.
 */ /**************************************************************************/
-void HASH_Dump (HASH_TABLE *pHash);
+IMG_VOID HASH_Dump (HASH_TABLE *pHash);
 #endif
 
 #if defined (__cplusplus)

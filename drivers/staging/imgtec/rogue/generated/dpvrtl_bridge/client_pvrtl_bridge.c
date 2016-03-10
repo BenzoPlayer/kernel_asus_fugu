@@ -50,15 +50,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "tlserver.h"
 
 
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLConnect(IMG_HANDLE hBridge)
+{
+	PVRSRV_ERROR eError;
+
+
+	eError =
+		TLServerConnectKM(hBridge
+					);
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLDisconnect(IMG_HANDLE hBridge)
+{
+	PVRSRV_ERROR eError;
+
+
+	eError =
+		TLServerDisconnectKM(hBridge
+					);
+	return eError;
+}
+
 IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLOpenStream(IMG_HANDLE hBridge,
 							  IMG_CHAR *puiName,
 							  IMG_UINT32 ui32Mode,
 							  IMG_HANDLE *phSD,
-							  IMG_HANDLE *phTLPMR)
+							  DEVMEM_SERVER_EXPORTCOOKIE *phClientBUFExportCookie)
 {
 	PVRSRV_ERROR eError;
 	TL_STREAM_DESC * psSDInt;
-	PMR * psTLPMRInt;
+	DEVMEM_EXPORTCOOKIE * psClientBUFExportCookieInt;
 	PVR_UNREFERENCED_PARAMETER(hBridge);
 
 
@@ -67,10 +89,10 @@ IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeTLOpenStream(IMG_HANDLE hBridge,
 					puiName,
 					ui32Mode,
 					&psSDInt,
-					&psTLPMRInt);
+					&psClientBUFExportCookieInt);
 
 	*phSD = psSDInt;
-	*phTLPMR = psTLPMRInt;
+	*phClientBUFExportCookie = psClientBUFExportCookieInt;
 	return eError;
 }
 

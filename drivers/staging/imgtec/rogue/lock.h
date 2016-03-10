@@ -54,18 +54,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "allocmem.h"
 #include <asm/atomic.h>
 
-#define OSLockCreateNoStats(phLock, eLockType) ({ \
-	PVRSRV_ERROR e = PVRSRV_ERROR_OUT_OF_MEMORY; \
-	*(phLock) = OSAllocMemNoStats(sizeof(struct mutex)); \
-	if (*(phLock)) { mutex_init(*(phLock)); e = PVRSRV_OK; }; \
-	e;})
 #define OSLockCreate(phLock, eLockType) ({ \
 	PVRSRV_ERROR e = PVRSRV_ERROR_OUT_OF_MEMORY; \
 	*(phLock) = OSAllocMem(sizeof(struct mutex)); \
 	if (*(phLock)) { mutex_init(*(phLock)); e = PVRSRV_OK; }; \
 	e;})
 #define OSLockDestroy(hLock) ({mutex_destroy((hLock)); OSFreeMem((hLock)); PVRSRV_OK;})
-#define OSLockDestroyNoStats(hLock) ({mutex_destroy((hLock)); OSFreeMemNoStats((hLock)); PVRSRV_OK;})
 
 #define OSLockAcquire(hLock) ({mutex_lock((hLock)); PVRSRV_OK;})
 #define OSLockAcquireNested(hLock, subclass) ({mutex_lock_nested((hLock), (subclass)); PVRSRV_OK;})
@@ -99,16 +93,16 @@ IMG_INTERNAL
 PVRSRV_ERROR OSLockCreate(POS_LOCK *phLock, LOCK_TYPE eLockType);
 
 IMG_INTERNAL
-void OSLockDestroy(POS_LOCK hLock);
+IMG_VOID OSLockDestroy(POS_LOCK hLock);
 
 IMG_INTERNAL
-void OSLockAcquire(POS_LOCK hLock);
+IMG_VOID OSLockAcquire(POS_LOCK hLock);
 
 /* Nested notation isn't used in UM or other OS's */
 #define OSLockAcquireNested(hLock, subclass) OSLockAcquire((hLock))
 
 IMG_INTERNAL
-void OSLockRelease(POS_LOCK hLock);
+IMG_VOID OSLockRelease(POS_LOCK hLock);
 
 IMG_INTERNAL
 IMG_BOOL OSLockIsLocked(POS_LOCK hLock);
@@ -144,10 +138,10 @@ IMG_INTERNAL
 IMG_INT OSAtomicRead(ATOMIC_T *pCounter);
 
 IMG_INTERNAL
-void OSAtomicWrite(ATOMIC_T *pCounter, IMG_INT v);
+IMG_VOID OSAtomicWrite(ATOMIC_T *pCounter, IMG_INT v);
 
 /* For the following atomic operations, in addition to being SMP-safe, 
-   should also  have a memory barrier around each operation  */
+   _should_ also  have a memory barrier around each operation  */
 IMG_INTERNAL
 IMG_INT OSAtomicIncrement(ATOMIC_T *pCounter);
 

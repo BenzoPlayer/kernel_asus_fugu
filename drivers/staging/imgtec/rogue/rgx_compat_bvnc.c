@@ -49,8 +49,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "rgx_compat_bvnc.h"
 
-void rgx_bvnc_packed(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 ui32OutVMaxLen,
-					 IMG_UINT32 ui32B, IMG_CHAR *pszV, IMG_UINT32 ui32N, IMG_UINT32 ui32C)
+IMG_VOID rgx_bvnc_packed(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 ui32OutVMaxLen, 
+								IMG_UINT32 ui32B, IMG_CHAR *pszV, IMG_UINT32 ui32N, IMG_UINT32 ui32C)
 {
 #if 0
 	IMG_UINT32 i = ui32OutVMaxLen;
@@ -83,8 +83,8 @@ void rgx_bvnc_packed(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 ui32
 #endif
 }
 
-void rgx_bvnc_pack_hw(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 ui32OutVMaxLen,
-					  IMG_UINT32 ui32B, IMG_CHAR *pszFwV, IMG_UINT32 ui32V, IMG_UINT32 ui32N, IMG_UINT32 ui32C)
+IMG_VOID rgx_bvnc_pack_hw(IMG_UINT32 *pui32OutBNC, IMG_CHAR *pszOutV, IMG_UINT32 ui32OutVMaxLen, 
+								IMG_UINT32 ui32B, IMG_CHAR *pszFwV, IMG_UINT32 ui32V, IMG_UINT32 ui32N, IMG_UINT32 ui32C)
 {
 	IMG_UINT32 i = ui32OutVMaxLen;
 	IMG_CHAR *pszPointer;

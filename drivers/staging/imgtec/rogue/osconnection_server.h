@@ -48,18 +48,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 #if defined(__linux__) || defined(__QNXNTO__)
-PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOSData);
+PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, IMG_PVOID pvOSData);
 PVRSRV_ERROR OSConnectionPrivateDataDeInit(IMG_HANDLE hOsPrivateData);
 
 PVRSRV_ERROR OSConnectionSetHandleOptions(PVRSRV_HANDLE_BASE *psHandleBase);
-
-PVRSRV_DEVICE_NODE* OSGetDevData(CONNECTION_DATA *psConnection);
-
 #else	/* defined(__linux__) */
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(OSConnectionPrivateDataInit)
 #endif
-static INLINE PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOSData)
+static INLINE PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, IMG_PVOID pvOSData)
 {
 	PVR_UNREFERENCED_PARAMETER(phOsPrivateData);
 	PVR_UNREFERENCED_PARAMETER(pvOSData);
@@ -85,16 +82,6 @@ static INLINE PVRSRV_ERROR OSConnectionSetHandleOptions(PVRSRV_HANDLE_BASE *psHa
 	PVR_UNREFERENCED_PARAMETER(psHandleBase);
 
 	return PVRSRV_OK;
-}
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(OSGetDevData)
-#endif
-static INLINE PVRSRV_DEVICE_NODE* OSGetDevData(CONNECTION_DATA *psConnection)
-{
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-
-	return NULL;
 }
 #endif	/* defined(__linux__) */
 
