@@ -404,6 +404,9 @@ static ssize_t sep_write_load(struct file *file, const char __user *buf,
 	if (*ppos != 0)
 		return -EINVAL;
 
+	if (count == SIZE_MAX)
+		return -EINVAL;
+
 	/* allow for \0 to stringify the data */
 	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
