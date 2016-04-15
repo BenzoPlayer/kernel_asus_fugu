@@ -426,6 +426,7 @@ PVRSRV_ERROR _DevmemImportStructDevMap(DEVMEM_HEAP *psHeap,
 			/* Allocate space in the VM */
 			bStatus = RA_Alloc(psHeap->psQuantizedVMRA,
 							   psImport->uiSize,
+							   RA_NO_IMPORT_MULTIPLIER,
 							   0, /* flags: this RA doesn't use flags*/
 							   uiAlign,
 							   &uiAllocatedAddr,

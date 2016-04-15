@@ -55,7 +55,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #else
 #if defined (__cplusplus)
 	#define INLINE					inline
-	#define	FORCE_INLINE			inline
+	#define	FORCE_INLINE			static inline
 #else
 #if	!defined(INLINE)
 	#define	INLINE					__inline

@@ -1266,6 +1266,7 @@ PVRSRV_ERROR LMA_PhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSiz
 
 	bSuccess = RA_Alloc(pArena,
 						uiSize,
+						RA_NO_IMPORT_MULTIPLIER,
 						0,							/* No flags */
 						OSGetPageSize(),
 						&uiCardAddr,

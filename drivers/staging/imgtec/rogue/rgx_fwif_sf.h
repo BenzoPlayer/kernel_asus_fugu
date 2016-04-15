@@ -5,7 +5,7 @@
 @Description    Header for the rgx firmware logging messages. The following 
 				list are the messages the firmware prints. Changing anything
 				but the first column or spelling mistakes in the strings will
-				brake compatibility with log files created with older/newer 
+				break compatibility with log files created with older/newer 
 				firmware versions.
 @License        Dual MIT/GPLv2
 
@@ -446,7 +446,7 @@ X(10, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_CNTPRG, "Programmed counter select registe
 X(11, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_BLKPRG, "Block register offset 0x%x and value 0x%x\n", 2) \
 X(12, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_UBLKCG, "Reading config block from driver 0x%x\n", 1) \
 X(13, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_UBLKRG, "Reading block range 0x%x to 0x%x\n", 2) \
-X(14, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_BLKREC, "Recording block 0x%x config frmo driver\n", 1) \
+X(14, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_BLKREC, "Recording block 0x%x config from driver\n", 1) \
 X(15, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_UBLKED, "Finished reading config block from driver\n", 0) \
 X(16, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_CUSTOM_COUNTER, "Custom Counter offset: %x   value: %x \n", 2) \
 X(17, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_SELECT_CNTR, "Select counter n:%u  ID:%x\n", 2) \

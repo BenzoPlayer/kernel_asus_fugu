@@ -78,6 +78,8 @@ typedef IMG_UINT64 RA_LENGTH_T;
 #define RA_LOCKCLASS_1 1
 #define RA_LOCKCLASS_2 2
 
+#define RA_NO_IMPORT_MULTIPLIER 1
+
 /*
  * Flags in an "import" must much the flags for an allocation
  */
@@ -168,6 +170,9 @@ RA_Add (RA_ARENA *pArena,
  *
  *  @Input  pArena - the arena
  *  @Input  uRequestSize - the size of resource segment requested.
+ *  @Input  uImportMultiplier - Import x-times of the uRequestSize
+ *          for future RA_Alloc calls.
+ *          Use RA_NO_IMPORT_MULTIPLIER to import the exact size.
  *  @Output pActualSize - the actual_size of resource segment allocated,
  *          typcially rounded up by quantum.
  *  @Input  uFlags - flags influencing allocation policy.
@@ -181,6 +186,7 @@ RA_Add (RA_ARENA *pArena,
 IMG_BOOL
 RA_Alloc (RA_ARENA *pArena, 
           RA_LENGTH_T uSize,
+          IMG_UINT8 uImportMultiplier,
           RA_FLAGS_T uFlags,
           RA_LENGTH_T uAlignment,
           RA_BASE_T *pBase,

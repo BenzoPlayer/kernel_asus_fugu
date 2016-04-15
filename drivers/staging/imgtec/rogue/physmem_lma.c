@@ -426,6 +426,7 @@ _AllocLMPages(PMR_LMALLOCARRAY_DATA *psPageArrayData, IMG_UINT32 *pui32MapTable)
 
 		bAllocResult = RA_Alloc(pArena,
 								uiAllocSize,
+								RA_NO_IMPORT_MULTIPLIER,
 								0,                                      /* No flags */
 								1ULL << uiLog2AllocSize,
 								&uiCardAddr,

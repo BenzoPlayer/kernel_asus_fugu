@@ -782,7 +782,7 @@ _RemoveProcessStatsFromList(PVRSRV_PROCESS_STATS* psProcessStats)
 @Function       _CreateOSStatisticEntries
 @Description    Create all OS entries for this statistic.
 @Input          psProcessStats  Process stats to destroy.
-@Input          pvOSPidFolder   Pointer to OS folder to place the entrys in.
+@Input          pvOSPidFolder   Pointer to OS folder to place the entries in.
 */ /**************************************************************************/
 static void
 _CreateOSStatisticEntries(PVRSRV_PROCESS_STATS* psProcessStats,

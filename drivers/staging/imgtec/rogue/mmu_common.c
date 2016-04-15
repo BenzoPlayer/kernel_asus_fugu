@@ -490,6 +490,7 @@ static PVRSRV_ERROR _MMU_PhysMemAlloc(MMU_PHYSMEM_CONTEXT *psCtx,
 
 	bStatus = RA_Alloc(psCtx->psPhysMemRA,
 					   uiBytes,
+					   RA_NO_IMPORT_MULTIPLIER,
 					   0, // flags
 					   uiAlignment,
 					   &uiPhysAddr,

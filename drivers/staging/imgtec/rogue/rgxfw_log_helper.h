@@ -4,7 +4,7 @@
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @Platform       Generic
 @Description    This file contains some helper code to make TBI logging possible
-                Specifiacally, it uses the SFIDLIST xmacro to trace ids back to
+                Specifically, it uses the SFIDLIST xmacro to trace ids back to
 				the original strings.
 @License        Dual MIT/GPLv2
 

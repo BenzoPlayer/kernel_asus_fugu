@@ -51,12 +51,6 @@ extern "C" {
 #if defined(__linux__) && defined(__KERNEL__)
 #include <linux/kernel.h>
 #include <linux/string.h> //strlen, strcopy
-#if defined(LDM_PLATFROM)
-#include <linux/platform_device.h>
-#endif
-#if defined(LDM_PCI)
-#include <linux/pci.h>
-#endif
 #include <linux/ctype.h> //toupper
 #else
 #include <stddef.h>
