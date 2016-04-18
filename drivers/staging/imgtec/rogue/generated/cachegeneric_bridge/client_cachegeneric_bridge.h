@@ -1,8 +1,8 @@
 /*************************************************************************/ /*!
 @File
-@Title          Splay trees interface
+@Title          Client bridge header for cachegeneric
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Provides debug functionality
+@Description    Exports the client bridge functions for cachegeneric
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -41,46 +41,19 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-#ifndef UNIQ_KEY_SPLAY_TREE_H_
-#define UNIQ_KEY_SPLAY_TREE_H_
+#ifndef CLIENT_CACHEGENERIC_BRIDGE_H
+#define CLIENT_CACHEGENERIC_BRIDGE_H
 
-#include "img_types.h"
-#include "pvr_intrinsics.h"
+#include "pvr_bridge_client.h"
+#include "pvr_bridge.h"
 
-#if defined(PVR_CTZLL)
-  /* map the is_bucket_n_free to an int.
-   * This way, the driver can find the first non empty without loop
-   */
-  typedef IMG_UINT64 IMG_ELTS_MAPPINGS;
-#endif
+#include "common_cachegeneric_bridge.h"
 
-/* head of list of free boundary tags for indexed by pvr_log2 of the
-   boundary tag size */
-#define FREE_TABLE_LIMIT 40
-
-struct _BT_;
-
-typedef struct img_splay_tree 
-{
-	/* left child/subtree */
-    struct img_splay_tree * psLeft;
-
-	/* right child/subtree */
-    struct img_splay_tree * psRight;
-
-    /* Flags to match on this span, used as the key. */
-    IMG_UINT32 ui32Flags;
-#if defined(PVR_CTZLL)
-	/* each bit of this int is a boolean telling if the corresponding
-	   bucket is empty or not */
-    IMG_ELTS_MAPPINGS bHasEltsMapping;
-#endif
-	struct _BT_ * buckets[FREE_TABLE_LIMIT];
-} IMG_SPLAY_TREE, *IMG_PSPLAY_TREE;
-
-IMG_PSPLAY_TREE PVRSRVSplay (IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree);
-IMG_PSPLAY_TREE PVRSRVInsert(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree);
-IMG_PSPLAY_TREE PVRSRVDelete(IMG_UINT32 ui32Flags, IMG_PSPLAY_TREE psTree);
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeCacheOpQueue(IMG_HANDLE hBridge,
+							  IMG_HANDLE hPMR,
+							  IMG_DEVMEM_OFFSET_T uiOffset,
+							  IMG_DEVMEM_SIZE_T uiSize,
+							  PVRSRV_CACHE_OP iuCacheOp);
 
 
-#endif /* !UNIQ_KEY_SPLAY_TREE_H_ */
+#endif /* CLIENT_CACHEGENERIC_BRIDGE_H */

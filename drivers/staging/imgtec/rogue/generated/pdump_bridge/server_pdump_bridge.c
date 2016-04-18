@@ -83,7 +83,7 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		uiFileNameInt = OSAllocMem(PVRSRV_PDUMP_MAX_FILENAME_SIZE * sizeof(IMG_CHAR));
+		uiFileNameInt = OSAllocMemNoStats(PVRSRV_PDUMP_MAX_FILENAME_SIZE * sizeof(IMG_CHAR));
 		if (!uiFileNameInt)
 		{
 			psDevmemPDumpBitmapOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -137,7 +137,7 @@ PVRSRVBridgeDevmemPDumpBitmap(IMG_UINT32 ui32DispatchTableEntry,
 
 DevmemPDumpBitmap_exit:
 	if (uiFileNameInt)
-		OSFreeMem(uiFileNameInt);
+		OSFreeMemNoStats(uiFileNameInt);
 
 	return 0;
 }
@@ -156,7 +156,7 @@ PVRSRVBridgePVRSRVPDumpComment(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		uiCommentInt = OSAllocMem(PVRSRV_PDUMP_MAX_COMMENT_SIZE * sizeof(IMG_CHAR));
+		uiCommentInt = OSAllocMemNoStats(PVRSRV_PDUMP_MAX_COMMENT_SIZE * sizeof(IMG_CHAR));
 		if (!uiCommentInt)
 		{
 			psPVRSRVPDumpCommentOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -187,7 +187,7 @@ PVRSRVBridgePVRSRVPDumpComment(IMG_UINT32 ui32DispatchTableEntry,
 
 PVRSRVPDumpComment_exit:
 	if (uiCommentInt)
-		OSFreeMem(uiCommentInt);
+		OSFreeMemNoStats(uiCommentInt);
 
 	return 0;
 }

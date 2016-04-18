@@ -68,14 +68,19 @@ void *OSAllocZMemNoStats(IMG_UINT32 ui32Size);
 
 void OSFreeMem(void *pvCpuVAddr);
 
-void OSFreeMemNoStats(void *pvCpuVAddr);
-
 #define OSFREEMEM(_ptr) do \
 	{ OSFreeMem((_ptr)); \
 		(_ptr) = (void*)0; \
 		MSC_SUPPRESS_4127\
 	} while (0)
 
+void OSFreeMemNoStats(void *pvCpuVAddr);
+
+#define OSFREEMEMNOSTATS(_ptr) do \
+	{ OSFreeMemNoStats((_ptr)); \
+		(_ptr) = (void*)0; \
+		MSC_SUPPRESS_4127\
+	} while (0)
 
 #if defined (__cplusplus)
 }

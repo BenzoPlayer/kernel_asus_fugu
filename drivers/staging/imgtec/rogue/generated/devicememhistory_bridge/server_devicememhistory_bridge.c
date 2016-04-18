@@ -83,7 +83,7 @@ PVRSRVBridgeDevicememHistoryMap(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		uiTextInt = OSAllocMem(DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR));
+		uiTextInt = OSAllocMemNoStats(DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR));
 		if (!uiTextInt)
 		{
 			psDevicememHistoryMapOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -115,7 +115,7 @@ PVRSRVBridgeDevicememHistoryMap(IMG_UINT32 ui32DispatchTableEntry,
 
 DevicememHistoryMap_exit:
 	if (uiTextInt)
-		OSFreeMem(uiTextInt);
+		OSFreeMemNoStats(uiTextInt);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ PVRSRVBridgeDevicememHistoryUnmap(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		uiTextInt = OSAllocMem(DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR));
+		uiTextInt = OSAllocMemNoStats(DEVICEMEM_HISTORY_TEXT_BUFSZ * sizeof(IMG_CHAR));
 		if (!uiTextInt)
 		{
 			psDevicememHistoryUnmapOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -166,7 +166,7 @@ PVRSRVBridgeDevicememHistoryUnmap(IMG_UINT32 ui32DispatchTableEntry,
 
 DevicememHistoryUnmap_exit:
 	if (uiTextInt)
-		OSFreeMem(uiTextInt);
+		OSFreeMemNoStats(uiTextInt);
 
 	return 0;
 }

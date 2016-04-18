@@ -84,7 +84,7 @@ PVRSRVBridgeTLOpenStream(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		uiNameInt = OSAllocMem(PRVSRVTL_MAX_STREAM_NAME_SIZE * sizeof(IMG_CHAR));
+		uiNameInt = OSAllocMemNoStats(PRVSRVTL_MAX_STREAM_NAME_SIZE * sizeof(IMG_CHAR));
 		if (!uiNameInt)
 		{
 			psTLOpenStreamOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -168,7 +168,7 @@ TLOpenStream_exit:
 	}
 
 	if (uiNameInt)
-		OSFreeMem(uiNameInt);
+		OSFreeMemNoStats(uiNameInt);
 
 	return 0;
 }

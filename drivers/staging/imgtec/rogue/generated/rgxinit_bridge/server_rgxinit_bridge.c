@@ -189,7 +189,7 @@ PVRSRVBridgeRGXInitFirmware(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRGXInitFirmwareIN->ui32RGXFWAlignChecksSize != 0)
 	{
-		ui32RGXFWAlignChecksInt = OSAllocMem(psRGXInitFirmwareIN->ui32RGXFWAlignChecksSize * sizeof(IMG_UINT32));
+		ui32RGXFWAlignChecksInt = OSAllocMemNoStats(psRGXInitFirmwareIN->ui32RGXFWAlignChecksSize * sizeof(IMG_UINT32));
 		if (!ui32RGXFWAlignChecksInt)
 		{
 			psRGXInitFirmwareOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -256,7 +256,7 @@ RGXInitFirmware_exit:
 	}
 
 	if (ui32RGXFWAlignChecksInt)
-		OSFreeMem(ui32RGXFWAlignChecksInt);
+		OSFreeMemNoStats(ui32RGXFWAlignChecksInt);
 
 	return 0;
 }
@@ -324,7 +324,7 @@ PVRSRVBridgeRGXInitDevPart2(IMG_UINT32 ui32DispatchTableEntry,
 
 	
 	{
-		psDbgScriptInt = OSAllocMem(RGX_MAX_DEBUG_COMMANDS * sizeof(RGX_INIT_COMMAND));
+		psDbgScriptInt = OSAllocMemNoStats(RGX_MAX_DEBUG_COMMANDS * sizeof(RGX_INIT_COMMAND));
 		if (!psDbgScriptInt)
 		{
 			psRGXInitDevPart2OUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -344,7 +344,7 @@ PVRSRVBridgeRGXInitDevPart2(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	
 	{
-		psDbgBusScriptInt = OSAllocMem(RGX_MAX_DBGBUS_COMMANDS * sizeof(RGX_INIT_COMMAND));
+		psDbgBusScriptInt = OSAllocMemNoStats(RGX_MAX_DBGBUS_COMMANDS * sizeof(RGX_INIT_COMMAND));
 		if (!psDbgBusScriptInt)
 		{
 			psRGXInitDevPart2OUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -364,7 +364,7 @@ PVRSRVBridgeRGXInitDevPart2(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	
 	{
-		psDeinitScriptInt = OSAllocMem(RGX_MAX_DEINIT_COMMANDS * sizeof(RGX_INIT_COMMAND));
+		psDeinitScriptInt = OSAllocMemNoStats(RGX_MAX_DEINIT_COMMANDS * sizeof(RGX_INIT_COMMAND));
 		if (!psDeinitScriptInt)
 		{
 			psRGXInitDevPart2OUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -449,11 +449,11 @@ PVRSRVBridgeRGXInitDevPart2(IMG_UINT32 ui32DispatchTableEntry,
 
 RGXInitDevPart2_exit:
 	if (psDbgScriptInt)
-		OSFreeMem(psDbgScriptInt);
+		OSFreeMemNoStats(psDbgScriptInt);
 	if (psDbgBusScriptInt)
-		OSFreeMem(psDbgBusScriptInt);
+		OSFreeMemNoStats(psDbgBusScriptInt);
 	if (psDeinitScriptInt)
-		OSFreeMem(psDeinitScriptInt);
+		OSFreeMemNoStats(psDeinitScriptInt);
 
 	return 0;
 }
@@ -471,7 +471,7 @@ PVRSRVBridgeGPUVIRTPopulateLMASubArenas(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psGPUVIRTPopulateLMASubArenasIN->ui32NumElements != 0)
 	{
-		ui32ElementsInt = OSAllocMem(psGPUVIRTPopulateLMASubArenasIN->ui32NumElements * sizeof(IMG_UINT32));
+		ui32ElementsInt = OSAllocMemNoStats(psGPUVIRTPopulateLMASubArenasIN->ui32NumElements * sizeof(IMG_UINT32));
 		if (!ui32ElementsInt)
 		{
 			psGPUVIRTPopulateLMASubArenasOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -502,7 +502,7 @@ PVRSRVBridgeGPUVIRTPopulateLMASubArenas(IMG_UINT32 ui32DispatchTableEntry,
 
 GPUVIRTPopulateLMASubArenas_exit:
 	if (ui32ElementsInt)
-		OSFreeMem(ui32ElementsInt);
+		OSFreeMemNoStats(ui32ElementsInt);
 
 	return 0;
 }

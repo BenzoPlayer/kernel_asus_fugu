@@ -82,7 +82,7 @@ PVRSRVBridgeRIWritePMREntry(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRIWritePMREntryIN->ui32TextASize != 0)
 	{
-		uiTextAInt = OSAllocMem(psRIWritePMREntryIN->ui32TextASize * sizeof(IMG_CHAR));
+		uiTextAInt = OSAllocMemNoStats(psRIWritePMREntryIN->ui32TextASize * sizeof(IMG_CHAR));
 		if (!uiTextAInt)
 		{
 			psRIWritePMREntryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -129,7 +129,7 @@ PVRSRVBridgeRIWritePMREntry(IMG_UINT32 ui32DispatchTableEntry,
 
 RIWritePMREntry_exit:
 	if (uiTextAInt)
-		OSFreeMem(uiTextAInt);
+		OSFreeMemNoStats(uiTextAInt);
 
 	return 0;
 }
@@ -149,7 +149,7 @@ PVRSRVBridgeRIWriteMEMDESCEntry(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRIWriteMEMDESCEntryIN->ui32TextBSize != 0)
 	{
-		uiTextBInt = OSAllocMem(psRIWriteMEMDESCEntryIN->ui32TextBSize * sizeof(IMG_CHAR));
+		uiTextBInt = OSAllocMemNoStats(psRIWriteMEMDESCEntryIN->ui32TextBSize * sizeof(IMG_CHAR));
 		if (!uiTextBInt)
 		{
 			psRIWriteMEMDESCEntryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -226,7 +226,7 @@ RIWriteMEMDESCEntry_exit:
 	}
 
 	if (uiTextBInt)
-		OSFreeMem(uiTextBInt);
+		OSFreeMemNoStats(uiTextBInt);
 
 	return 0;
 }
@@ -245,7 +245,7 @@ PVRSRVBridgeRIWriteProcListEntry(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRIWriteProcListEntryIN->ui32TextBSize != 0)
 	{
-		uiTextBInt = OSAllocMem(psRIWriteProcListEntryIN->ui32TextBSize * sizeof(IMG_CHAR));
+		uiTextBInt = OSAllocMemNoStats(psRIWriteProcListEntryIN->ui32TextBSize * sizeof(IMG_CHAR));
 		if (!uiTextBInt)
 		{
 			psRIWriteProcListEntryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -305,7 +305,7 @@ RIWriteProcListEntry_exit:
 	}
 
 	if (uiTextBInt)
-		OSFreeMem(uiTextBInt);
+		OSFreeMemNoStats(uiTextBInt);
 
 	return 0;
 }

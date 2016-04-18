@@ -2028,6 +2028,12 @@ static void _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 									sFaultDevVAddr,
 									ui64CRTimer);
 					}
+					else
+					{
+						/* no hits, so no data to present */
+						PVR_DUMPDEBUG_LOG(("%sNo matching Devmem History for fault address", pszIndent));
+						psInfo = NULL;
+					}
 				}
 				else
 				{
@@ -2039,9 +2045,6 @@ static void _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 				PVR_DUMPDEBUG_LOG(("%sPage fault not applicable to Devmem History", pszIndent));
 			}
 		}
-
-		/* psInfo should always be non-NULL if the process was found */
-		PVR_ASSERT((psInfo != NULL) || !bFound);
 
 		if(psInfo != NULL)
 		{

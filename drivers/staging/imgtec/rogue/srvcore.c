@@ -777,7 +777,7 @@ PVRSRV_ERROR BridgeBufferPoolCreate(void)
 
 	PVR_DPF((PVR_DBG_VERBOSE, "BridgePoolCreate: Creating bridge buffer pool."));
 
-	g_psBridgePool = OSAllocZMem(sizeof(*g_psBridgePool));
+	g_psBridgePool = OSAllocZMemNoStats(sizeof(*g_psBridgePool));
 	if (g_psBridgePool == NULL)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "BridgePoolCreate: Failed to allocate memory "
@@ -790,7 +790,7 @@ PVRSRV_ERROR BridgeBufferPoolCreate(void)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "BridgePoolCreate: Failed to create lock "
 				"for the bridge buffer pool."));
-		OSFREEMEM(g_psBridgePool);
+		OSFREEMEMNOSTATS(g_psBridgePool);
 		return eError;
 	}
 
@@ -807,7 +807,7 @@ void BridgeBufferPoolDestroy(void)
 		OSFreeMem(g_psBridgePool->asPool[i].pvBuffer);
 
 	OSLockDestroy(g_psBridgePool->hLock);
-	OSFREEMEM(g_psBridgePool);
+	OSFREEMEMNOSTATS(g_psBridgePool);
 }
 
 static PVR_POOL_BUFFER *_BridgePoolAcquireBuffer(void **ppvBridgeIn,
@@ -852,7 +852,7 @@ static PVR_POOL_BUFFER *_BridgePoolAcquireBuffer(void **ppvBridgeIn,
 			PVR_DPF((PVR_DBG_VERBOSE, "_BridgePoolAcquireBuffer: "
 			        "Allocating new bridge buffer."));
 
-			psBuffer->pvBuffer = OSAllocMem(PVR_BUFFER_POOL_IN_BUFFER_SIZE +
+			psBuffer->pvBuffer = OSAllocZMemNoStats(PVR_BUFFER_POOL_IN_BUFFER_SIZE +
 			                                PVR_BUFFER_POOL_OUT_BUFFER_SIZE);
 			if (psBuffer->pvBuffer == NULL)
 			{

@@ -103,92 +103,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif /* EMULATOR */
 #endif
 
-/* Use a pool for PhysContigPages on x86 32bit so we avoid virtual address space fragmentation by vm_map_ram.
- * ARM does not have the function to invalidate TLB entries so they have to use the kernel functions directly. */
-#if defined(CONFIG_GENERIC_ALLOCATOR) \
-        && defined(CONFIG_X86) \
-        && !defined(CONFIG_64BIT) \
-        && (LINUX_VERSION_CODE > KERNEL_VERSION(3,0,0))
-#define OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL 1
-#endif
 
 static void *g_pvBridgeBuffers = NULL;
 static atomic_t g_DriverSuspended;
 
 struct task_struct *OSGetBridgeLockOwner(void);
 
-/*
-	Create a 4MB pool which should be more then enough in most cases,
-	if it becomes full then the calling code will fall back to vmap.
-*/
-
-#if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL)
-#define POOL_SIZE	(4*1024*1024)
-static struct gen_pool *pvrsrv_pool_writecombine = NULL;
-static char *pool_start;
-
-static void deinit_pvr_pool(void)
-{
-	gen_pool_destroy(pvrsrv_pool_writecombine);
-	pvrsrv_pool_writecombine = NULL;
-	vfree(pool_start);
-	pool_start = NULL;
-}
-
-static void init_pvr_pool(void)
-{
-	struct vm_struct *tmp_area;
-	int ret = -1;
-
-	/* Create the pool to allocate vm space from */
-	pvrsrv_pool_writecombine = gen_pool_create(PAGE_SHIFT, -1);
-	if (!pvrsrv_pool_writecombine) {
-		printk(KERN_ERR "%s: create pvrsrv_pool failed\n", __func__);
-		return;
-	}
-
-	/* Reserve space in the vmalloc vm range */
-	tmp_area = __get_vm_area(POOL_SIZE, VM_ALLOC,
-			VMALLOC_START, VMALLOC_END);
-	if (!tmp_area) {
-		printk(KERN_ERR "%s: __get_vm_area failed\n", __func__);
-		gen_pool_destroy(pvrsrv_pool_writecombine);
-		pvrsrv_pool_writecombine = NULL;
-		return;
-	}
-
-	pool_start = tmp_area->addr;
-
-	if (!pool_start) {
-		printk(KERN_ERR "%s:No vm space to create POOL\n",
-				__func__);
-		gen_pool_destroy(pvrsrv_pool_writecombine);
-		pvrsrv_pool_writecombine = NULL;
-		return;
-	} else {
-		/* Add our reserved space into the pool */
-		ret = gen_pool_add(pvrsrv_pool_writecombine,
-			(unsigned long) pool_start, POOL_SIZE, -1);
-		if (ret) {
-			printk(KERN_ERR "%s:could not remainder pool\n",
-					__func__);
-			deinit_pvr_pool();
-			return;
-		}
-	}
-	return;
-}
-
-static inline IMG_BOOL vmap_from_pool(void *pvCPUVAddr)
-{
-	IMG_CHAR *pcTmp = pvCPUVAddr;
-	if ((pcTmp >= pool_start) && (pcTmp <= (pool_start + POOL_SIZE)))
-	{
-		return IMG_TRUE;
-	}
-	return IMG_FALSE;
-}
-#endif	/* #if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL) */
 
 PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr)
@@ -204,6 +124,15 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 	/*Get the order to be used with the allocation */
 	ui32Order = get_order(uiSize);
 
+	if (ui32Order > PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER_NUM)
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+				"Trying to allocate page order %u, max allowed %u",
+				ui32Order,
+				PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER_NUM));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
 	/*allocate the pages */
 	psPage = alloc_pages(GFP_KERNEL, ui32Order);
 	if (psPage == NULL)
@@ -211,38 +140,6 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
 	uiSize = (1 << ui32Order) * PAGE_SIZE;
-
-#if defined(CONFIG_X86)
-	{
-		void *pvPageVAddr = page_address(psPage);
-		int ret;
-		ret = set_memory_wc((unsigned long)pvPageVAddr, (1 << ui32Order));
-
-		if (ret)
-		{
-			__free_pages(psPage, ui32Order);
-			return PVRSRV_ERROR_UNABLE_TO_SET_CACHE_MODE;
-		}
-	}
-#else
-	{
-		IMG_UINT32 ui32Count;
-		IMG_CPU_PHYADDR sCPUPhysAddrStart, sCPUPhysAddrEnd;
-		void *pvPageVAddr;
-
-		for (ui32Count = 0; ui32Count < (1 << ui32Order); ui32Count++)
-		{
-			sCPUPhysAddrStart.uiAddr = IMG_CAST_TO_CPUPHYADDR_UINT(page_to_phys(psPage + ui32Count));
-			sCPUPhysAddrEnd.uiAddr = sCPUPhysAddrStart.uiAddr + PAGE_SIZE;
-			pvPageVAddr = kmap(psPage + ui32Count);
-			OSInvalidateCPUCacheRangeKM(pvPageVAddr,
-									pvPageVAddr + PAGE_SIZE,
-									sCPUPhysAddrStart,
-									sCPUPhysAddrEnd);
-			kunmap(psPage + ui32Count);
-		}
-	}
-#endif
 
 	psMemHandle->u.pvHandle = psPage;
 	psMemHandle->ui32Order = ui32Order;
@@ -285,18 +182,6 @@ void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle)
 #endif
 #endif
 
-#if defined (CONFIG_X86)
-	{
-		void *pvPageVAddr;
-		int ret;
-		pvPageVAddr = page_address(psPage);
-		ret = set_memory_wb((unsigned long) pvPageVAddr, uiPageCount);
-		if (ret)
-		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: Failed to reset page attribute", __FUNCTION__));
-		}
-	}
-#endif
 	__free_pages(psPage, psMemHandle->ui32Order);
 	psMemHandle->ui32Order = 0;
 }
@@ -305,74 +190,13 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 						size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
 						void **pvPtr)
 {
-	struct page *psPage = (struct page *) psMemHandle->u.pvHandle;
-	size_t actualSize = (1 << psMemHandle->ui32Order) * PAGE_SIZE;
-	/* Calculate the number of pages to actually map in */
-	unsigned int numPages = (1 << psMemHandle->ui32Order);
-	unsigned int i;
-	struct page *apsPage[numPages];
-	struct page **ppsPage = &(apsPage[0]);
-	uintptr_t uiCPUVAddr;
-	pgprot_t prot = PAGE_KERNEL;
+	size_t actualSize = 1<<psMemHandle->ui32Order;
+	*pvPtr = kmap((struct page*)psMemHandle->u.pvHandle);
 
-	PVR_UNREFERENCED_PARAMETER(actualSize); /* If we don't take an #ifdef path */
+	PVR_UNREFERENCED_PARAMETER(psDevPAddr);
+
 	PVR_UNREFERENCED_PARAMETER(uiSize);
 	PVR_UNREFERENCED_PARAMETER(psDevNode);
-
-	for (i = 0; i < numPages; i ++)
-	{
-		apsPage[i] = psPage + i;
-	}
-
-	prot = pgprot_writecombine(prot);
-
-#if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL)
-	uiCPUVAddr = gen_pool_alloc(pvrsrv_pool_writecombine, actualSize);
-
-	if (uiCPUVAddr) {
-		int ret = 0;
-		struct vm_struct tmp_area;
-
-		/* vmalloc and friends expect a guard page so we need to take that into account */
-		tmp_area.addr = (void *)uiCPUVAddr;
-		tmp_area.size =  actualSize + PAGE_SIZE;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0))
-		ret = map_vm_area(&tmp_area, prot, ppsPage);
-#else
-		ret = map_vm_area(&tmp_area, prot, & ppsPage);
-#endif
-		if (ret) {
-			gen_pool_free(pvrsrv_pool_writecombine, uiCPUVAddr, actualSize);
-			PVR_DPF((PVR_DBG_ERROR,
-					 "%s: Cannot map page to pool",
-					 __func__));
-			/* Failed the pool alloc so fall back to the vm_map path */
-			uiCPUVAddr = 0;
-		}
-	}
-
-	/* Not else as if the poll alloc fails it resets uiCPUVAddr to 0 */
-	if (uiCPUVAddr == 0)
-#endif	/* #if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL) */
-	{
-#if !defined(CONFIG_64BIT) || defined(PVRSRV_FORCE_SLOWER_VMAP_ON_64BIT_BUILDS)
-		uiCPUVAddr = (uintptr_t) vmap(ppsPage, numPages, VM_READ | VM_WRITE, prot);
-#else
-		uiCPUVAddr = (uintptr_t) vm_map_ram(ppsPage,
-											numPages,
-												-1,
-												prot);
-#endif
-	}
-
-	/* Check that one of the above methods got us an address */
-	if (((void *)uiCPUVAddr) == NULL)
-	{
-		return PVRSRV_ERROR_FAILED_TO_MAP_KERNELVIRTUAL;
-	}
-
-	*pvPtr = (void *) ((uiCPUVAddr & (~OSGetPageMask())) |
-							((uintptr_t) (psDevPAddr->uiAddr & OSGetPageMask())));
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -383,7 +207,7 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 		sCpuPAddr.uiAddr = 0;
 
 		PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE_VMAP_PT_UMA,
-									 (void *)uiCPUVAddr,
+									 *pvPtr,
 									 sCpuPAddr,
 									 actualSize,
 									 NULL);
@@ -396,8 +220,6 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 
 void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle, void *pvPtr)
 {
-	PVR_UNREFERENCED_PARAMETER(psDevNode);
-
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
 	/* Mapping is done a page at a time */
@@ -407,33 +229,50 @@ void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle
 #endif
 #endif
 
-#if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL)
-	if (vmap_from_pool(pvPtr))
-	{
-		IMG_UINT32 ui32Count;
-		unsigned long addr = (unsigned long)pvPtr;
+	PVR_UNREFERENCED_PARAMETER(psDevNode);
+	PVR_UNREFERENCED_PARAMETER(pvPtr);
 
-		/* Flush the data cache */
-		flush_cache_vunmap(addr, addr + (PAGE_SIZE << psMemHandle->ui32Order));
-		/* Unmap the page */
-		unmap_kernel_range_noflush(addr, (PAGE_SIZE << psMemHandle->ui32Order));
-		/* Flush the TLB */
-		for (ui32Count = 0; ui32Count < (1 << psMemHandle->ui32Order); ui32Count++)
-		{
-			__flush_tlb_single(addr + (ui32Count * PAGE_SIZE));
-		}
-		/* Free the page back to the pool */
-		gen_pool_free(pvrsrv_pool_writecombine, addr, (PAGE_SIZE << psMemHandle->ui32Order));
-	}
-	else
-#endif	/* #if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL) */
+	kunmap((struct page*) psMemHandle->u.pvHandle);
+}
+
+PVRSRV_ERROR OSPhyContigPagesClean(PG_HANDLE *psMemHandle,
+                                   IMG_UINT32 uiOffset,
+                                   IMG_UINT32 uiLength)
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
+	struct page* psPage = (struct page*) psMemHandle->u.pvHandle;
+
+	void* pvVirtAddrStart = kmap(psPage) + uiOffset;
+	IMG_CPU_PHYADDR sPhysStart, sPhysEnd;
+
+	if (uiLength == 0)
 	{
-#if !defined(CONFIG_64BIT) || defined(PVRSRV_FORCE_SLOWER_VMAP_ON_64BIT_BUILDS)
-		vunmap(pvPtr);
-#else
-		vm_unmap_ram(pvPtr, (1 << psMemHandle->ui32Order));
-#endif
+		goto e0;
 	}
+
+	if ((uiOffset + uiLength) > ((1 << psMemHandle->ui32Order) * PAGE_SIZE))
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+				"%s: Invalid size params, uiOffset %u, uiLength %u",
+				__FUNCTION__,
+				uiOffset,
+				uiLength));
+		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto e0;
+	}
+
+	sPhysStart.uiAddr = page_to_phys(psPage) + uiOffset;
+	sPhysEnd.uiAddr = sPhysStart.uiAddr + uiLength;
+
+	OSCleanCPUCacheRangeKM(pvVirtAddrStart,
+	                       pvVirtAddrStart + uiLength,
+	                       sPhysStart,
+	                       sPhysEnd);
+
+e0:
+	kunmap(psPage);
+
+	return eError;
 }
 
 #if defined(__GNUC__)
@@ -533,20 +372,6 @@ PVRSRV_ERROR OSInitEnvData(void)
 
 	atomic_set(&g_DriverSuspended, 0);
 
-#if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL)
-	/*
-		vm_ram_ram works with 2MB blocks to avoid excessive
-		TLB flushing but our allocations are always small and have
-		a long lifetime which then leads to fragmentation of vmalloc space.
-		To workaround this we create a virtual address pool in the vmap range
-		for mapping our page tables into so we don't fragment vmalloc space.
-	*/
-	if (!pvrsrv_pool_writecombine)
-	{
-		init_pvr_pool();
-	}
-#endif	/* #if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL) */
-
 	LinuxInitPhysmem();
 
 	return PVRSRV_OK;
@@ -564,12 +389,6 @@ void OSDeInitEnvData(void)
 
 	LinuxDeinitPhysmem();
 
-#if defined(OSFUNC_USE_PHYS_CONTIG_PAGES_MAP_POOL)
-	if (pvrsrv_pool_writecombine)
-	{
-		deinit_pvr_pool();
-	}
-#endif
 	if (g_pvBridgeBuffers)
 	{
 		/* free-up the memory allocated for bridge buffers */

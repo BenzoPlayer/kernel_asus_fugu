@@ -109,7 +109,7 @@ PVRSRVBridgeDCDevicesEnumerate(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCDevicesEnumerateIN->ui32DeviceArraySize != 0)
 	{
-		pui32DeviceIndexInt = OSAllocMem(psDCDevicesEnumerateIN->ui32DeviceArraySize * sizeof(IMG_UINT32));
+		pui32DeviceIndexInt = OSAllocMemNoStats(psDCDevicesEnumerateIN->ui32DeviceArraySize * sizeof(IMG_UINT32));
 		if (!pui32DeviceIndexInt)
 		{
 			psDCDevicesEnumerateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -141,7 +141,7 @@ PVRSRVBridgeDCDevicesEnumerate(IMG_UINT32 ui32DispatchTableEntry,
 
 DCDevicesEnumerate_exit:
 	if (pui32DeviceIndexInt)
-		OSFreeMem(pui32DeviceIndexInt);
+		OSFreeMemNoStats(pui32DeviceIndexInt);
 
 	return 0;
 }
@@ -327,7 +327,7 @@ PVRSRVBridgeDCPanelQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCPanelQueryIN->ui32PanelsArraySize != 0)
 	{
-		psPanelInfoInt = OSAllocMem(psDCPanelQueryIN->ui32PanelsArraySize * sizeof(PVRSRV_PANEL_INFO));
+		psPanelInfoInt = OSAllocMemNoStats(psDCPanelQueryIN->ui32PanelsArraySize * sizeof(PVRSRV_PANEL_INFO));
 		if (!psPanelInfoInt)
 		{
 			psDCPanelQueryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -374,7 +374,7 @@ PVRSRVBridgeDCPanelQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 DCPanelQuery_exit:
 	if (psPanelInfoInt)
-		OSFreeMem(psPanelInfoInt);
+		OSFreeMemNoStats(psPanelInfoInt);
 
 	return 0;
 }
@@ -395,7 +395,7 @@ PVRSRVBridgeDCFormatQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCFormatQueryIN->ui32NumFormats != 0)
 	{
-		psFormatInt = OSAllocMem(psDCFormatQueryIN->ui32NumFormats * sizeof(PVRSRV_SURFACE_FORMAT));
+		psFormatInt = OSAllocMemNoStats(psDCFormatQueryIN->ui32NumFormats * sizeof(PVRSRV_SURFACE_FORMAT));
 		if (!psFormatInt)
 		{
 			psDCFormatQueryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -415,7 +415,7 @@ PVRSRVBridgeDCFormatQuery(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCFormatQueryIN->ui32NumFormats != 0)
 	{
-		pui32SupportedInt = OSAllocMem(psDCFormatQueryIN->ui32NumFormats * sizeof(IMG_UINT32));
+		pui32SupportedInt = OSAllocMemNoStats(psDCFormatQueryIN->ui32NumFormats * sizeof(IMG_UINT32));
 		if (!pui32SupportedInt)
 		{
 			psDCFormatQueryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -462,9 +462,9 @@ PVRSRVBridgeDCFormatQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 DCFormatQuery_exit:
 	if (psFormatInt)
-		OSFreeMem(psFormatInt);
+		OSFreeMemNoStats(psFormatInt);
 	if (pui32SupportedInt)
-		OSFreeMem(pui32SupportedInt);
+		OSFreeMemNoStats(pui32SupportedInt);
 
 	return 0;
 }
@@ -485,7 +485,7 @@ PVRSRVBridgeDCDimQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCDimQueryIN->ui32NumDims != 0)
 	{
-		psDimInt = OSAllocMem(psDCDimQueryIN->ui32NumDims * sizeof(PVRSRV_SURFACE_DIMS));
+		psDimInt = OSAllocMemNoStats(psDCDimQueryIN->ui32NumDims * sizeof(PVRSRV_SURFACE_DIMS));
 		if (!psDimInt)
 		{
 			psDCDimQueryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -505,7 +505,7 @@ PVRSRVBridgeDCDimQuery(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCDimQueryIN->ui32NumDims != 0)
 	{
-		pui32SupportedInt = OSAllocMem(psDCDimQueryIN->ui32NumDims * sizeof(IMG_UINT32));
+		pui32SupportedInt = OSAllocMemNoStats(psDCDimQueryIN->ui32NumDims * sizeof(IMG_UINT32));
 		if (!pui32SupportedInt)
 		{
 			psDCDimQueryOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -552,9 +552,9 @@ PVRSRVBridgeDCDimQuery(IMG_UINT32 ui32DispatchTableEntry,
 
 DCDimQuery_exit:
 	if (psDimInt)
-		OSFreeMem(psDimInt);
+		OSFreeMemNoStats(psDimInt);
 	if (pui32SupportedInt)
-		OSFreeMem(pui32SupportedInt);
+		OSFreeMemNoStats(pui32SupportedInt);
 
 	return 0;
 }
@@ -869,7 +869,7 @@ PVRSRVBridgeDCDisplayContextConfigureCheck(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCDisplayContextConfigureCheckIN->ui32PipeCount != 0)
 	{
-		psSurfInfoInt = OSAllocMem(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(PVRSRV_SURFACE_CONFIG_INFO));
+		psSurfInfoInt = OSAllocMemNoStats(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(PVRSRV_SURFACE_CONFIG_INFO));
 		if (!psSurfInfoInt)
 		{
 			psDCDisplayContextConfigureCheckOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -889,14 +889,14 @@ PVRSRVBridgeDCDisplayContextConfigureCheck(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCDisplayContextConfigureCheckIN->ui32PipeCount != 0)
 	{
-		psBuffersInt = OSAllocMem(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(DC_BUFFER *));
+		psBuffersInt = OSAllocMemNoStats(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(DC_BUFFER *));
 		if (!psBuffersInt)
 		{
 			psDCDisplayContextConfigureCheckOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto DCDisplayContextConfigureCheck_exit;
 		}
-		hBuffersInt2 = OSAllocMem(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(IMG_HANDLE));
+		hBuffersInt2 = OSAllocMemNoStats(psDCDisplayContextConfigureCheckIN->ui32PipeCount * sizeof(IMG_HANDLE));
 		if (!hBuffersInt2)
 		{
 			psDCDisplayContextConfigureCheckOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -964,11 +964,11 @@ PVRSRVBridgeDCDisplayContextConfigureCheck(IMG_UINT32 ui32DispatchTableEntry,
 
 DCDisplayContextConfigureCheck_exit:
 	if (psSurfInfoInt)
-		OSFreeMem(psSurfInfoInt);
+		OSFreeMemNoStats(psSurfInfoInt);
 	if (psBuffersInt)
-		OSFreeMem(psBuffersInt);
+		OSFreeMemNoStats(psBuffersInt);
 	if (hBuffersInt2)
-		OSFreeMem(hBuffersInt2);
+		OSFreeMemNoStats(hBuffersInt2);
 
 	return 0;
 }
@@ -992,7 +992,7 @@ PVRSRVBridgeDCDisplayContextConfigure(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCDisplayContextConfigureIN->ui32PipeCount != 0)
 	{
-		psSurfInfoInt = OSAllocMem(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(PVRSRV_SURFACE_CONFIG_INFO));
+		psSurfInfoInt = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(PVRSRV_SURFACE_CONFIG_INFO));
 		if (!psSurfInfoInt)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1012,14 +1012,14 @@ PVRSRVBridgeDCDisplayContextConfigure(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCDisplayContextConfigureIN->ui32PipeCount != 0)
 	{
-		psBuffersInt = OSAllocMem(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(DC_BUFFER *));
+		psBuffersInt = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(DC_BUFFER *));
 		if (!psBuffersInt)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto DCDisplayContextConfigure_exit;
 		}
-		hBuffersInt2 = OSAllocMem(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(IMG_HANDLE));
+		hBuffersInt2 = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32PipeCount * sizeof(IMG_HANDLE));
 		if (!hBuffersInt2)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1039,14 +1039,14 @@ PVRSRVBridgeDCDisplayContextConfigure(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCDisplayContextConfigureIN->ui32SyncCount != 0)
 	{
-		psSyncInt = OSAllocMem(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
+		psSyncInt = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
 		if (!psSyncInt)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto DCDisplayContextConfigure_exit;
 		}
-		hSyncInt2 = OSAllocMem(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(IMG_HANDLE));
+		hSyncInt2 = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(IMG_HANDLE));
 		if (!hSyncInt2)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1066,7 +1066,7 @@ PVRSRVBridgeDCDisplayContextConfigure(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psDCDisplayContextConfigureIN->ui32SyncCount != 0)
 	{
-		bUpdateInt = OSAllocMem(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(IMG_BOOL));
+		bUpdateInt = OSAllocMemNoStats(psDCDisplayContextConfigureIN->ui32SyncCount * sizeof(IMG_BOOL));
 		if (!bUpdateInt)
 		{
 			psDCDisplayContextConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1162,17 +1162,17 @@ PVRSRVBridgeDCDisplayContextConfigure(IMG_UINT32 ui32DispatchTableEntry,
 
 DCDisplayContextConfigure_exit:
 	if (psSurfInfoInt)
-		OSFreeMem(psSurfInfoInt);
+		OSFreeMemNoStats(psSurfInfoInt);
 	if (psBuffersInt)
-		OSFreeMem(psBuffersInt);
+		OSFreeMemNoStats(psBuffersInt);
 	if (hBuffersInt2)
-		OSFreeMem(hBuffersInt2);
+		OSFreeMemNoStats(hBuffersInt2);
 	if (psSyncInt)
-		OSFreeMem(psSyncInt);
+		OSFreeMemNoStats(psSyncInt);
 	if (hSyncInt2)
-		OSFreeMem(hSyncInt2);
+		OSFreeMemNoStats(hSyncInt2);
 	if (bUpdateInt)
-		OSFreeMem(bUpdateInt);
+		OSFreeMemNoStats(bUpdateInt);
 
 	return 0;
 }
@@ -1294,14 +1294,14 @@ PVRSRVBridgeDCBufferImport(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDCBufferImportIN->ui32NumPlanes != 0)
 	{
-		psImportInt = OSAllocMem(psDCBufferImportIN->ui32NumPlanes * sizeof(PMR *));
+		psImportInt = OSAllocMemNoStats(psDCBufferImportIN->ui32NumPlanes * sizeof(PMR *));
 		if (!psImportInt)
 		{
 			psDCBufferImportOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto DCBufferImport_exit;
 		}
-		hImportInt2 = OSAllocMem(psDCBufferImportIN->ui32NumPlanes * sizeof(IMG_HANDLE));
+		hImportInt2 = OSAllocMemNoStats(psDCBufferImportIN->ui32NumPlanes * sizeof(IMG_HANDLE));
 		if (!hImportInt2)
 		{
 			psDCBufferImportOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1400,9 +1400,9 @@ DCBufferImport_exit:
 	}
 
 	if (psImportInt)
-		OSFreeMem(psImportInt);
+		OSFreeMemNoStats(psImportInt);
 	if (hImportInt2)
-		OSFreeMem(hImportInt2);
+		OSFreeMemNoStats(hImportInt2);
 
 	return 0;
 }

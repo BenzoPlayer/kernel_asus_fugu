@@ -243,6 +243,21 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 
 void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle, void *pvPtr);
 
+/*************************************************************************/ /*!
+@Function       OSPhyContigPagesClean
+@Description    Write the content of the specified allocation from CPU cache to
+                memory from (start + uiOffset) to (start + uiOffset + uiLength)
+
+@Input          psMemHandle   the handle of the allocation to be flushed
+@Input          uiOffset      the offset in bytes from the start of the 
+                              allocation from where to start flushing
+@Input          uiLength      the amount to flush from the offset in bytes
+@Return         PVRSRV_OK on success, a failure code otherwise.
+*****************************************************************************/
+PVRSRV_ERROR OSPhyContigPagesClean(PG_HANDLE *psMemHandle,
+                                   IMG_UINT32 uiOffset,
+                                   IMG_UINT32 uiLength);
+
 
 PVRSRV_ERROR OSInitEnvData(void);
 void OSDeInitEnvData(void);

@@ -107,7 +107,7 @@ PVRSRVBridgeRGXConfigEnableHWPerfCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRGXConfigEnableHWPerfCountersIN->ui32ArrayLen != 0)
 	{
-		psBlockConfigsInt = OSAllocMem(psRGXConfigEnableHWPerfCountersIN->ui32ArrayLen * sizeof(RGX_HWPERF_CONFIG_CNTBLK));
+		psBlockConfigsInt = OSAllocMemNoStats(psRGXConfigEnableHWPerfCountersIN->ui32ArrayLen * sizeof(RGX_HWPERF_CONFIG_CNTBLK));
 		if (!psBlockConfigsInt)
 		{
 			psRGXConfigEnableHWPerfCountersOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -138,7 +138,7 @@ PVRSRVBridgeRGXConfigEnableHWPerfCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 RGXConfigEnableHWPerfCounters_exit:
 	if (psBlockConfigsInt)
-		OSFreeMem(psBlockConfigsInt);
+		OSFreeMemNoStats(psBlockConfigsInt);
 
 	return 0;
 }
@@ -156,7 +156,7 @@ PVRSRVBridgeRGXCtrlHWPerfCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRGXCtrlHWPerfCountersIN->ui32ArrayLen != 0)
 	{
-		ui16BlockIDsInt = OSAllocMem(psRGXCtrlHWPerfCountersIN->ui32ArrayLen * sizeof(IMG_UINT16));
+		ui16BlockIDsInt = OSAllocMemNoStats(psRGXCtrlHWPerfCountersIN->ui32ArrayLen * sizeof(IMG_UINT16));
 		if (!ui16BlockIDsInt)
 		{
 			psRGXCtrlHWPerfCountersOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -188,7 +188,7 @@ PVRSRVBridgeRGXCtrlHWPerfCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 RGXCtrlHWPerfCounters_exit:
 	if (ui16BlockIDsInt)
-		OSFreeMem(ui16BlockIDsInt);
+		OSFreeMemNoStats(ui16BlockIDsInt);
 
 	return 0;
 }
@@ -206,7 +206,7 @@ PVRSRVBridgeRGXConfigCustomCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psRGXConfigCustomCountersIN->ui16NumCustomCounters != 0)
 	{
-		ui32CustomCounterIDsInt = OSAllocMem(psRGXConfigCustomCountersIN->ui16NumCustomCounters * sizeof(IMG_UINT32));
+		ui32CustomCounterIDsInt = OSAllocMemNoStats(psRGXConfigCustomCountersIN->ui16NumCustomCounters * sizeof(IMG_UINT32));
 		if (!ui32CustomCounterIDsInt)
 		{
 			psRGXConfigCustomCountersOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -238,7 +238,7 @@ PVRSRVBridgeRGXConfigCustomCounters(IMG_UINT32 ui32DispatchTableEntry,
 
 RGXConfigCustomCounters_exit:
 	if (ui32CustomCounterIDsInt)
-		OSFreeMem(ui32CustomCounterIDsInt);
+		OSFreeMemNoStats(ui32CustomCounterIDsInt);
 
 	return 0;
 }

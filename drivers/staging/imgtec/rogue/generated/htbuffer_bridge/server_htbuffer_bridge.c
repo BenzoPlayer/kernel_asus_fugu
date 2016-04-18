@@ -83,7 +83,7 @@ PVRSRVBridgeHTBConfigure(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psHTBConfigureIN->ui32NameSize != 0)
 	{
-		uiNameInt = OSAllocMem(psHTBConfigureIN->ui32NameSize * sizeof(IMG_CHAR));
+		uiNameInt = OSAllocMemNoStats(psHTBConfigureIN->ui32NameSize * sizeof(IMG_CHAR));
 		if (!uiNameInt)
 		{
 			psHTBConfigureOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -115,7 +115,7 @@ PVRSRVBridgeHTBConfigure(IMG_UINT32 ui32DispatchTableEntry,
 
 HTBConfigure_exit:
 	if (uiNameInt)
-		OSFreeMem(uiNameInt);
+		OSFreeMemNoStats(uiNameInt);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psHTBControlIN->ui32NumGroups != 0)
 	{
-		ui32GroupEnableInt = OSAllocMem(psHTBControlIN->ui32NumGroups * sizeof(IMG_UINT32));
+		ui32GroupEnableInt = OSAllocMemNoStats(psHTBControlIN->ui32NumGroups * sizeof(IMG_UINT32));
 		if (!ui32GroupEnableInt)
 		{
 			psHTBControlOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -169,7 +169,7 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 
 HTBControl_exit:
 	if (ui32GroupEnableInt)
-		OSFreeMem(ui32GroupEnableInt);
+		OSFreeMemNoStats(ui32GroupEnableInt);
 
 	return 0;
 }
@@ -188,7 +188,7 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psHTBLogIN->ui32NumArgs != 0)
 	{
-		ui32ArgsInt = OSAllocMem(psHTBLogIN->ui32NumArgs * sizeof(IMG_UINT32));
+		ui32ArgsInt = OSAllocMemNoStats(psHTBLogIN->ui32NumArgs * sizeof(IMG_UINT32));
 		if (!ui32ArgsInt)
 		{
 			psHTBLogOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -222,7 +222,7 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 
 HTBLog_exit:
 	if (ui32ArgsInt)
-		OSFreeMem(ui32ArgsInt);
+		OSFreeMemNoStats(ui32ArgsInt);
 
 	return 0;
 }

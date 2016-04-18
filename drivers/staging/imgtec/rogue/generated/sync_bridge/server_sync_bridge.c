@@ -320,7 +320,7 @@ PVRSRVBridgeSyncRecordAdd(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psSyncRecordAddIN->ui32ClassNameSize != 0)
 	{
-		uiClassNameInt = OSAllocMem(psSyncRecordAddIN->ui32ClassNameSize * sizeof(IMG_CHAR));
+		uiClassNameInt = OSAllocMemNoStats(psSyncRecordAddIN->ui32ClassNameSize * sizeof(IMG_CHAR));
 		if (!uiClassNameInt)
 		{
 			psSyncRecordAddOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -395,7 +395,7 @@ SyncRecordAdd_exit:
 	}
 
 	if (uiClassNameInt)
-		OSFreeMem(uiClassNameInt);
+		OSFreeMemNoStats(uiClassNameInt);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ PVRSRVBridgeServerSyncAlloc(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psServerSyncAllocIN->ui32ClassNameSize != 0)
 	{
-		uiClassNameInt = OSAllocMem(psServerSyncAllocIN->ui32ClassNameSize * sizeof(IMG_CHAR));
+		uiClassNameInt = OSAllocMemNoStats(psServerSyncAllocIN->ui32ClassNameSize * sizeof(IMG_CHAR));
 		if (!uiClassNameInt)
 		{
 			psServerSyncAllocOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -481,7 +481,7 @@ ServerSyncAlloc_exit:
 	}
 
 	if (uiClassNameInt)
-		OSFreeMem(uiClassNameInt);
+		OSFreeMemNoStats(uiClassNameInt);
 
 	return 0;
 }
@@ -592,14 +592,14 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psServerSyncGetStatusIN->ui32SyncCount != 0)
 	{
-		psSyncHandleInt = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
+		psSyncHandleInt = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
 		if (!psSyncHandleInt)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto ServerSyncGetStatus_exit;
 		}
-		hSyncHandleInt2 = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_HANDLE));
+		hSyncHandleInt2 = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_HANDLE));
 		if (!hSyncHandleInt2)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -619,7 +619,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psServerSyncGetStatusIN->ui32SyncCount != 0)
 	{
-		pui32UIDInt = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
+		pui32UIDInt = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
 		if (!pui32UIDInt)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -630,7 +630,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psServerSyncGetStatusIN->ui32SyncCount != 0)
 	{
-		pui32FWAddrInt = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
+		pui32FWAddrInt = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
 		if (!pui32FWAddrInt)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -641,7 +641,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psServerSyncGetStatusIN->ui32SyncCount != 0)
 	{
-		pui32CurrentOpInt = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
+		pui32CurrentOpInt = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
 		if (!pui32CurrentOpInt)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -652,7 +652,7 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psServerSyncGetStatusIN->ui32SyncCount != 0)
 	{
-		pui32NextOpInt = OSAllocMem(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
+		pui32NextOpInt = OSAllocMemNoStats(psServerSyncGetStatusIN->ui32SyncCount * sizeof(IMG_UINT32));
 		if (!pui32NextOpInt)
 		{
 			psServerSyncGetStatusOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -735,17 +735,17 @@ PVRSRVBridgeServerSyncGetStatus(IMG_UINT32 ui32DispatchTableEntry,
 
 ServerSyncGetStatus_exit:
 	if (psSyncHandleInt)
-		OSFreeMem(psSyncHandleInt);
+		OSFreeMemNoStats(psSyncHandleInt);
 	if (hSyncHandleInt2)
-		OSFreeMem(hSyncHandleInt2);
+		OSFreeMemNoStats(hSyncHandleInt2);
 	if (pui32UIDInt)
-		OSFreeMem(pui32UIDInt);
+		OSFreeMemNoStats(pui32UIDInt);
 	if (pui32FWAddrInt)
-		OSFreeMem(pui32FWAddrInt);
+		OSFreeMemNoStats(pui32FWAddrInt);
 	if (pui32CurrentOpInt)
-		OSFreeMem(pui32CurrentOpInt);
+		OSFreeMemNoStats(pui32CurrentOpInt);
 	if (pui32NextOpInt)
-		OSFreeMem(pui32NextOpInt);
+		OSFreeMemNoStats(pui32NextOpInt);
 
 	return 0;
 }
@@ -769,14 +769,14 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psSyncPrimOpCreateIN->ui32SyncBlockCount != 0)
 	{
-		psBlockListInt = OSAllocMem(psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(SYNC_PRIMITIVE_BLOCK *));
+		psBlockListInt = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(SYNC_PRIMITIVE_BLOCK *));
 		if (!psBlockListInt)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto SyncPrimOpCreate_exit;
 		}
-		hBlockListInt2 = OSAllocMem(psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(IMG_HANDLE));
+		hBlockListInt2 = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32SyncBlockCount * sizeof(IMG_HANDLE));
 		if (!hBlockListInt2)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -796,7 +796,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpCreateIN->ui32ClientSyncCount != 0)
 	{
-		ui32SyncBlockIndexInt = OSAllocMem(psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
+		ui32SyncBlockIndexInt = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
 		if (!ui32SyncBlockIndexInt)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -816,7 +816,7 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpCreateIN->ui32ClientSyncCount != 0)
 	{
-		ui32IndexInt = OSAllocMem(psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
+		ui32IndexInt = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
 		if (!ui32IndexInt)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -836,14 +836,14 @@ PVRSRVBridgeSyncPrimOpCreate(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpCreateIN->ui32ServerSyncCount != 0)
 	{
-		psServerSyncInt = OSAllocMem(psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
+		psServerSyncInt = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(SERVER_SYNC_PRIMITIVE *));
 		if (!psServerSyncInt)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 	
 			goto SyncPrimOpCreate_exit;
 		}
-		hServerSyncInt2 = OSAllocMem(psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(IMG_HANDLE));
+		hServerSyncInt2 = OSAllocMemNoStats(psSyncPrimOpCreateIN->ui32ServerSyncCount * sizeof(IMG_HANDLE));
 		if (!hServerSyncInt2)
 		{
 			psSyncPrimOpCreateOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -947,17 +947,17 @@ SyncPrimOpCreate_exit:
 	}
 
 	if (psBlockListInt)
-		OSFreeMem(psBlockListInt);
+		OSFreeMemNoStats(psBlockListInt);
 	if (hBlockListInt2)
-		OSFreeMem(hBlockListInt2);
+		OSFreeMemNoStats(hBlockListInt2);
 	if (ui32SyncBlockIndexInt)
-		OSFreeMem(ui32SyncBlockIndexInt);
+		OSFreeMemNoStats(ui32SyncBlockIndexInt);
 	if (ui32IndexInt)
-		OSFreeMem(ui32IndexInt);
+		OSFreeMemNoStats(ui32IndexInt);
 	if (psServerSyncInt)
-		OSFreeMem(psServerSyncInt);
+		OSFreeMemNoStats(psServerSyncInt);
 	if (hServerSyncInt2)
-		OSFreeMem(hServerSyncInt2);
+		OSFreeMemNoStats(hServerSyncInt2);
 
 	return 0;
 }
@@ -979,7 +979,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psSyncPrimOpTakeIN->ui32ClientSyncCount != 0)
 	{
-		ui32FlagsInt = OSAllocMem(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
+		ui32FlagsInt = OSAllocMemNoStats(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
 		if (!ui32FlagsInt)
 		{
 			psSyncPrimOpTakeOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -999,7 +999,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpTakeIN->ui32ClientSyncCount != 0)
 	{
-		ui32FenceValueInt = OSAllocMem(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
+		ui32FenceValueInt = OSAllocMemNoStats(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
 		if (!ui32FenceValueInt)
 		{
 			psSyncPrimOpTakeOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1019,7 +1019,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpTakeIN->ui32ClientSyncCount != 0)
 	{
-		ui32UpdateValueInt = OSAllocMem(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
+		ui32UpdateValueInt = OSAllocMemNoStats(psSyncPrimOpTakeIN->ui32ClientSyncCount * sizeof(IMG_UINT32));
 		if (!ui32UpdateValueInt)
 		{
 			psSyncPrimOpTakeOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1039,7 +1039,7 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 			}
 	if (psSyncPrimOpTakeIN->ui32ServerSyncCount != 0)
 	{
-		ui32ServerFlagsInt = OSAllocMem(psSyncPrimOpTakeIN->ui32ServerSyncCount * sizeof(IMG_UINT32));
+		ui32ServerFlagsInt = OSAllocMemNoStats(psSyncPrimOpTakeIN->ui32ServerSyncCount * sizeof(IMG_UINT32));
 		if (!ui32ServerFlagsInt)
 		{
 			psSyncPrimOpTakeOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1089,13 +1089,13 @@ PVRSRVBridgeSyncPrimOpTake(IMG_UINT32 ui32DispatchTableEntry,
 
 SyncPrimOpTake_exit:
 	if (ui32FlagsInt)
-		OSFreeMem(ui32FlagsInt);
+		OSFreeMemNoStats(ui32FlagsInt);
 	if (ui32FenceValueInt)
-		OSFreeMem(ui32FenceValueInt);
+		OSFreeMemNoStats(ui32FenceValueInt);
 	if (ui32UpdateValueInt)
-		OSFreeMem(ui32UpdateValueInt);
+		OSFreeMemNoStats(ui32UpdateValueInt);
 	if (ui32ServerFlagsInt)
-		OSFreeMem(ui32ServerFlagsInt);
+		OSFreeMemNoStats(ui32ServerFlagsInt);
 
 	return 0;
 }

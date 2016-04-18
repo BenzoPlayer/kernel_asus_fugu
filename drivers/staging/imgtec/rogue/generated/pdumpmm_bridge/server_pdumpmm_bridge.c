@@ -223,7 +223,7 @@ PVRSRVBridgePMRPDumpSaveToFile(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psPMRPDumpSaveToFileIN->ui32ArraySize != 0)
 	{
-		uiFileNameInt = OSAllocMem(psPMRPDumpSaveToFileIN->ui32ArraySize * sizeof(IMG_CHAR));
+		uiFileNameInt = OSAllocMemNoStats(psPMRPDumpSaveToFileIN->ui32ArraySize * sizeof(IMG_CHAR));
 		if (!uiFileNameInt)
 		{
 			psPMRPDumpSaveToFileOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -275,7 +275,7 @@ PVRSRVBridgePMRPDumpSaveToFile(IMG_UINT32 ui32DispatchTableEntry,
 
 PMRPDumpSaveToFile_exit:
 	if (uiFileNameInt)
-		OSFreeMem(uiFileNameInt);
+		OSFreeMemNoStats(uiFileNameInt);
 
 	return 0;
 }
@@ -297,7 +297,7 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen != 0)
 	{
-		puiMemspaceNameInt = OSAllocMem(psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen * sizeof(IMG_CHAR));
+		puiMemspaceNameInt = OSAllocMemNoStats(psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen * sizeof(IMG_CHAR));
 		if (!puiMemspaceNameInt)
 		{
 			psPMRPDumpSymbolicAddrOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -308,7 +308,7 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psPMRPDumpSymbolicAddrIN->ui32SymbolicAddrLen != 0)
 	{
-		puiSymbolicAddrInt = OSAllocMem(psPMRPDumpSymbolicAddrIN->ui32SymbolicAddrLen * sizeof(IMG_CHAR));
+		puiSymbolicAddrInt = OSAllocMemNoStats(psPMRPDumpSymbolicAddrIN->ui32SymbolicAddrLen * sizeof(IMG_CHAR));
 		if (!puiSymbolicAddrInt)
 		{
 			psPMRPDumpSymbolicAddrOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -371,9 +371,9 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 
 PMRPDumpSymbolicAddr_exit:
 	if (puiMemspaceNameInt)
-		OSFreeMem(puiMemspaceNameInt);
+		OSFreeMemNoStats(puiMemspaceNameInt);
 	if (puiSymbolicAddrInt)
-		OSFreeMem(puiSymbolicAddrInt);
+		OSFreeMemNoStats(puiSymbolicAddrInt);
 
 	return 0;
 }
@@ -487,7 +487,7 @@ PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 
 	if (psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize != 0)
 	{
-		uiFileNameInt = OSAllocMem(psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize * sizeof(IMG_CHAR));
+		uiFileNameInt = OSAllocMemNoStats(psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize * sizeof(IMG_CHAR));
 		if (!uiFileNameInt)
 		{
 			psDevmemIntPDumpSaveToFileVirtualOUT->eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -537,7 +537,7 @@ PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 
 DevmemIntPDumpSaveToFileVirtual_exit:
 	if (uiFileNameInt)
-		OSFreeMem(uiFileNameInt);
+		OSFreeMemNoStats(uiFileNameInt);
 
 	return 0;
 }

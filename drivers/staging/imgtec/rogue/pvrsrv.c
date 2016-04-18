@@ -1377,6 +1377,18 @@ void LMA_PhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHand
 	OSUnMapPhysToLin(pvPtr, ui32NumPages * OSGetPageSize(), 0);
 }
 
+PVRSRV_ERROR LMA_PhyContigPagesClean(PG_HANDLE *psMemHandle,
+                                     IMG_UINT32 uiOffset,
+                                     IMG_UINT32 uiLength)
+{
+	/* No need to flush because we map as uncached */
+	PVR_UNREFERENCED_PARAMETER(psMemHandle);
+	PVR_UNREFERENCED_PARAMETER(uiOffset);
+	PVR_UNREFERENCED_PARAMETER(uiLength);
+
+	return PVRSRV_OK;
+}
+
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
 static PVRSRV_ERROR CreateLMASubArenas(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
@@ -1598,6 +1610,7 @@ static PVRSRV_ERROR IMG_CALLCONV PVRSRVRegisterDevice(PVRSRV_DEVICE_CONFIG *psDe
 		psDeviceNode->pfnDevPxFree = LMA_PhyContigPagesFree;
 		psDeviceNode->pfnDevPxMap = LMA_PhyContigPagesMap;
 		psDeviceNode->pfnDevPxUnMap = LMA_PhyContigPagesUnmap;
+		psDeviceNode->pfnDevPxClean = LMA_PhyContigPagesClean;
 		psDeviceNode->uiMMUPxLog2AllocGran = OSGetPageShift();
 		psDeviceNode->pfnCreateRamBackedPMR[PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL] = PhysmemNewLocalRamBackedPMR;
 	}
@@ -1610,6 +1623,7 @@ static PVRSRV_ERROR IMG_CALLCONV PVRSRVRegisterDevice(PVRSRV_DEVICE_CONFIG *psDe
 		psDeviceNode->pfnDevPxFree = OSPhyContigPagesFree;
 		psDeviceNode->pfnDevPxMap = OSPhyContigPagesMap;
 		psDeviceNode->pfnDevPxUnMap = OSPhyContigPagesUnmap;
+		psDeviceNode->pfnDevPxClean = OSPhyContigPagesClean;
 		psDeviceNode->pfnCreateRamBackedPMR[PVRSRV_DEVICE_PHYS_HEAP_GPU_LOCAL] = PhysmemNewOSRamBackedPMR;
 	}
 

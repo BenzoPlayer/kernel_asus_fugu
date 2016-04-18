@@ -151,6 +151,7 @@ pvrsrvkm-y += generated/srvcore_bridge/server_srvcore_bridge.o
 pvrsrvkm-y += generated/sync_bridge/server_sync_bridge.o
 pvrsrvkm-y += generated/dsync_bridge/client_sync_bridge.o
 pvrsrvkm-y += generated/cachegeneric_bridge/server_cachegeneric_bridge.o
+pvrsrvkm-y += generated/dcachegeneric_bridge/client_cachegeneric_bridge.o
 pvrsrvkm-y += generated/breakpoint_bridge/server_breakpoint_bridge.o
 pvrsrvkm-y += generated/debugmisc_bridge/server_debugmisc_bridge.o
 pvrsrvkm-y += generated/pvrtl_bridge/server_pvrtl_bridge.o

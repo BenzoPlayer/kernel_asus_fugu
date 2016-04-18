@@ -161,6 +161,10 @@ typedef struct _MMU_MEMORY_DESC_
 	void					*pvCpuVAddr;
 	/*! Mapping data for this MMU object */
 	MMU_MEMORY_MAPPING		*psMapping;
+	/*! Memdesc offset into the psMapping */
+	IMG_UINT32 uiOffset;
+	/*! Size of the Memdesc */
+	IMG_UINT32 uiSize;
 } MMU_MEMORY_DESC;
 
 /*!
@@ -524,7 +528,8 @@ static PVRSRV_ERROR _MMU_PhysMemAlloc(MMU_PHYSMEM_CONTEXT *psCtx,
 
 	psMemDesc->psMapping->uiCpuVAddrRefCount++;
 	psMemDesc->pvCpuVAddr = (IMG_UINT8 *) psMemDesc->psMapping->pvCpuVAddr + (psMemDesc->sDevPAddr.uiAddr - psMemDesc->psMapping->sDevPAddr.uiAddr);
-
+	psMemDesc->uiOffset = (psMemDesc->sDevPAddr.uiAddr - psMemDesc->psMapping->sDevPAddr.uiAddr);
+	psMemDesc->uiSize = uiBytes;
 	PVR_ASSERT(psMemDesc->pvCpuVAddr != NULL);
 
 	return PVRSRV_OK;
@@ -692,6 +697,14 @@ static PVRSRV_ERROR _PxMemAlloc(MMU_CONTEXT *psMMUContext,
 	*/
 	OSMemSet(psMemDesc->pvCpuVAddr, 0, uiBytes);
 
+	eError = psMMUContext->psDevNode->pfnDevPxClean(&psMemDesc->psMapping->sMemHandle,
+	                                                psMemDesc->uiOffset,
+	                                                psMemDesc->uiSize);
+	if(eError != PVRSRV_OK)
+	{
+		goto e1;
+	}
+
 #if defined(PDUMP)
 	PDUMPCOMMENT("Alloc MMU object");
 
@@ -720,7 +733,9 @@ static PVRSRV_ERROR _PxMemAlloc(MMU_CONTEXT *psMMUContext,
 #endif
 
 	return PVRSRV_OK;
-
+e1:
+	_MMU_PhysMemFree(psMMUContext->psPhysMemCtx,
+	                 psMemDesc);
 e0:
 	PVR_ASSERT(eError != PVRSRV_OK);
 	return eError;
@@ -1183,19 +1198,30 @@ static IMG_BOOL _MMU_FreeLevel(MMU_CONTEXT *psMMUContext,
 			psLevel->ui32RefCount--;
 		}
 
-		/*
-		   Free this level if it is no longer referenced, unless it's the base
-		   level in which case it's part of the MMU context and should be freed
-		   when the MMU context is freed
-		*/
-		if ((psLevel->ui32RefCount == 0) && (psLevel != &psMMUContext->sBaseLevelInfo))
-		{
-			_PxMemFree(psMMUContext, &psLevel->sMemDesc, aeMMULevel[uiThisLevel]);
-			OSFreeMem(psLevel);
-			psLevel = NULL;
-			bFreed = IMG_TRUE;
-		}
+
 	}
+
+	/* Level one flushing is done when we actually write the table entries */
+	if (aeMMULevel[uiThisLevel] != MMU_LEVEL_1)
+	{
+		psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+		                                       uiStartIndex * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+		                                       (uiEndIndex - uiStartIndex) * psConfig->uiBytesPerEntry);
+	}
+
+	/*
+	   Free this level if it is no longer referenced, unless it's the base
+	   level in which case it's part of the MMU context and should be freed
+	   when the MMU context is freed
+	*/
+	if ((psLevel->ui32RefCount == 0) && (psLevel != &psMMUContext->sBaseLevelInfo))
+	{
+		_PxMemFree(psMMUContext, &psLevel->sMemDesc, aeMMULevel[uiThisLevel]);
+		OSFreeMem(psLevel);
+		psLevel = NULL;
+		bFreed = IMG_TRUE;
+	}
+
 	MMU_OBJ_DBG((PVR_DBG_ERROR, "_MMU_FreeLevel end: level = %d, refcount = %d",
 				aeMMULevel[uiThisLevel], bFreed?0:psLevel->ui32RefCount));
 
@@ -1404,6 +1430,17 @@ static PVRSRV_ERROR _MMU_AllocLevel(MMU_CONTEXT *psMMUContext,
 		}
 		PVR_ASSERT(psLevel->ui32RefCount <= psLevel->ui32NumOfEntries);
 	}
+
+	/* Level one flushing is done when we actually write the table entries */
+	if (aeMMULevel[uiThisLevel] != MMU_LEVEL_1)
+	{
+		eError = psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+														uiStartIndex * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+														(uiEndIndex - uiStartIndex) * psConfig->uiBytesPerEntry);
+		if (eError != PVRSRV_OK)
+			goto e0;
+	}
+
 	MMU_OBJ_DBG((PVR_DBG_ERROR, "_MMU_AllocLevel end: level = %d, refcount = %d",
 				aeMMULevel[uiThisLevel], psLevel->ui32RefCount));
 	return PVRSRV_OK;
@@ -2230,11 +2267,14 @@ MMU_MapPages(MMU_CONTEXT *psMMUContext,
 
 	MMU_Levelx_INFO *psLevel = NULL;
 
+	MMU_Levelx_INFO *psPrevLevel = NULL;
+
 	IMG_UINT32 uiPTEIndex = 0;
 	IMG_UINT32 uiPageSize = (1 << uiLog2PageSize);
 	IMG_UINT32 uiLoop = 0;
 	IMG_UINT32 ui32MappedCount = 0;
 	IMG_UINT32 uiPgOffset = 0;
+	IMG_UINT32 uiFlushEnd = 0, uiFlushStart = 0;
 
 	IMG_UINT64 uiProtFlags = 0;
 	MMU_PROTFLAGS_T uiMMUProtFlags = 0;
@@ -2427,9 +2467,30 @@ MMU_MapPages(MMU_CONTEXT *psMMUContext,
 			}
 #endif /*PDUMP*/
 
+			psPrevLevel = psLevel;
 			/* Calculate PT index and get new table descriptor */
 			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
 						   &psLevel, &uiPTEIndex);
+
+			if (psPrevLevel == psLevel)
+			{
+				uiFlushEnd = uiPTEIndex;
+			}
+			else
+			{
+				/* Flush if we moved to another psLevel, i.e. page table */
+				if (psPrevLevel != NULL)
+				{
+					eError = psMMUContext->psDevNode->pfnDevPxClean(&psPrevLevel->sMemDesc.psMapping->sMemHandle,
+																	uiFlushStart * psConfig->uiBytesPerEntry + psPrevLevel->sMemDesc.uiOffset,
+																	(uiFlushEnd+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+					if (eError != PVRSRV_OK)
+						goto e3;
+				}
+
+				uiFlushStart = uiPTEIndex;
+				uiFlushEnd = uiFlushStart;
+			}
 
 			HTBLOGK(HTB_SF_MMU_PAGE_OP_MAP,
 				HTBLOG_U64_BITS_HIGH(sDevVAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevVAddr.uiAddr),
@@ -2470,6 +2531,16 @@ MMU_MapPages(MMU_CONTEXT *psMMUContext,
 		}
 
 		sDevVAddr.uiAddr += uiPageSize;
+	}
+
+	/* Flush the last level we touched */
+	if (psLevel != NULL)
+	{
+		eError = psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+														uiFlushStart * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+														(uiFlushEnd+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+		if (eError != PVRSRV_OK)
+			goto e3;
 	}
 
 	OSLockRelease(psMMUContext->hLock);
@@ -2529,7 +2600,9 @@ MMU_UnmapPages (MMU_CONTEXT *psMMUContext,
 {
 	IMG_UINT32 uiPTEIndex = 0, ui32Loop=0;
 	IMG_UINT32 uiPageSize = 1 << uiLog2PageSize;
+	IMG_UINT32 uiFlushEnd = 0, uiFlushStart = 0;
 	MMU_Levelx_INFO *psLevel = NULL;
+	MMU_Levelx_INFO *psPrevLevel = NULL;
 	IMG_HANDLE hPriv;
 	const MMU_PxE_CONFIG *psConfig;
 	const MMU_DEVVADDR_CONFIG *psDevVAddrConfig;
@@ -2579,9 +2652,28 @@ MMU_UnmapPages (MMU_CONTEXT *psMMUContext,
 										pai32FreeIndices[ui32Loop] * uiPageSize;
 		}
 
+		psPrevLevel = psLevel;
 		/* Calculate PT index and get new table descriptor */
 		_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
 					   &psLevel, &uiPTEIndex);
+
+		if (psPrevLevel == psLevel)
+		{
+			uiFlushEnd = uiPTEIndex;
+		}
+		else
+		{
+			/* Flush if we moved to another psLevel, i.e. page table */
+			if (psPrevLevel != NULL)
+			{
+				psMMUContext->psDevNode->pfnDevPxClean(&psPrevLevel->sMemDesc.psMapping->sMemHandle,
+				                                       uiFlushStart * psConfig->uiBytesPerEntry + psPrevLevel->sMemDesc.uiOffset,
+				                                       (uiFlushEnd+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+			}
+
+			uiFlushStart = uiPTEIndex;
+			uiFlushEnd = uiFlushStart;
+		}
 
 		HTBLOGK(HTB_SF_MMU_PAGE_OP_UNMAP,
 			HTBLOG_U64_BITS_HIGH(sDevVAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevVAddr.uiAddr));
@@ -2607,6 +2699,14 @@ MMU_UnmapPages (MMU_CONTEXT *psMMUContext,
 		PVR_ASSERT(psLevel->ui32RefCount <= psLevel->ui32NumOfEntries);
 		ui32Loop++;
 		sDevVAddr.uiAddr += uiPageSize;
+	}
+
+	/* Flush the last level we touched */
+	if (psLevel != NULL)
+	{
+		psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+		                                       uiFlushStart * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+		                                       (uiFlushEnd+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
 	}
 
 	OSLockRelease(psMMUContext->hLock);
@@ -2652,6 +2752,7 @@ MMU_MapPMRFast (MMU_CONTEXT *psMMUContext,
 	IMG_BOOL abValid[PMR_MAX_TRANSLATION_STACK_ALLOC];
 	IMG_DEV_PHYADDR *psDevPAddr;
 	IMG_BOOL *pbValid;
+	IMG_UINT32 uiFlushStart = 0;
 
 #if defined(PDUMP)
 	IMG_CHAR aszMemspaceName[PMR_MAX_MEMSPACE_NAME_LENGTH_DEFAULT];
@@ -2742,8 +2843,12 @@ MMU_MapPMRFast (MMU_CONTEXT *psMMUContext,
 
 	OSLockAcquire(psMMUContext->hLock);
 
+	_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+				   &psLevel, &uiPTEIndex);
+	uiFlushStart = uiPTEIndex;
+
 	/* Map in all pages of that PMR page by page*/
-	for (i=0, uiCount=0; uiCount < uiSizeBytes; i++, uiCount += uiPageSize)
+	for (i=0, uiCount=0; uiCount < uiSizeBytes; i++)
 	{
 #if defined(DEBUG)
 {
@@ -2775,32 +2880,43 @@ MMU_MapPMRFast (MMU_CONTEXT *psMMUContext,
 		}
 #endif /*PDUMP*/
 
-		/* Calculate PT index and get new table descriptor */
-		if ( (psLevel != NULL) && (uiPTEIndex < (psDevVAddrConfig->uiNumEntriesPT - 1) ) )
-		{
-			uiPTEIndex++;
-		}
-		else
-		{
-			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
-						   &psLevel, &uiPTEIndex);
-		}
-
 		HTBLOGK(HTB_SF_MMU_PAGE_OP_PMRMAP,
 			HTBLOG_U64_BITS_HIGH(sDevVAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevVAddr.uiAddr),
 			HTBLOG_U64_BITS_HIGH(psDevPAddr[i].uiAddr), HTBLOG_U64_BITS_LOW(psDevPAddr[i].uiAddr));
 
 		/* Set the PT entry with the specified address and protection flags */
-		_SetupPTE(psMMUContext, psLevel, uiPTEIndex,
-				  psConfig, &psDevPAddr[i], IMG_FALSE,
+		eError = _SetupPTE(psMMUContext, psLevel, uiPTEIndex,
+		                   psConfig, &psDevPAddr[i], IMG_FALSE,
 #if defined(PDUMP)
-                 aszMemspaceName,
-                 aszSymbolicAddress,
-                 uiSymbolicAddrOffset,
+		                   aszMemspaceName,
+		                   aszSymbolicAddress,
+		                   uiSymbolicAddrOffset,
 #endif /*PDUMP*/
 						   uiProtFlags);
+		if (eError != PVRSRV_OK)
+			goto e2;
 
 		sDevVAddr.uiAddr += uiPageSize;
+		uiCount += uiPageSize;
+
+		/* Calculate PT index and get new table descriptor */
+		if (uiPTEIndex < (psDevVAddrConfig->uiNumEntriesPT - 1) && (uiCount != uiSizeBytes))
+		{
+			uiPTEIndex++;
+		}
+		else
+		{
+			eError = psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+															uiFlushStart * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+															(uiPTEIndex+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+			if (eError != PVRSRV_OK)
+				goto e2;
+
+
+			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+						   &psLevel, &uiPTEIndex);
+			uiFlushStart = uiPTEIndex;
+		}
 	}
 
 	OSLockRelease(psMMUContext->hLock);
@@ -2826,6 +2942,12 @@ MMU_MapPMRFast (MMU_CONTEXT *psMMUContext,
 
 	return PVRSRV_OK;
 
+e2:
+	OSLockRelease(psMMUContext->hLock);
+	MMU_UnmapPMRFast(psMMUContext,
+	                 sDevVAddrBase,
+	                 uiSizeBytes >> uiLog2PageSize,
+	                 uiLog2PageSize);
 e1:
 	_MMU_PutPTConfig(psMMUContext, hPriv);
 
@@ -2858,6 +2980,7 @@ MMU_UnmapPMRFast(MMU_CONTEXT *psMMUContext,
 	IMG_UINT64 uiProtFlags = 0;
 	MMU_PROTFLAGS_T uiMMUProtFlags = 0;
 	IMG_UINT64 uiEntry = 0;
+	IMG_UINT32 uiFlushStart = 0;
 
 #if defined(PDUMP)
 	PDUMPCOMMENT("Invalidate %d entries in page tables for virtual range: 0x%010llX to 0x%010llX",
@@ -2899,20 +3022,14 @@ MMU_UnmapPMRFast(MMU_CONTEXT *psMMUContext,
 
 	OSLockAcquire(psMMUContext->hLock);
 
+	_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+				   &psLevel, &uiPTEIndex);
+	uiFlushStart = uiPTEIndex;
+
 	/* Unmap page by page and keep the loop as quick as possible.
 	 * Only use parts of _SetupPTE that need to be executed. */
 	while (ui32Loop < ui32PageCount)
 	{
-		/* Calculate PT index and get new table descriptor */
-		if ( (psLevel != NULL) && (uiPTEIndex < (psDevVAddrConfig->uiNumEntriesPT - 1) ) )
-		{
-			uiPTEIndex++;
-		}
-		else
-		{
-			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
-						   &psLevel, &uiPTEIndex);
-		}
 
 		/* Set the PT entry to invalid and poison it with a bad address */
 		if (psConfig->uiBytesPerEntry == 8)
@@ -2959,8 +3076,24 @@ MMU_UnmapPMRFast(MMU_CONTEXT *psMMUContext,
 						  psMMUContext->psDevAttrs->eMMUType);
 #endif /*PDUMP*/
 
-		ui32Loop++;
 		sDevVAddr.uiAddr += uiPageSize;
+		ui32Loop++;
+
+		/* Calculate PT index and get new table descriptor */
+		if (uiPTEIndex < (psDevVAddrConfig->uiNumEntriesPT - 1) && (ui32Loop != ui32PageCount))
+		{
+			uiPTEIndex++;
+		}
+		else
+		{
+			psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+												   uiFlushStart * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+												   (uiPTEIndex+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+
+			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+						   &psLevel, &uiPTEIndex);
+			uiFlushStart = uiPTEIndex;
+		}
 	}
 
 	OSLockRelease(psMMUContext->hLock);
@@ -3001,6 +3134,7 @@ MMU_ChangeValidity(MMU_CONTEXT *psMMUContext,
 	const MMU_DEVVADDR_CONFIG *psDevVAddrConfig;
 	const MMU_PxE_CONFIG *psConfig;
 	MMU_Levelx_INFO *psLevel = NULL;
+	IMG_UINT32 uiFlushStart = 0;
 	IMG_UINT32 uiPTIndex = 0;
 	IMG_UINT32 i;
 	IMG_UINT32 uiPageSize = 1 << uiLog2PageSize;
@@ -3026,13 +3160,13 @@ MMU_ChangeValidity(MMU_CONTEXT *psMMUContext,
 	_MMU_GetPTConfig(psMMUContext, (IMG_UINT32) uiLog2PageSize,
 	                 &psConfig, &hPriv, &psDevVAddrConfig);
 
-	/* Do a page table walk and change attribute for every page in range. */
-	for (i=0; i < uiNumPages; i++)
-	{
+	_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+					&psLevel, &uiPTIndex);
+	uiFlushStart = uiPTIndex;
 
-		/* Calculate PT index and get table descriptor */
-		_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
-						&psLevel, &uiPTIndex);
+	/* Do a page table walk and change attribute for every page in range. */
+	for (i=0; i < uiNumPages; )
+	{
 
 		/* Set the entry */
 		if (bMakeValid == IMG_TRUE)
@@ -3103,6 +3237,26 @@ MMU_ChangeValidity(MMU_CONTEXT *psMMUContext,
 #endif /*PDUMP*/
 
 		sDevVAddr.uiAddr += uiPageSize;
+		i++;
+
+		/* Calculate PT index and get new table descriptor */
+		if (uiPTIndex < (psDevVAddrConfig->uiNumEntriesPT - 1) && (i != uiNumPages))
+		{
+			uiPTIndex++;
+		}
+		else
+		{
+
+			eError = psMMUContext->psDevNode->pfnDevPxClean(&psLevel->sMemDesc.psMapping->sMemHandle,
+															uiFlushStart * psConfig->uiBytesPerEntry + psLevel->sMemDesc.uiOffset,
+															(uiPTIndex+1 - uiFlushStart) * psConfig->uiBytesPerEntry);
+			if (eError != PVRSRV_OK)
+				goto e_exit;
+
+			_MMU_GetPTInfo(psMMUContext, sDevVAddr, psDevVAddrConfig,
+						   &psLevel, &uiPTIndex);
+			uiFlushStart = uiPTIndex;
+		}
 	}
 
 e_exit:

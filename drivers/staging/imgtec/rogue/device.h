@@ -218,6 +218,10 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	void (*pfnDevPxUnMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 						  PG_HANDLE *psMemHandle, void *pvPtr);
 
+	PVRSRV_ERROR (*pfnDevPxClean)(PG_HANDLE *pshMemHandle,
+								IMG_UINT32 uiOffset,
+								IMG_UINT32 uiLength);
+
 	IMG_UINT32 uiMMUPxLog2AllocGran;
 	IMG_CHAR				*pszMMUPxPDumpMemSpaceName;
 

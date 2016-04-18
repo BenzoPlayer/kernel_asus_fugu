@@ -2033,14 +2033,16 @@ void RGXHWPerfFTraceGPUDeInit(PVRSRV_RGXDEV_INFO *psDevInfo)
 	}
 
 	OSLockDestroy(g_hLockFTraceEventLock);
+	g_hLockFTraceEventLock = NULL;
 	OSLockDestroy(g_hFTraceLock);
+	g_hFTraceLock = NULL;
 
 	PVR_DPF_RETURN;
 }
 
 void PVRGpuTraceEnableUfoCallback(void)
 {
-    OSLockAcquire(g_hLockFTraceEventLock);
+	OSLockAcquire(g_hLockFTraceEventLock);
 
 	if (g_uiUfoEventRef++ == 0)
 	{
@@ -2056,14 +2058,23 @@ void PVRGpuTraceEnableUfoCallback(void)
 		}
 	}
 
-    OSLockRelease(g_hLockFTraceEventLock);
+	OSLockRelease(g_hLockFTraceEventLock);
 }
 
 void PVRGpuTraceDisableUfoCallback(void)
 {
-    OSLockAcquire(g_hLockFTraceEventLock);
+	/* We have to check if lock is valid because on driver unload
+	 * RGXHWPerfFTraceGPUDeInit is called before kernel disables the ftrace
+	 * events. This means that the lock will be destroyed before this callback
+	 * is called.
+	 * We can safely return if that situation happens because driver will be
+	 * unloaded so we don't care about HWPerf state anymore. */
+	if (g_hLockFTraceEventLock == NULL)
+		return;
 
-    if (--g_uiUfoEventRef == 0)
+	OSLockAcquire(g_hLockFTraceEventLock);
+
+	if (--g_uiUfoEventRef == 0)
 	{
 		IMG_UINT64 ui64Filter = ~(RGX_HWPERF_EVENT_MASK_VALUE(RGX_HWPERF_UFO)) &
 		        gpsRgxDevInfo->ui64HWPerfFilter;
@@ -2077,7 +2088,7 @@ void PVRGpuTraceDisableUfoCallback(void)
 		}
 	}
 
-    OSLockRelease(g_hLockFTraceEventLock);
+	OSLockRelease(g_hLockFTraceEventLock);
 }
 
 #endif /* SUPPORT_GPUTRACE_EVENTS */

@@ -93,6 +93,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "osfunc.h"
 #include "allocmem.h"
 #include "lock.h"
+#include "pvr_intrinsics.h"
 
 /* The initial, and minimum size of the live address -> boundary tag
    structure hash table. The value 64 is a fairly arbitrary
@@ -233,7 +234,7 @@ _RequestAllocFail (RA_PERARENA_HANDLE _h,
 }
 
 
-#if defined (HAS_BUILTIN_CTZLL)
+#if defined (PVR_CTZLL)
     /* make sure to trigger an error if someone change the buckets or the bHasEltsMapping size
        the bHasEltsMapping is used to quickly determine the smallest bucket containing elements.
        therefore it must have at least as many bits has the buckets array have buckets. The RA
@@ -250,7 +251,7 @@ _RequestAllocFail (RA_PERARENA_HANDLE _h,
 @Input          n       Unsigned integer
 @Return         Floor(Log2(n))
 */ /**************************************************************************/
-#if defined(__GNUC__)
+#if defined(PVR_CLZLL)
 /* make sure to trigger a problem if someone changes the RA_LENGTH_T type
    indeed the __builtin_clzll is for unsigned long long variables.
 
@@ -266,7 +267,7 @@ static inline IMG_UINT32 pvr_log2(RA_LENGTH_T n)
 {
 	PVR_ASSERT( n != 0 ); /* Log2 is not defined on 0 */
 
-	return (8 * sizeof(RA_LENGTH_T)) - 1 - __builtin_clzll(n);
+	return (8 * sizeof(RA_LENGTH_T)) - 1 - PVR_CLZLL(n);
 }
 #else
 static IMG_UINT32
@@ -361,7 +362,7 @@ _IsInFreeList (RA_ARENA *pArena,
 static int is_arena_valid(struct _RA_ARENA_ * arena)
 {
 	struct _BT_ * chunk;
-#if defined(HAS_BUILTIN_CTZLL)
+#if defined(PVR_CTZLL)
 	unsigned int i;
 #endif
 
@@ -403,7 +404,7 @@ static int is_arena_valid(struct _RA_ARENA_ * arena)
 		PVR_ASSERT((!chunk->is_leftmost) || (!chunk->is_rightmost) || (chunk->type == btt_live) || (!chunk->free_import));
 	}
 
-#if defined(HAS_BUILTIN_CTZLL)
+#if defined(PVR_CTZLL)
     if (arena->per_flags_buckets != NULL)
 	{
 		for (i = 0; i < FREE_TABLE_LIMIT; ++i)
@@ -599,7 +600,7 @@ _FreeListInsert (RA_ARENA *pArena, BT *pBT)
 	pBT->prev_free = NULL;
 	pArena->per_flags_buckets->buckets[uIndex] = pBT;
 
-#if defined(HAS_BUILTIN_CTZLL)
+#if defined(PVR_CTZLL)
 	/* tells that bucket[index] now contains elements */
     pArena->per_flags_buckets->bHasEltsMapping |= ((IMG_ELTS_MAPPINGS) 1 << uIndex);
 #endif
@@ -638,7 +639,7 @@ _FreeListRemove (RA_ARENA *pArena, BT *pBT)
 		PVR_ASSERT(pArena->per_flags_buckets->buckets != NULL);
 
 		pArena->per_flags_buckets->buckets[uIndex] = pBT->next_free;
-#if defined(HAS_BUILTIN_CTZLL)
+#if defined(PVR_CTZLL)
 		if (pArena->per_flags_buckets->buckets[uIndex] == NULL)
 		{
 			/* there is no more elements in this bucket. Update the mapping. */
@@ -891,8 +892,8 @@ _AttemptAllocAligned (RA_ARENA *pArena,
 	PVR_ASSERT(index_high < FREE_TABLE_LIMIT);
 	PVR_ASSERT(index_low <= index_high);
 
-#if defined(HAS_BUILTIN_CTZLL)
-	i = __builtin_ctzll((IMG_ELTS_MAPPINGS) (~((1 << (index_high + 1)) - 1)) & pArena->per_flags_buckets->bHasEltsMapping);
+#if defined(PVR_CTZLL)
+	i = PVR_CTZLL((IMG_ELTS_MAPPINGS) (~((1 << (index_high + 1)) - 1)) & pArena->per_flags_buckets->bHasEltsMapping);
 #else
  	for (i = index_high + 1; (i < FREE_TABLE_LIMIT) && (pArena->per_flags_buckets->buckets[i] == NULL); ++i)
 	{

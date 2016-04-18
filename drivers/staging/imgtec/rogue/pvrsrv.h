@@ -247,6 +247,10 @@ PVRSRV_ERROR LMA_PhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psM
 void LMA_PhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
 					void *pvPtr);
 
+PVRSRV_ERROR LMA_PhyContigPagesClean(PG_HANDLE *psMemHandle,
+                                     IMG_UINT32 uiOffset,
+                                     IMG_UINT32 uiLength);
+
 
 /*!
 ******************************************************************************
