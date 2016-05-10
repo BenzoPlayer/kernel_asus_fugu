@@ -849,22 +849,22 @@ static void _DCDisplayContextNotify(PVRSRV_CMDCOMP_HANDLE hCmdCompHandle)
 	_DCDisplayContextRun(psDisplayContext);
 }
 
-static void _DCDebugRequest(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel)
+static void _DCDebugRequest(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
+					IMG_UINT32 ui32VerbLevel,
+					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile)
 {
 	DC_DISPLAY_CONTEXT	*psDisplayContext = (DC_DISPLAY_CONTEXT*) hDebugRequestHandle;
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
-
-	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
 
 	switch(ui32VerbLevel)
 	{
 		case DEBUG_REQUEST_VERBOSITY_LOW:
-			PVR_DUMPDEBUG_LOG(("Configs in-flight = %d", psDisplayContext->ui32ConfigsInFlight));
+			PVR_DUMPDEBUG_LOG("Configs in-flight = %d", psDisplayContext->ui32ConfigsInFlight);
 			break;
 
 		case DEBUG_REQUEST_VERBOSITY_MEDIUM:
-			PVR_DUMPDEBUG_LOG(("------[ Display context SCP status ]------"));
-			SCPDumpStatus(psDisplayContext->psSCPContext);
+			PVR_DUMPDEBUG_LOG("------[ Display context SCP status ]------");
+			SCPDumpStatus(psDisplayContext->psSCPContext, pfnDumpDebugPrintf, pvDumpDebugFile);
 			break;
 
 		default:

@@ -831,6 +831,10 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 
 	//PVR_DPF((PVR_DBG_ERROR,"FreeList RECONSTRUCTION: Reconstructing %u freelist(s)", ui32FreelistsCount));
 
+	/* initialise the command */
+	sTACCBCmd.eCmdType = RGXFWIF_KCCB_CMD_FREELISTS_RECONSTRUCTION_UPDATE;
+	sTACCBCmd.uCmdData.sFreeListsReconstructionData.ui32FreelistsCount = 0;
+
 	for (ui32Loop = 0; ui32Loop < ui32FreelistsCount; ui32Loop++)
 	{
 		/* check if there is more than one occurrence of FL on the list */
@@ -884,14 +888,14 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 			if (eError == PVRSRV_OK)
 			{
 				/* Freelist reconstruction successful */
-				sTACCBCmd.uCmdData.sFreeListsReconstructionData.aui32FreelistIDs[ui32Loop] =
+				sTACCBCmd.uCmdData.sFreeListsReconstructionData.aui32FreelistIDs[sTACCBCmd.uCmdData.sFreeListsReconstructionData.ui32FreelistsCount] =
 				                    paui32Freelists[ui32Loop];
 			}
 #if 0
 			else
 			{
 				/* Freelist reconstruction failed */
-				sTACCBCmd.uCmdData.sFreeListsReconstructionData.aui32FreelistIDs[ui32Loop] =
+				sTACCBCmd.uCmdData.sFreeListsReconstructionData.aui32FreelistIDs[sTACCBCmd.uCmdData.sFreeListsReconstructionData.ui32FreelistsCount] =
 				                    paui32Freelists[ui32Loop] | RGXFWIF_FREELISTS_RECONSTRUCTION_FAILED_FLAG;
 
 				PVR_DPF((PVR_DBG_ERROR,"Reconstructing of FreeList %p failed (error %u)",
@@ -899,18 +903,20 @@ void RGXProcessRequestFreelistsReconstruction(PVRSRV_RGXDEV_INFO *psDevInfo,
 				         eError));
 			}
 #endif
+			sTACCBCmd.uCmdData.sFreeListsReconstructionData.ui32FreelistsCount++;
 		}
 		else
 		{
 			/* Should never happen */
-			PVR_DPF((PVR_DBG_ERROR,"FreeList Lookup for FreeList ID 0x%08x failed (Freelist reconstruction)", paui32Freelists[ui32Loop]));
+			PVR_DPF((PVR_DBG_ERROR,"RGXProcessRequestFreelistsReconstruction: FreeList Lookup for FreeList ID 0x%08X failed. "
+										"Last allocated FreeList ID: 0x%08X",
+										paui32Freelists[ui32Loop],
+										psDevInfo->ui32FreelistCurrID - 1));
 			PVR_ASSERT(IMG_FALSE);
 		}
 	}
 
 	/* send feedback */
-	sTACCBCmd.eCmdType = RGXFWIF_KCCB_CMD_FREELISTS_RECONSTRUCTION_UPDATE;
-	sTACCBCmd.uCmdData.sFreeListsReconstructionData.ui32FreelistsCount = ui32FreelistsCount;
 
 	LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
 	{
@@ -3556,7 +3562,8 @@ PVRSRV_ERROR PVRSRVRGXGetPartialRenderCountKM(DEVMEM_MEMDESC *psHWRTDataMemDesc,
 }
 
 void CheckForStalledRenderCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
-							   DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf)
+					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile)
 {
 	DLLIST_NODE *psNode, *psNext;
 	OSWRLockAcquireRead(psDevInfo->hRenderCtxListLock);
@@ -3566,9 +3573,9 @@ void CheckForStalledRenderCtxt(PVRSRV_RGXDEV_INFO *psDevInfo,
 			IMG_CONTAINER_OF(psNode, RGX_SERVER_RENDER_CONTEXT, sListNode);
 
 		DumpStalledFWCommonContext(psCurrentServerRenderCtx->sTAData.psServerCommonContext,
-								   pfnDumpDebugPrintf);
+								   pfnDumpDebugPrintf, pvDumpDebugFile);
 		DumpStalledFWCommonContext(psCurrentServerRenderCtx->s3DData.psServerCommonContext,
-								   pfnDumpDebugPrintf);
+								   pfnDumpDebugPrintf, pvDumpDebugFile);
 	}
 	OSWRLockReleaseRead(psDevInfo->hRenderCtxListLock);
 }

@@ -144,7 +144,8 @@ static PVRSRV_ERROR IMG_CALLCONV PVRSRVUnregisterDevice(PVRSRV_DEVICE_NODE *psDe
 static PVRSRV_ERROR PVRSRVRegisterDbgTable(IMG_UINT32 *paui32Table, IMG_UINT32 ui32Length, void **phTable);
 static void PVRSRVUnregisterDbgTable(void *hTable);
 
-static void _SysDebugRequestNotify(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel);
+static void _SysDebugRequestNotify(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel,
+	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf, void *pvDumpDebugFile);
 
 IMG_UINT32	g_ui32InitFlags;
 
@@ -170,8 +171,6 @@ static IMG_UINT32 g_aui32DebugOrderTable[] = {
 	DEBUG_REQUEST_DRMDISPLAY,
 	DEBUG_REQUEST_LINUXFENCE
 };
-
-DUMPDEBUG_PRINTF_FUNC *g_pfnDumpDebugPrintf = NULL;
 
 /*!
 ******************************************************************************
@@ -700,7 +699,7 @@ static void DevicesWatchdogThread(void *pvData)
 					if (!(psDevInfo->ui32DeviceFlags & RGXKM_DEVICE_STATE_DISABLE_DW_LOGGING_EN))
 					{
 						PVR_DPF((PVR_DBG_ERROR, "DevicesWatchdogThread: Device not responding!!!"));
-						PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL);
+						PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL, NULL);
 					}
 				}
 			}
@@ -1937,7 +1936,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVFinaliseSystem(IMG_BOOL bInitSuccessful, IMG_UIN
 		if (eError != PVRSRV_OK)
 		{
 			PVRSRVPowerUnlock();
-			PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL);
+			PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL, NULL);
 			return eError;
 		}
 
@@ -2212,7 +2211,7 @@ static PVRSRV_ERROR IMG_CALLCONV PVRSRVUnregisterDevice(PVRSRV_DEVICE_NODE *psDe
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVUnregisterDevice: Failed PVRSRVSetDevicePowerStateKM call (%s). Dump debug.", PVRSRVGetErrorStringKM(eError)));
 
-		PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL);
+		PVRSRVDebugRequest(DEBUG_REQUEST_VERBOSITY_MAX, NULL, NULL);
 
 		/* If the driver is okay then return the error, otherwise we can ignore this error. */
 		if (PVRSRVGetPVRSRVData()->eServicesState == PVRSRV_SERVICES_STATE_OK)
@@ -2521,9 +2520,10 @@ const IMG_CHAR *PVRSRVGetErrorStringKM(PVRSRV_ERROR eError)
 /*
 	PVRSRVSystemDebugInfo
  */
-PVRSRV_ERROR PVRSRVSystemDebugInfo( DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf)
+PVRSRV_ERROR PVRSRVSystemDebugInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile)
 {
-	return SysDebugInfo(gpsSysConfig, pfnDumpDebugPrintf);
+	return SysDebugInfo(gpsSysConfig, pfnDumpDebugPrintf, pvDumpDebugFile);
 }
 
 /*
@@ -2651,39 +2651,38 @@ PVRSRV_ERROR PVRSRVUnregisterCmdCompleteNotify(IMG_HANDLE hNotify)
 
 }
 
-static void _SysDebugRequestNotify(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel)
+static void _SysDebugRequestNotify(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG_UINT32 ui32VerbLevel,
+	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf, void *pvDumpDebugFile)
 {
 	PVRSRV_DATA *psPVRSRVData = (PVRSRV_DATA*) hDebugRequestHandle;
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
 
-	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;	
 	/* only dump info on the lowest verbosity level */
 	if (ui32VerbLevel != DEBUG_REQUEST_VERBOSITY_LOW)
 	{
 		return;
 	}
 
-	PVR_DUMPDEBUG_LOG(("DDK info: %s (%s) %s", PVRVERSION_STRING, PVR_BUILD_TYPE, PVR_BUILD_DIR));
-	PVR_DUMPDEBUG_LOG(("Time now: %015llu", OSClockus64()));
+	PVR_DUMPDEBUG_LOG("DDK info: %s (%s) %s", PVRVERSION_STRING, PVR_BUILD_TYPE, PVR_BUILD_DIR);
+	PVR_DUMPDEBUG_LOG("Time now: %015llu", OSClockus64());
 
 	/* Services state */
 	switch (psPVRSRVData->eServicesState)
 	{
 		case PVRSRV_SERVICES_STATE_OK:
 		{
-			PVR_DUMPDEBUG_LOG(("Services State: OK"));
+			PVR_DUMPDEBUG_LOG("Services State: OK");
 			break;
 		}
 		
 		case PVRSRV_SERVICES_STATE_BAD:
 		{
-			PVR_DUMPDEBUG_LOG(("Services State: BAD"));
+			PVR_DUMPDEBUG_LOG("Services State: BAD");
 			break;
 		}
 		
 		default:
 		{
-			PVR_DUMPDEBUG_LOG(("Services State: UNKNOWN (%d)", psPVRSRVData->eServicesState));
+			PVR_DUMPDEBUG_LOG("Services State: UNKNOWN (%d)", psPVRSRVData->eServicesState);
 			break;
 		}
 	}
@@ -2693,35 +2692,34 @@ static void _SysDebugRequestNotify(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle, IMG
 	{
 		case PVRSRV_SYS_POWER_STATE_OFF:
 		{
-			PVR_DUMPDEBUG_LOG(("System Power State: OFF"));
+			PVR_DUMPDEBUG_LOG("System Power State: OFF");
 			break;
 		}
 		case PVRSRV_SYS_POWER_STATE_ON:
 		{
-			PVR_DUMPDEBUG_LOG(("System Power State: ON"));
+			PVR_DUMPDEBUG_LOG("System Power State: ON");
 			break;
 		}
 		default:
 		{
-			PVR_DUMPDEBUG_LOG(("System Power State: UNKNOWN (%d)", psPVRSRVData->eCurrentPowerState));
+			PVR_DUMPDEBUG_LOG("System Power State: UNKNOWN (%d)", psPVRSRVData->eCurrentPowerState);
 			break;
 		}
 	}
 
 	/* Dump system specific debug info */
-	PVRSRVSystemDebugInfo(pfnDumpDebugPrintf);
+	PVRSRVSystemDebugInfo(pfnDumpDebugPrintf, pvDumpDebugFile);
 
 }
 
 /*
 	PVRSRVDebugRequest
 */
-void IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf)
+void IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf, void *pvDumpDebugFile)
 {
 	IMG_UINT32 i,j;
 
-	g_pfnDumpDebugPrintf = pfnDumpDebugPrintf;
-	if (pfnDumpDebugPrintf == NULL)
+	if (pvDumpDebugFile == NULL)
 	{
 		/* Only dump the call stack to the kernel log if the debug text is going there. */
 		OSDumpStack();
@@ -2731,7 +2729,7 @@ void IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_
 	/* Lock the lists */
 	OSWRLockAcquireRead(g_hDbgNotifyLock);
 
-	PVR_DUMPDEBUG_LOG(("------------[ PVR DBG: START ]------------"));
+	PVR_DUMPDEBUG_LOG("------------[ PVR DBG: START ]------------");
 
 	/* For each verbosity level */
 	for (j=0;j<(ui32VerbLevel+1);j++)
@@ -2744,11 +2742,11 @@ void IMG_CALLCONV PVRSRVDebugRequest(IMG_UINT32 ui32VerbLevel, DUMPDEBUG_PRINTF_
 			{
 				PVRSRV_DBGREQ_NOTIFY *psNotify =
 					IMG_CONTAINER_OF(psNode, PVRSRV_DBGREQ_NOTIFY, sListNode);
-				psNotify->pfnDbgRequestNotify(psNotify->hDbgRequestHandle, j);
+				psNotify->pfnDbgRequestNotify(psNotify->hDbgRequestHandle, j, pfnDumpDebugPrintf, pvDumpDebugFile);
 			}
 		}
 	}
-	PVR_DUMPDEBUG_LOG(("------------[ PVR DBG: END ]------------"));
+	PVR_DUMPDEBUG_LOG("------------[ PVR DBG: END ]------------");
 
 	/* Unlock the lists */
 	OSWRLockReleaseRead(g_hDbgNotifyLock);

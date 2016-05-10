@@ -222,10 +222,11 @@ void SysDestroyConfigData(PVRSRV_SYSTEM_CONFIG *psSysConfig)
 #endif
 }
 
-PVRSRV_ERROR SysDebugInfo(PVRSRV_SYSTEM_CONFIG *psSysConfig, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf)
+PVRSRV_ERROR SysDebugInfo(PVRSRV_SYSTEM_CONFIG *psSysConfig, DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf, void *pvDumpDebugFile)
 {
 	PVR_UNREFERENCED_PARAMETER(psSysConfig);
 	PVR_UNREFERENCED_PARAMETER(pfnDumpDebugPrintf);
+	PVR_UNREFERENCED_PARAMETER(pvDumpDebugFile);
 	return PVRSRV_OK;
 }
 

@@ -122,6 +122,17 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 		/*Fill the memory with given content */
 		OSMemSet(pvCpuVAddr, u8Value, ui32MemSize);
 
+		/*Map the page to the CPU VA space */
+		eError = psDevNode->pfnDevPxClean(psMemHandle,
+		                                  0,
+		                                  ui32MemSize);
+		if(PVRSRV_OK != eError)
+		{
+			PVR_DPF((PVR_DBG_ERROR,"Unable to clean the allocated page"));
+			psDevNode->pfnDevPxUnMap(psDevNode, psMemHandle, pvCpuVAddr);
+			psDevNode->pfnDevPxFree(psDevNode, psMemHandle);
+			return eError;
+		}
 
 #if defined(PDUMP)
 		/*P-Dumping of the page contents can be done in two ways

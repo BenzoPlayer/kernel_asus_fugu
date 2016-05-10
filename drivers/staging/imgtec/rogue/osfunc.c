@@ -124,15 +124,6 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 	/*Get the order to be used with the allocation */
 	ui32Order = get_order(uiSize);
 
-	if (ui32Order > PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER_NUM)
-	{
-		PVR_DPF((PVR_DBG_ERROR,
-				"Trying to allocate page order %u, max allowed %u",
-				ui32Order,
-				PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER_NUM));
-		return PVRSRV_ERROR_INVALID_PARAMS;
-	}
-
 	/*allocate the pages */
 	psPage = alloc_pages(GFP_KERNEL, ui32Order);
 	if (psPage == NULL)

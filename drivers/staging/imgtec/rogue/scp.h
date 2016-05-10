@@ -205,11 +205,15 @@ IMG_BOOL SCPHasPendingCommand(SCP_CONTEXT *psContext);
 
 @Input          psSCPContext            Context to dump
 
+@Input          pfnDumpDebugPrintf      Debug print function
+
 @Return         None
 */
 /*****************************************************************************/
 IMG_EXPORT
-void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext);
+void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext,
+				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+				void *pvDumpDebugFile);
 
 /*************************************************************************/ /*!
 @Function       SCPDestroy

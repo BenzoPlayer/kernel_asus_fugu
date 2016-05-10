@@ -294,20 +294,19 @@ void _SCPInsert(SCP_CONTEXT *psContext,
 
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 
-static void _SCPDumpFence(const char *psczName, struct sync_fence *psFence)
+static void _SCPDumpFence(const char *psczName, struct sync_fence *psFence,
+					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile)
 {
 	struct list_head *psEntry;
 	char szTime[16]  = { '\0' };
 	char szVal1[64]  = { '\0' };
 	char szVal2[64]  = { '\0' };
 	char szVal3[132] = { '\0' };
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
 
-	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
-
-	PVR_DUMPDEBUG_LOG(("\t  %s: [%p] %s: %s", psczName, psFence, psFence->name,
+	PVR_DUMPDEBUG_LOG("\t  %s: [%p] %s: %s", psczName, psFence, psFence->name,
 			 (psFence->status >  0 ? "signaled" :
-			  psFence->status == 0 ? "active" : "error")));
+			  psFence->status == 0 ? "active" : "error"));
 	list_for_each(psEntry, &psFence->pt_list_head)
 	{
 		struct sync_pt *psPt = container_of(psEntry, struct sync_pt, pt_list);
@@ -320,11 +319,11 @@ static void _SCPDumpFence(const char *psczName, struct sync_fence *psFence)
 			psPt->parent->ops->timeline_value_str(psPt->parent, szVal2, sizeof(szVal2));
 			snprintf(szVal3, sizeof(szVal3), ": %s / %s", szVal1, szVal2);
 		}
-		PVR_DUMPDEBUG_LOG(("\t    %s %s%s%s", psPt->parent->name,
+		PVR_DUMPDEBUG_LOG("\t    %s %s%s%s", psPt->parent->name,
 				 (psPt->status >  0 ? "signaled" :
 				  psPt->status == 0 ? "active" : "error"),
 				 (psPt->status >  0 ? szTime : ""),
-				 szVal3));
+				 szVal3);
 	}
 
 }
@@ -388,7 +387,7 @@ PVRSRV_ERROR _SCPCommandReady(SCP_COMMAND *psCommand)
 			if (err)
 			{
 				PVR_LOG(("SCP: Fence wait failed with %d", err));
-				_SCPDumpFence("Acquire Fence", psCommand->psAcquireFence);
+				_SCPDumpFence("Acquire Fence", psCommand->psAcquireFence, NULL, NULL);
 			}
 			/* Put the fence. */
 			sync_fence_put(psCommand->psAcquireFence);
@@ -439,14 +438,13 @@ void _SCPCommandDo(SCP_COMMAND *psCommand)
 @Return         None
 */
 /*****************************************************************************/
-static void _SCPDumpCommand(SCP_COMMAND *psCommand)
+static void _SCPDumpCommand(SCP_COMMAND *psCommand,
+				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+				void *pvDumpDebugFile)
 {
 	IMG_UINT32 i;
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
 
-	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
-
-	PVR_DUMPDEBUG_LOG(("\tCommand type = %d (@%p)", psCommand->ui32CmdType, psCommand));
+	PVR_DUMPDEBUG_LOG("\tCommand type = %d (@%p)", psCommand->ui32CmdType, psCommand);
 
 	if (psCommand->ui32CmdType == SCP_COMMAND_CALLBACK)
 	{
@@ -463,20 +461,22 @@ static void _SCPDumpCommand(SCP_COMMAND *psCommand)
 			if (psSCPSyncData->ui32Flags & SCP_SYNC_DATA_FENCE)
 			{
 				PVR_ASSERT(psSCPSyncData->psSync != NULL);
-				PVR_DUMPDEBUG_LOG(("\t\tFenced on 0x%08x = 0x%08x (?= 0x%08x)",
+				PVR_DUMPDEBUG_LOG("\t\tFenced on 0x%08x = 0x%08x (?= 0x%08x)",
 						ServerSyncGetFWAddr(psSCPSyncData->psSync),
 						psSCPSyncData->ui32Fence,
-						ServerSyncGetValue(psSCPSyncData->psSync)));
+						ServerSyncGetValue(psSCPSyncData->psSync));
 			}
 		}
 #if defined(SUPPORT_NATIVE_FENCE_SYNC)
 		if (psCommand->psAcquireFence)
 		{
-			_SCPDumpFence("Acquire Fence", psCommand->psAcquireFence);
+			_SCPDumpFence("Acquire Fence", psCommand->psAcquireFence,
+						  pfnDumpDebugPrintf, pvDumpDebugFile);
 		}
 		if (psCommand->psReleaseFence)
 		{
-			_SCPDumpFence("Release Fence", psCommand->psReleaseFence);
+			_SCPDumpFence("Release Fence", psCommand->psReleaseFence,
+						  pfnDumpDebugPrintf, pvDumpDebugFile);
 		}
 #endif /* defined(SUPPORT_NATIVE_FENCE_SYNC) */
 	}
@@ -878,12 +878,10 @@ IMG_BOOL SCPHasPendingCommand(SCP_CONTEXT *psContext)
 }
 
 IMG_EXPORT
-void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
+void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext,
+					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile)
 {
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = NULL;
-
-	pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
-
 	PVR_ASSERT(psContext != NULL);
 
 	/*
@@ -892,10 +890,10 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 	*/
 	OSLockAcquire(psContext->hLock);
 
-	PVR_DUMPDEBUG_LOG(("Pending command:"));
+	PVR_DUMPDEBUG_LOG("Pending command:");
 	if (psContext->ui32DepOffset == psContext->ui32WriteOffset)
 	{
-		PVR_DUMPDEBUG_LOG(("\tNone"));
+		PVR_DUMPDEBUG_LOG("\tNone");
 	}
 	else
 	{
@@ -908,7 +906,7 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 		        psCommand = (SCP_COMMAND *)((IMG_UINT8 *)psContext->pvCCB +
 		                ui32DepOffset);
 
-		        _SCPDumpCommand(psCommand);
+		        _SCPDumpCommand(psCommand, pfnDumpDebugPrintf, pvDumpDebugFile);
 
 		        /* processed cmd so update queue */
 		        UPDATE_CCB_OFFSET(ui32DepOffset,
@@ -918,10 +916,10 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 		}
 	}
 
-	PVR_DUMPDEBUG_LOG(("Active command(s):"));
+	PVR_DUMPDEBUG_LOG("Active command(s):");
 	if (psContext->ui32DepOffset == psContext->ui32ReadOffset)
 	{
-		PVR_DUMPDEBUG_LOG(("\tNone"));
+		PVR_DUMPDEBUG_LOG("\tNone");
 	}
 	else
 	{
@@ -933,7 +931,7 @@ void IMG_CALLCONV SCPDumpStatus(SCP_CONTEXT *psContext)
 			psCommand = (SCP_COMMAND *)((IMG_UINT8 *)psContext->pvCCB +
 			            ui32ReadOffset);
 
-			_SCPDumpCommand(psCommand);
+			_SCPDumpCommand(psCommand, pfnDumpDebugPrintf, pvDumpDebugFile);
 
 			/* processed cmd so update queue */
 			UPDATE_CCB_OFFSET(ui32ReadOffset,

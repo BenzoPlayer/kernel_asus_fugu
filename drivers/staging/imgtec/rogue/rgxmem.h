@@ -82,8 +82,10 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 DEVMEM_MEMDESC *RGXGetFWMemDescFromMemoryContextHandle(IMG_HANDLE hPriv);
 
 void RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo,
-						  IMG_DEV_VIRTADDR *psDevVAddr,
-						  IMG_DEV_PHYADDR *psDevPAddr);
+				IMG_DEV_VIRTADDR *psDevVAddr,
+				IMG_DEV_PHYADDR *psDevPAddr,
+				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+				void *pvDumpDebugFile);
 
 IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR sPCAddress,
 								RGXMEM_PROCESS_INFO *psInfo);

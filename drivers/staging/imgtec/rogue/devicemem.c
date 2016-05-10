@@ -556,12 +556,13 @@ DevmemCreateContext(SHARED_DEV_CONNECTION hDevConnection,
     if (eError == PVRSRV_ERROR_BRIDGE_CALL_FAILED)
     {
 
-    	psCtx->ui32CPUCacheLineSize = 0;
+        psCtx->ui32CPUCacheLineSize = 0;
         eError = BridgeDevmemIntCtxCreate(psCtx->hDevConnection,
                                           bHeapCfgMetaId,
                                           &hDevMemServerContext,
                                           &hPrivData);
     }
+
     if (eError != PVRSRV_OK)
     {
         goto e1;

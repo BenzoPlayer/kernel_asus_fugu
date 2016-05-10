@@ -3330,7 +3330,10 @@ void MMU_GetOSids(MMU_CONTEXT *psMMUContext, IMG_UINT32 *pui32OSid, IMG_UINT32 *
 /*
 	MMU_CheckFaultAddress
 */
-void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAddr)
+void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext,
+				IMG_DEV_VIRTADDR *psDevVAddr,
+				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+				void *pvDumpDebugFile)
 {
 	MMU_DEVICEATTRIBS *psDevAttrs = psMMUContext->psDevAttrs;
 	const MMU_PxE_CONFIG *psConfig;
@@ -3345,7 +3348,6 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 	IMG_UINT32 ui32PDIndex;
 	IMG_UINT32 ui32PTIndex;
 	IMG_UINT32 ui32Log2PageSize;
-	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf = g_pfnDumpDebugPrintf;
 
 	OSLockAcquire(psMMUContext->hLock);
 
@@ -3378,7 +3380,7 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 			
 			if (ui32PCIndex >= psLevel->ui32NumOfEntries)
 			{
-				PVR_DUMPDEBUG_LOG(("PC index (%d) out of bounds (%d)", ui32PCIndex, psLevel->ui32NumOfEntries));
+				PVR_DUMPDEBUG_LOG("PC index (%d) out of bounds (%d)", ui32PCIndex, psLevel->ui32NumOfEntries);
 				break;
 			}
 
@@ -3386,19 +3388,19 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 			{
 				IMG_UINT32 *pui32Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PCE for index %d = 0x%08x and %s be valid",
+				PVR_DUMPDEBUG_LOG("PCE for index %d = 0x%08x and %s be valid",
 						 ui32PCIndex,
 						 pui32Ptr[ui32PCIndex],
-						 psLevel->apsNextLevel[ui32PCIndex]?"should":"should not"));
+						 psLevel->apsNextLevel[ui32PCIndex]?"should":"should not");
 			}
 			else
 			{
 				IMG_UINT64 *pui64Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PCE for index %d = 0x%016llx and %s be valid",
+				PVR_DUMPDEBUG_LOG("PCE for index %d = 0x%016llx and %s be valid",
 						 ui32PCIndex,
 						 pui64Ptr[ui32PCIndex],
-						 psLevel->apsNextLevel[ui32PCIndex]?"should":"should not"));
+						 psLevel->apsNextLevel[ui32PCIndex]?"should":"should not");
 			}
 
 			psLevel = psLevel->apsNextLevel[ui32PCIndex];
@@ -3418,7 +3420,7 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 
 			if (ui32PDIndex >= psLevel->ui32NumOfEntries)
 			{
-				PVR_DUMPDEBUG_LOG(("PD index (%d) out of bounds (%d)", ui32PDIndex, psLevel->ui32NumOfEntries));
+				PVR_DUMPDEBUG_LOG("PD index (%d) out of bounds (%d)", ui32PDIndex, psLevel->ui32NumOfEntries);
 				break;
 			}
 
@@ -3426,10 +3428,10 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 			{
 				IMG_UINT32 *pui32Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PDE for index %d = 0x%08x and %s be valid",
+				PVR_DUMPDEBUG_LOG("PDE for index %d = 0x%08x and %s be valid",
 						 ui32PDIndex,
 						 pui32Ptr[ui32PDIndex],
-						 psLevel->apsNextLevel[ui32PDIndex]?"should":"should not"));
+						 psLevel->apsNextLevel[ui32PDIndex]?"should":"should not");
 
 				if (psDevAttrs->pfnGetPageSizeFromPDE4(pui32Ptr[ui32PDIndex], &ui32Log2PageSize) != PVRSRV_OK)
 				{
@@ -3440,10 +3442,10 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 			{
 				IMG_UINT64 *pui64Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PDE for index %d = 0x%016llx and %s be valid",
+				PVR_DUMPDEBUG_LOG("PDE for index %d = 0x%016llx and %s be valid",
 						 ui32PDIndex,
 						 pui64Ptr[ui32PDIndex],
-						 psLevel->apsNextLevel[ui32PDIndex]?"should":"should not"));
+						 psLevel->apsNextLevel[ui32PDIndex]?"should":"should not");
 
 				if (psDevAttrs->pfnGetPageSizeFromPDE8(pui64Ptr[ui32PDIndex], &ui32Log2PageSize) != PVRSRV_OK)
 				{
@@ -3491,7 +3493,7 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 
 			if (ui32PTIndex >= psLevel->ui32NumOfEntries)
 			{
-				PVR_DUMPDEBUG_LOG(("PT index (%d) out of bounds (%d)", ui32PTIndex, psLevel->ui32NumOfEntries));
+				PVR_DUMPDEBUG_LOG("PT index (%d) out of bounds (%d)", ui32PTIndex, psLevel->ui32NumOfEntries);
 				break;
 			}
 
@@ -3499,17 +3501,17 @@ void MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDevVAd
 			{
 				IMG_UINT32 *pui32Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PTE for index %d = 0x%08x",
+				PVR_DUMPDEBUG_LOG("PTE for index %d = 0x%08x",
 						 ui32PTIndex,
-						 pui32Ptr[ui32PTIndex]));
+						 pui32Ptr[ui32PTIndex]);
 			}
 			else
 			{
 				IMG_UINT64 *pui64Ptr = psLevel->sMemDesc.pvCpuVAddr;
 
-				PVR_DUMPDEBUG_LOG(("PTE for index %d = 0x%016llx",
+				PVR_DUMPDEBUG_LOG("PTE for index %d = 0x%016llx",
 						 ui32PTIndex,
-						 pui64Ptr[ui32PTIndex]));
+						 pui64Ptr[ui32PTIndex]);
 			}
 
 			break;

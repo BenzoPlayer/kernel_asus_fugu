@@ -112,10 +112,10 @@ static inline int sync_pt_get_status(struct sync_pt *pt)
 #define DPF(fmt, ...) do {} while (0)
 #endif
 
-#define PVR_DUMPDEBUG_LOG(pfnDumpDebugPrintf, fmt, ...) \
+#define PVR_DUMPDEBUG_LOG(pfnDumpDebugPrintf, pvDumpDebugFile, fmt, ...) \
 	do { \
 		if (pfnDumpDebugPrintf) { \
-			pfnDumpDebugPrintf(fmt, __VA_ARGS__); \
+			pfnDumpDebugPrintf(pvDumpDebugFile, fmt, __VA_ARGS__); \
 		} else { \
 			pr_info("pvr_sync: " fmt, __VA_ARGS__); \
 		} \
@@ -558,7 +558,9 @@ static void sync_pool_clear(void)
 }
 
 static void pvr_sync_debug_request(void *hDebugRequestHandle,
-				   u32 ui32VerbLevel)
+								   u32 ui32VerbLevel,
+								   DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+								   void *pvDumpDebugFile)
 {
 	struct pvr_sync_native_sync_prim *sync;
 
@@ -570,7 +572,7 @@ static void pvr_sync_debug_request(void *hDebugRequestHandle,
 	if (ui32VerbLevel == DEBUG_REQUEST_VERBOSITY_HIGH) {
 		mutex_lock(&sync_pool_mutex);
 
-		PVR_DUMPDEBUG_LOG(g_pfnDumpDebugPrintf,
+		PVR_DUMPDEBUG_LOG(pfnDumpDebugPrintf, pvDumpDebugFile,
 				  "Dumping all pending android native syncs (Pool usage: %d%% - %d %d)",
 				  sync_pool_reused ?
 				  (10000 /
@@ -584,7 +586,7 @@ static void pvr_sync_debug_request(void *hDebugRequestHandle,
 
 			BUG_ON(sync->type >= ARRAY_SIZE(type_names));
 
-			PVR_DUMPDEBUG_LOG(g_pfnDumpDebugPrintf,
+			PVR_DUMPDEBUG_LOG(pfnDumpDebugPrintf, pvDumpDebugFile,
 					  "\tID = %d, FWAddr = 0x%08x: Current = 0x%08x, Next = 0x%08x, %s (%s)",
 					  sync->id, sync->vaddr,
 					  get_sync_value(sync),

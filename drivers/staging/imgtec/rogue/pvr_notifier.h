@@ -1,8 +1,7 @@
-/*************************************************************************/ /*!
+/**************************************************************************/ /*!
 @File
-@Title          PVR Bridge Functionality
+@Title          PowerVR notifier interface
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Header for the PVR Bridge code
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -39,48 +38,36 @@ PURPOSE AND NONINFRINGEMENT; AND (B) IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/ /**************************************************************************/
+*/ /***************************************************************************/
 
-#ifndef __PVR_BRIDGE_U_H__
-#define __PVR_BRIDGE_U_H__
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
+#if !defined(__PVR_NOTIFIER_H__)
+#define __PVR_NOTIFIER_H__
 
 #include "img_types.h"
-#include "pvrsrv_error.h"
+#include "pvr_debug.h"
 
+/*
+ * Macro used within debug dump functions to send output either to PVR_LOG or
+ * a custom function. The custom function should be stored as a function pointer
+ * in a local variable called 'pfnDumpDebugPrintf'. 'pvDumpDebugFile' is also
+ * required as a local variable to serve as a file identifier for the printf
+ * function if required.
+ */
+#define PVR_DUMPDEBUG_LOG(...)                                            \
+	do                                                                \
+	{                                                                 \
+		if (pfnDumpDebugPrintf)                                   \
+			pfnDumpDebugPrintf(pvDumpDebugFile, __VA_ARGS__); \
+		else                                                      \
+			PVR_LOG((__VA_ARGS__));                           \
+	} while(0)
 
-/******************************************************************************
- * Function prototypes 
- *****************************************************************************/
-#if(__SIZEOF_POINTER__ == 4)
-IMG_EXPORT IMG_BOOL PVRSRVIsKernel64Bit(void);
-#endif
+typedef IMG_HANDLE PVRSRV_DBGREQ_HANDLE;
+typedef void (DUMPDEBUG_PRINTF_FUNC)(void *pvDumpDebugFile,
+					const IMG_CHAR *pszFormat, ...);
+typedef void (*PFN_DBGREQ_NOTIFY)(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
+					IMG_UINT32 ui32VerbLevel,
+					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+					void *pvDumpDebugFile);
 
-PVRSRV_ERROR OpenServices(IMG_HANDLE *phServices,
-			  IMG_OS_CONNECTION hOSConnection,
-			  IMG_UINT32 ui32SrvFlags);
-PVRSRV_ERROR CloseServices(IMG_HANDLE hServices);
-PVRSRV_ERROR PVRSRVBridgeCall(IMG_HANDLE hServices,
-							  IMG_UINT8	ui8BridgeGroup,
-							  IMG_UINT32 ui32FunctionID,
-							  void *pvParamIn,
-							  IMG_UINT32 ui32InBufferSize,
-							  void *pvParamOut,
-							  IMG_UINT32 ui32OutBufferSize);
-
-IMG_OS_CONNECTION GetOSConnection(IMG_HANDLE hServices);
-
-
-#if defined (__cplusplus)
-}
-#endif
-#endif /* __PVR_BRIDGE_U_H__ */
-
-/******************************************************************************
- End of file (pvr_bridge_u.h)
-******************************************************************************/
-
-
+#endif /* !defined(__PVR_NOTIFIER_H__) */
