@@ -183,6 +183,9 @@ struct pvr_sync_native_sync_prim {
 
 	/* A debug class name also printed in pvr_sync_debug_request(). */
 	char class[32];
+
+	/* List for the cleanup syncs attached to a sync_pt */
+	struct list_head cleanup_list;
 };
 
 /* This is the actual timeline metadata. We might keep this around after the
@@ -220,12 +223,18 @@ struct pvr_sync_kernel_pair {
 	/* Binary sync point representing the android native sync in hw. */
 	struct pvr_sync_native_sync_prim *fence_sync;
 
-	/* Cleanup sync structure. If the base sync prim is used for "checking"
+	/* Cleanup sync list. If the base sync prim is used for "checking"
 	 * only within a GL stream, there is no way of knowing when this has
-	 * happened. So use a second sync prim which just gets updated and
-	 * check the update count when freeing this struct.
+	 * happened. So each check appends another sync prim just used for
+	 * update at the end of the command, so we know if all syncs in this
+	 * cleanup list are complete there are no outstanding renders waiting
+	 * to check this, so it can safely be freed.
 	 */
-	struct pvr_sync_native_sync_prim *cleanup_sync;
+	struct list_head cleanup_sync_list;
+	/*  A temporary pointer used to track the 'new' cleanup_sync added to
+	 *  cleanup_sync_list within pvr_sync_append_fences()
+	 */
+	struct pvr_sync_native_sync_prim *current_cleanup_sync;
 
 	/* Sync points can go away when there are deferred hardware operations
 	 * still outstanding. We must not free the SERVER_SYNC_PRIMITIVE until
@@ -418,18 +427,34 @@ static char *debug_info_sync_pt(struct sync_pt *pt)
 	static char info[256], info1[256];
 
 	if (kernel) {
-		struct pvr_sync_native_sync_prim *cleanup_sync =
-			kernel->cleanup_sync;
+		unsigned int cleanup_count = 0;
+		unsigned int info1_pos = 0;
+		struct list_head *pos;
+		info1[0] = 0;
 
-		if (cleanup_sync) {
-			snprintf(info1, sizeof(info1),
-				 " # cleanup: id=%u fw=0x%x curr=%u next=%u",
-				 cleanup_sync->id,
-				 cleanup_sync->vaddr,
-				 get_sync_value(cleanup_sync),
-				 cleanup_sync->next_value);
-		} else {
-			info1[0] = 0;
+		list_for_each(pos, &kernel->cleanup_sync_list) {
+			struct pvr_sync_native_sync_prim *cleanup_sync =
+				list_entry(pos,
+					struct pvr_sync_native_sync_prim,
+					cleanup_list);
+			int string_size = 0;
+
+			string_size = snprintf(info1 + info1_pos,
+				sizeof(info1) - info1_pos,
+				" # cleanup %u: id=%u fw=0x%x curr=%u next=%u",
+				cleanup_count,
+				cleanup_sync->id,
+				cleanup_sync->vaddr,
+				get_sync_value(cleanup_sync),
+				cleanup_sync->next_value);
+			cleanup_count++;
+			info1_pos += string_size;
+			/* Truncate the string and stop if we run out of space
+			 * This should stop any underflow of snprintf's 'size'
+			 * arg too
+			 */
+			if (info1_pos >= sizeof(info1))
+				break;
 		}
 
 		snprintf(info, sizeof(info),
@@ -793,36 +818,25 @@ static void pvr_sync_pt_value_str(struct sync_pt *sync_pt, char *str, int size)
 	 *
 	 * 123456789012345678901234567890123456789012345678901234567890123
 	 *
-	 * ID     FW ADDR    C/N # REF TAKEN
-	 * 123456 0xdeadbeef 0/1 # r=2 123456
-	 *
-	 * ID     FW ADDR    C/N # ID     FW ADDR    C/N # REF TAKEN
-	 * 123456 0xdeadbeef 0/1 # 123456 0xdeadbeef 0/1 # r=2 123456
+	 * ID     FW ADDR    C/N # REF TAKEN  CLEANUP_COUNT
+	 * 123456 0xdeadbeef 0/1 # r=2 123456 1
 	 */
 	if (kernel) {
-		if (!kernel->cleanup_sync) {
-			snprintf(str, size,
-				 "%u 0x%x %u/%u r=%d %u",
-				 kernel->fence_sync->id,
-				 kernel->fence_sync->vaddr,
-				 get_sync_value(kernel->fence_sync),
-				 kernel->fence_sync->next_value,
-				 atomic_read(&pvr_pt->sync_data->kref.refcount),
-				 pvr_pt->sync_data->timeline_update_value);
-		} else {
-			snprintf(str, size,
-				 "%u 0x%x %u/%u # %u 0x%x %u/%u # r=%d %u",
-				 kernel->fence_sync->id,
-				 kernel->fence_sync->vaddr,
-				 get_sync_value(kernel->fence_sync),
-				 kernel->fence_sync->next_value,
-				 kernel->cleanup_sync->id,
-				 kernel->cleanup_sync->vaddr,
-				 get_sync_value(kernel->cleanup_sync),
-				 kernel->cleanup_sync->next_value,
-				 atomic_read(&pvr_pt->sync_data->kref.refcount),
-				 pvr_pt->sync_data->timeline_update_value);
+		unsigned int cleanup_count = 0;
+		struct list_head *pos;
+
+		list_for_each(pos, &kernel->cleanup_sync_list) {
+			cleanup_count++;
 		}
+		snprintf(str, size,
+			 "%u 0x%x %u/%u r=%d %u %u",
+			 kernel->fence_sync->id,
+			 kernel->fence_sync->vaddr,
+			 get_sync_value(kernel->fence_sync),
+			 kernel->fence_sync->next_value,
+			 atomic_read(&pvr_pt->sync_data->kref.refcount),
+			 pvr_pt->sync_data->timeline_update_value,
+			 cleanup_count);
 	} else {
 		snprintf(str, size, "idle # r=%d %u",
 			 atomic_read(&pvr_pt->sync_data->kref.refcount),
@@ -851,6 +865,8 @@ pvr_sync_create_sync_data(struct sync_timeline *obj)
 
 	if (!sync_data->kernel)
 		goto err_free_data;
+
+	INIT_LIST_HEAD(&sync_data->kernel->cleanup_sync_list);
 
 	error = sync_pool_get(&sync_data->kernel->fence_sync,
 			      obj->name, SYNC_PT_FENCE_TYPE);
@@ -982,6 +998,7 @@ static void pvr_sync_foreign_sync_pt_signaled(struct sync_fence *fence,
 static struct pvr_sync_kernel_pair *
 pvr_sync_create_waiter_for_foreign_sync(int fd)
 {
+	struct pvr_sync_native_sync_prim *cleanup_sync = NULL;
 	struct pvr_sync_kernel_pair *kernel = NULL;
 	struct pvr_sync_fence_waiter *waiter;
 	struct pvr_sync_fence *sync_fence;
@@ -1003,6 +1020,8 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 		goto err_put_fence;
 	}
 
+	INIT_LIST_HEAD(&kernel->cleanup_sync_list);
+
 	sync_fence = kmalloc(sizeof(struct pvr_sync_fence), GFP_KERNEL);
 	if (!sync_fence) {
 		pr_err("pvr_sync: %s: Failed to allocate pvr sync fence\n",
@@ -1022,7 +1041,7 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 
 	kernel->fence_sync->next_value++;
 
-	error = sync_pool_get(&kernel->cleanup_sync,
+	error = sync_pool_get(&cleanup_sync,
 			      fence->name, SYNC_PT_FOREIGN_CLEANUP_TYPE);
 	if (error != PVRSRV_OK) {
 		pr_err("pvr_sync: %s: Failed to allocate cleanup sync prim (%s)\n",
@@ -1030,7 +1049,9 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 		goto err_free_sync;
 	}
 
-	kernel->cleanup_sync->next_value++;
+	cleanup_sync->next_value++;
+
+	list_add(&cleanup_sync->cleanup_list, &kernel->cleanup_sync_list);
 
 	/* The custom waiter structure is freed in the waiter callback */
 	waiter = kmalloc(sizeof(struct pvr_sync_fence_waiter), GFP_KERNEL);
@@ -1060,12 +1081,15 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 		goto err_free_waiter;
 	}
 
+	kernel->current_cleanup_sync = cleanup_sync;
+
 err_out:
 	return kernel;
 err_free_waiter:
 	kfree(waiter);
 err_free_cleanup_sync:
-	sync_pool_put(kernel->cleanup_sync);
+	list_del(&cleanup_sync->cleanup_list);
+	sync_pool_put(cleanup_sync);
 err_free_sync:
 	sync_pool_put(kernel->fence_sync);
 err_free_sync_fence:
@@ -1264,6 +1288,7 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 
 		(void)j;
 		for_each_sync_pt(sync_pt, fence, j) {
+			struct pvr_sync_native_sync_prim *cleanup_sync = NULL;
 			struct pvr_sync_pt *pvr_pt;
 
 			if (!is_pvr_timeline_pt(sync_pt)) {
@@ -1274,28 +1299,29 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 
 			pvr_pt = (struct pvr_sync_pt *)sync_pt;
 			sync_kernel = pvr_pt->sync_data->kernel;
-
-			if (!sync_kernel ||
-			    is_sync_met(sync_kernel->fence_sync)) {
+			if (!sync_kernel)
 				continue;
-			}
+
+			if (is_sync_met(sync_kernel->fence_sync))
+				continue;
 
 			/* We will use the above sync for "check" only. In this
 			 * case also insert a "cleanup" update command into the
 			 * opengl stream. This can later be used for checking
 			 * if the sync prim could be freed.
 			 */
-			if (!sync_kernel->cleanup_sync) {
-				err = sync_pool_get(&sync_kernel->cleanup_sync,
-					sync_pt_parent(&pvr_pt->pt)->name,
-					SYNC_PT_CLEANUP_TYPE);
-				if (err != PVRSRV_OK) {
-					pr_err("pvr_sync: %s: Failed to allocate cleanup sync prim (%s)\n",
-					       __func__,
-					       PVRSRVGetErrorStringKM(err));
-					goto err_free_append_data;
-				}
+			err = sync_pool_get(&cleanup_sync,
+				sync_pt_parent(&pvr_pt->pt)->name,
+				SYNC_PT_CLEANUP_TYPE);
+			if (err != PVRSRV_OK) {
+				pr_err("pvr_sync: %s: Failed to allocate cleanup sync prim (%s)\n",
+				       __func__,
+				       PVRSRVGetErrorStringKM(err));
+				goto err_free_append_data;
 			}
+			list_add(&cleanup_sync->cleanup_list,
+				&sync_kernel->cleanup_sync_list);
+			sync_kernel->current_cleanup_sync = cleanup_sync;
 			points_on_fence++;
 		}
 
@@ -1418,10 +1444,12 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 				sync_kernel->fence_sync->next_value;
 
 			(*update_address_pos++).ui32Addr =
-				sync_kernel->cleanup_sync->vaddr;
+				sync_kernel->current_cleanup_sync->vaddr;
 			*update_value_pos++ =
-				++sync_kernel->cleanup_sync->next_value;
-			*cleanup_sync_pos++ = sync_kernel->cleanup_sync;
+				++sync_kernel->current_cleanup_sync->next_value;
+			*cleanup_sync_pos++ = sync_kernel->current_cleanup_sync;
+
+			sync_kernel->current_cleanup_sync = NULL;
 		}
 
 		if (has_foreign_point) {
@@ -1433,7 +1461,7 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 				struct pvr_sync_native_sync_prim *fence_sync =
 					foreign_sync_kernel->fence_sync;
 				struct pvr_sync_native_sync_prim *cleanup_sync =
-					foreign_sync_kernel->cleanup_sync;
+					foreign_sync_kernel->current_cleanup_sync;
 
 
 				(*check_address_pos++).ui32Addr =
@@ -1446,6 +1474,7 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 				*update_value_pos++ =
 					++cleanup_sync->next_value;
 				*cleanup_sync_pos++ = cleanup_sync;
+				foreign_sync_kernel->current_cleanup_sync = NULL;
 			}
 		}
 	}
@@ -1675,6 +1704,8 @@ static int pvr_sync_open(struct inode *inode, struct file *file)
 		pr_err("pvr_sync: %s: Out of memory\n", __func__);
 		goto err_free_timeline;
 	}
+
+	INIT_LIST_HEAD(&timeline->kernel->cleanup_sync_list);
 
 	OSAcquireBridgeLock();
 	PMRLock();
@@ -1919,12 +1950,27 @@ pvr_sync_clean_freelist(void)
 
 	spin_lock_irqsave(&sync_prim_free_list_spinlock, flags);
 	list_for_each_entry_safe(kernel, k, &sync_prim_free_list, list) {
+		bool in_use = false;
+		struct list_head *pos;
+
 		/* Check if this sync is not used anymore. */
-		if (!is_sync_met(kernel->fence_sync) ||
-		    (kernel->cleanup_sync &&
-		     !is_sync_met(kernel->cleanup_sync))) {
+		if (!is_sync_met(kernel->fence_sync))
 			continue;
+
+		list_for_each(pos, &kernel->cleanup_sync_list) {
+			struct pvr_sync_native_sync_prim *cleanup_sync =
+				list_entry(pos,
+					struct pvr_sync_native_sync_prim,
+					cleanup_list);
+
+			if (!is_sync_met(cleanup_sync)) {
+				in_use = true;
+				break;
+			}
 		}
+
+		if (in_use)
+			continue;
 
 		/* Remove the entry from the free list. */
 		list_move_tail(&kernel->list, &unlocked_free_list);
@@ -1940,11 +1986,20 @@ pvr_sync_clean_freelist(void)
 	OSAcquireBridgeLock();
 
 	list_for_each_entry_safe(kernel, k, &unlocked_free_list, list) {
+		struct list_head *pos, *n;
+
 		list_del(&kernel->list);
 
 		sync_pool_put(kernel->fence_sync);
-		if (kernel->cleanup_sync)
-			sync_pool_put(kernel->cleanup_sync);
+
+		list_for_each_safe(pos, n, &kernel->cleanup_sync_list) {
+			struct pvr_sync_native_sync_prim *cleanup_sync =
+				list_entry(pos,
+					struct pvr_sync_native_sync_prim,
+					 cleanup_list);
+			list_del(&cleanup_sync->cleanup_list);
+			sync_pool_put(cleanup_sync);
+		}
 		kfree(kernel);
 	}
 
