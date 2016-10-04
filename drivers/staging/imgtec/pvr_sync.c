@@ -818,8 +818,9 @@ static void pvr_sync_pt_value_str(struct sync_pt *sync_pt, char *str, int size)
 	 *
 	 * 123456789012345678901234567890123456789012345678901234567890123
 	 *
-	 * ID     FW ADDR    C/N # REF TAKEN  CLEANUP_COUNT
-	 * 123456 0xdeadbeef 0/1 # r=2 123456 1
+	 * ID     FW ADDR    C/N # REF CLEANUP_COUNT
+	 *                               TAKEN
+	 * 123456 0xdeadbeef 0/1 # r=2 1 123456
 	 */
 	if (kernel) {
 		unsigned int cleanup_count = 0;
@@ -835,8 +836,8 @@ static void pvr_sync_pt_value_str(struct sync_pt *sync_pt, char *str, int size)
 			 get_sync_value(kernel->fence_sync),
 			 kernel->fence_sync->next_value,
 			 atomic_read(&pvr_pt->sync_data->kref.refcount),
-			 pvr_pt->sync_data->timeline_update_value,
-			 cleanup_count);
+			 cleanup_count,
+			 pvr_pt->sync_data->timeline_update_value);
 	} else {
 		snprintf(str, size, "idle # r=%d %u",
 			 atomic_read(&pvr_pt->sync_data->kref.refcount),

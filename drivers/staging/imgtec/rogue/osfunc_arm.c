@@ -216,6 +216,16 @@ void OSInvalidateCPUCacheRangeKM(void *pvVirtStart,
 #endif	/* (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)) */
 }
 
+PVRSRV_CACHE_OP_ADDR_TYPE OSCPUCacheOpAddressType(PVRSRV_CACHE_OP uiCacheOp)
+{
+	PVR_UNREFERENCED_PARAMETER(uiCacheOp);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0))
+	return PVRSRV_CACHE_OP_ADDR_TYPE_PHYSICAL;
+#else
+	return PVRSRV_CACHE_OP_ADDR_TYPE_BOTH;
+#endif
+}
+
 /* User Enable Register */
 #define PMUSERENR_EN      0x00000001 /* enable user access to the counters */
 

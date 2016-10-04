@@ -53,6 +53,12 @@ typedef IMG_UINT32 PVRSRV_CACHE_OP;
 #define PVRSRV_CACHE_OP_INVALIDATE	0x2			/*!< Invalidate w/o flush */
 #define PVRSRV_CACHE_OP_FLUSH		0x3			/*!< Flush w/ invalidate */
 
+typedef IMG_UINT32 PVRSRV_CACHE_OP_ADDR_TYPE;
+
+#define PVRSRV_CACHE_OP_ADDR_TYPE_VIRTUAL	0x1	/*!< Operation require virtual address only */
+#define PVRSRV_CACHE_OP_ADDR_TYPE_PHYSICAL	0x2	/*!< Operation require physical address only */
+#define PVRSRV_CACHE_OP_ADDR_TYPE_BOTH		0x3	/*!< Operation require both virtual & physical addresses */
+
 /*
 	If we get multiple cache operations before the operation which will
 	trigger the operation to happen then we need to make sure we do
