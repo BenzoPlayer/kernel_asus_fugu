@@ -1,7 +1,3 @@
-config SUPPORT_HDMI
-	depends on DRM_INTEL_MID
-	bool
-
 config INTEL_HDMI_AUDIO
 	tristate "HDMI audio driver"
 	depends on DRM_INTEL_MID
