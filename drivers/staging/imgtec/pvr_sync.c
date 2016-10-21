@@ -98,9 +98,11 @@ static inline int sync_pt_get_status(struct sync_pt *pt)
 }
 
 #define for_each_sync_pt(s, f, c) \
-	for ((c) = 0, (s) = (struct sync_pt *)(f)->cbs[0].sync_pt; \
+	for ((c) = 0, (s) = (f)->num_fences == 0 ? \
+		NULL : (struct sync_pt *)(f)->cbs[0].sync_pt; \
 	     (c) < (f)->num_fences; \
-	     (c)++,   (s) = (struct sync_pt *)(f)->cbs[c].sync_pt)
+	     (c)++,   (s) = (c) < (f)->num_fences ? \
+		(struct sync_pt *)(f)->cbs[c].sync_pt : NULL)
 
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)) */
 

@@ -242,7 +242,7 @@ PVRSRV_ERROR CacheOpQueue(PMR *psPMR,
 
 	/* We always retrieve PMR data in bulk, up-front if number of pages is within
 	   PMR_MAX_TRANSLATION_STACK_ALLOC limits else we check to ensure that a 
-	   dynamic buffer as been allocated to satisfy requests outside limits */
+	   dynamic buffer has been allocated to satisfy requests outside limits */
 	if (ui32NumOfPages <= PMR_MAX_TRANSLATION_STACK_ALLOC || pbValid != abValid)
 	{
 		if (uiCacheOpAddrType != PVRSRV_CACHE_OP_ADDR_TYPE_VIRTUAL)

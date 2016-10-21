@@ -55,9 +55,9 @@ typedef IMG_UINT32 PVRSRV_CACHE_OP;
 
 typedef IMG_UINT32 PVRSRV_CACHE_OP_ADDR_TYPE;
 
-#define PVRSRV_CACHE_OP_ADDR_TYPE_VIRTUAL	0x1	/*!< Operation require virtual address only */
-#define PVRSRV_CACHE_OP_ADDR_TYPE_PHYSICAL	0x2	/*!< Operation require physical address only */
-#define PVRSRV_CACHE_OP_ADDR_TYPE_BOTH		0x3	/*!< Operation require both virtual & physical addresses */
+#define PVRSRV_CACHE_OP_ADDR_TYPE_VIRTUAL	0x1	/*!< Operation requires virtual address only */
+#define PVRSRV_CACHE_OP_ADDR_TYPE_PHYSICAL	0x2	/*!< Operation requires physical address only */
+#define PVRSRV_CACHE_OP_ADDR_TYPE_BOTH		0x3	/*!< Operation requires both virtual & physical addresses */
 
 /*
 	If we get multiple cache operations before the operation which will

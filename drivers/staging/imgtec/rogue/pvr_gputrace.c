@@ -277,7 +277,8 @@ PVRSRV_ERROR PVRGpuTraceInit(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	eError = PVRDebugFSCreateEntry("gpu_tracing_on", NULL, &gsGpuTracingReadOps,
 	                               (PVRSRV_ENTRY_WRITE_FUNC *)GpuTracingSet,
-	                               NULL, &gpsPVRDebugFSGpuTracingOnEntry);
+	                               NULL, NULL, NULL,
+	                               &gpsPVRDebugFSGpuTracingOnEntry);
 	if (eError != PVRSRV_OK)
 	{
 		RGXHWPerfFTraceGPUDeInit();
