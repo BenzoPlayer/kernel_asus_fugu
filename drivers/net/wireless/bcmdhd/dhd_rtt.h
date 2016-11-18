@@ -32,6 +32,7 @@
 #define RTT_MAX_RETRY_CNT 10
 #define DEFAULT_FTM_CNT 6
 #define DEFAULT_RETRY_CNT 6
+#define TARGET_INFO_SIZE(count) (sizeof(rtt_target_info_t) * (count))
 
 
 /* DSSS, CCK and 802.11n rates in [500kbps] units */
@@ -181,7 +182,7 @@ typedef struct rtt_capabilities{
 
 typedef struct rtt_config_params {
 	int8 rtt_target_cnt;
-	rtt_target_info_t target_info[RTT_MAX_TARGET_CNT];
+	rtt_target_info_t *target_info;
 } rtt_config_params_t;
 
 typedef void (*dhd_rtt_compl_noti_fn)(void *ctx, void *rtt_data);
