@@ -371,10 +371,10 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := $(ANDROID_TOOLCHAIN_FLAGS) \
 		   -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-		   -fno-strict-aliasing -fno-common \
-		   -Werror-implicit-function-declaration \
-		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
+		   -fno-strict-aliasing -fno-common -Wno-unused-function \
+		   -Wno-format-security -Wno-maybe-uninitialized \
+                   -Wno-error=implicit-function-declaration \
+                   -fno-delete-null-pointer-checks -Wno-error=unused-variable \
 		   -std=gnu89
 
 KBUILD_AFLAGS_KERNEL :=
